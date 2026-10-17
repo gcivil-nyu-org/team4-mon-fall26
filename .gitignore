@@ -16,6 +16,9 @@ media/
 .env
 .env.*
 
+# Elastic Beanstalk CLI local state (per developer, created by `eb init`)
+.elasticbeanstalk/
+
 # Editors / OS
 .idea/
 .vscode/
