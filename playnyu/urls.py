@@ -20,5 +20,8 @@ from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Temporary: Django's built-in login/logout until T9 (accounts) lands.
+    path("accounts/", include("django.contrib.auth.urls")),
+    path("teams/", include("teams.urls")),
     path("", include("core.urls")),
 ]

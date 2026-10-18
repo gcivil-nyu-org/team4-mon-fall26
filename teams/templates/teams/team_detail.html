@@ -1,0 +1,19 @@
+{% extends "teams/_layout.html" %}
+{% load teams_extras %}
+{% block title %}{{ team.name }} · PlayNYU{% endblock %}
+{% block content %}
+  <h1>{{ team.name }}</h1>
+  <p>{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}</p>
+  <h2>Roster</h2>
+  <ul>
+    {% for entry in roster %}
+      <li>
+        <a href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
+        {% if entry.role == "captain" %}(Captain){% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+  {% if is_captain %}
+    <p><a href="{% url 'teams:add_player' team.pk %}">Add a player</a></p>
+  {% endif %}
+{% endblock %}

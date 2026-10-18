@@ -8,5 +8,9 @@
 <body>
   <h1>PlayNYU</h1>
   <p>The Django skeleton is running.</p>
+  <ul>
+    <li><a href="{% url 'teams:list' %}">My teams</a></li>
+    <li><a href="{% url 'teams:create' %}">Create a team</a></li>
+  </ul>
 </body>
 </html>

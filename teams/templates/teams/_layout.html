@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PlayNYU{% endblock %}</title>
+</head>
+<body>
+  {# Temporary layout. Switch to the shared base.html when T4 lands. #}
+  <nav>
+    <a href="{% url 'core:home' %}">PlayNYU</a> |
+    <a href="{% url 'teams:list' %}">My teams</a> |
+    <a href="{% url 'teams:create' %}">Create a team</a> |
+    {% if user.is_authenticated %}
+      {{ user.email|default:user.username }}
+      <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button type="submit">Log out</button></form>
+    {% else %}
+      <a href="{% url 'login' %}">Log in</a>
+    {% endif %}
+  </nav>
+  {% if messages %}
+    <ul>{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% block content %}{% endblock %}
+</body>
+</html>
