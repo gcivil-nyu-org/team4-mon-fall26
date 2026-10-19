@@ -12,11 +12,16 @@
     <a href="{% url 'teams:list' %}">My teams</a> |
     <a href="{% url 'teams:create' %}">Create a team</a> |
     {% if user.is_authenticated %}
-      <a href="{% url 'profiles:edit' user.pk %}">Edit profile</a> |
+      {% if user.player_profile %}
+        <a href="{% url 'profiles:edit' user.pk %}">Edit profile</a> |
+      {% else %}
+        <a href="{% url 'profiles:create' %}">Create profile</a> |
+      {% endif %}
       {{ user.email|default:user.username }}
       <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button type="submit">Log out</button></form>
     {% else %}
-      <a href="{% url 'login' %}">Log in</a>
+      <a href="{% url 'login' %}">Log in</a> |
+      <a href="{% url 'accounts:signup' %}">Sign up</a>
     {% endif %}
   </nav>
   {% if messages %}

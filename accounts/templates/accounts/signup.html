@@ -1,0 +1,14 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Sign up · PlayNYU{% endblock %}
+{% block content %}
+  <h1>Sign up</h1>
+  {% if form.errors %}
+    <p>Your account was not created. Fix the errors below and submit again.</p>
+  {% endif %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Sign up</button>
+  </form>
+  <p>Already have an account? <a href="{% url 'login' %}">Log in</a></p>
+{% endblock %}
