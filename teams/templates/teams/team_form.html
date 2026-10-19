@@ -1,0 +1,10 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Create a team · PlayNYU{% endblock %}
+{% block content %}
+  <h1>Create a team</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Create team</button>
+  </form>
+{% endblock %}

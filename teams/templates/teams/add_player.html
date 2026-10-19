@@ -1,0 +1,11 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Add a player · PlayNYU{% endblock %}
+{% block content %}
+  <h1>Add a player to {{ team.name }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Add player</button>
+  </form>
+  <p><a href="{% url 'teams:detail' team.pk %}">Back to roster</a></p>
+{% endblock %}

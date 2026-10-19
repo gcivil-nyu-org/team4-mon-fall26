@@ -1,0 +1,12 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Log in · PlayNYU{% endblock %}
+{% block content %}
+  {# Temporary login page for the teams demo. Replaced by T9 (accounts). #}
+  <h1>Log in</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit">Log in</button>
+  </form>
+{% endblock %}

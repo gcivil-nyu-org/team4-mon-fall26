@@ -1,0 +1,12 @@
+{% extends "teams/_layout.html" %}
+{% block title %}My teams · PlayNYU{% endblock %}
+{% block content %}
+  <h1>My teams</h1>
+  <ul>
+    {% for team in teams %}
+      <li><a href="{% url 'teams:detail' team.pk %}">{{ team.name }}</a> ({{ team.sport }}{% if team.season %}, {{ team.season }}{% endif %})</li>
+    {% empty %}
+      <li>You're not on any teams yet. <a href="{% url 'teams:create' %}">Create one</a>.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

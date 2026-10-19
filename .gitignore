@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+*.log
+
+# Secrets / local config
+.env
+.env.*
+
+# Elastic Beanstalk CLI local state (per developer, created by `eb init`)
+.elasticbeanstalk/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
