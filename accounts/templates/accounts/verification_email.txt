@@ -1,0 +1,9 @@
+Welcome to PlayNYU!
+
+Confirm your NYU email address by opening this link:
+
+{{ link }}
+
+Until you confirm, you cannot log in. The link works once and expires after a few days.
+
+If you did not create a PlayNYU account, you can ignore this email.

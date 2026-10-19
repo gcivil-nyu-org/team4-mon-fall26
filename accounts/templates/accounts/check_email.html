@@ -1,0 +1,9 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Check your email · PlayNYU{% endblock %}
+{% block content %}
+  <h1>Check your NYU email</h1>
+  <p>We sent a confirmation link to your NYU address. Click it to verify your account.
+     Until you do, you cannot log in.</p>
+  <p>Nothing arrived? Check your spam folder, or <a href="{% url 'accounts:resend' %}">request a new link</a>.
+     If the address was mistyped or is not a real NYU email, the message never arrives and the account stays unverified.</p>
+{% endblock %}

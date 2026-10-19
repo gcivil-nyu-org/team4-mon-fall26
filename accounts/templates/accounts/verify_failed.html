@@ -1,0 +1,8 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Link not valid · PlayNYU{% endblock %}
+{% block content %}
+  <h1>This confirmation link is not valid</h1>
+  <p>The link may have expired, been copied incorrectly, or been replaced by a newer one.</p>
+  <p><a href="{% url 'accounts:resend' %}">Request a new confirmation email</a> or
+     <a href="{% url 'accounts:register' %}">register again</a>.</p>
+{% endblock %}

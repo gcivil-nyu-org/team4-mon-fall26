@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "core",
+    "accounts",
     "teams",
     "profiles",
 ]
@@ -144,13 +145,16 @@ STATIC_ROOT = BASE_DIR / "staticfiles"  # target of `manage.py collectstatic`
 
 MAILERS = {
     "default": {
+        # Console backend: confirmation emails are printed to the server log (`eb logs` on AWS)
+        # instead of being sent. Switch to a real backend (e.g. Amazon SES) to email students.
         "BACKEND": "django.core.mail.backends.console.EmailBackend",
     },
 }
+DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "PlayNYU <noreply@playnyu.local>")
 
 
 # Auth redirects
-# Temporary: uses Django's built-in login views until T9 (accounts) lands.
+# Login and logout are served by the accounts app (see playnyu/urls.py).
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "teams:list"
 LOGOUT_REDIRECT_URL = "core:home"

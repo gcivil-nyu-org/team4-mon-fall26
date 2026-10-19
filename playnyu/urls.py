@@ -16,12 +16,17 @@ Including another URLconf
 """
 
 from django.contrib import admin
+from django.contrib.auth.views import LogoutView
 from django.urls import include, path
+
+from accounts.views import NYULoginView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Temporary: Django's built-in login/logout until T9 (accounts) lands.
-    path("accounts/", include("django.contrib.auth.urls")),
+    # Login and logout keep the names "login" and "logout" that the rest of the project uses.
+    path("accounts/login/", NYULoginView.as_view(), name="login"),
+    path("accounts/logout/", LogoutView.as_view(), name="logout"),
+    path("accounts/", include("accounts.urls")),
     path("teams/", include("teams.urls")),
     path("profiles/", include("profiles.urls")),
     path("", include("core.urls")),

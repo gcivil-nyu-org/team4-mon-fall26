@@ -1,0 +1,14 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Register · PlayNYU{% endblock %}
+{% block content %}
+  {# Uses the temporary layout until the shared base.html (T4) lands. #}
+  <h1>Register</h1>
+  <p>Sign up with your NYU email. We will send a confirmation link to that address.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Create account</button>
+  </form>
+  <p>Already registered? <a href="{% url 'login' %}">Log in</a>.
+     Did not get the email? <a href="{% url 'accounts:resend' %}">Send it again</a>.</p>
+{% endblock %}

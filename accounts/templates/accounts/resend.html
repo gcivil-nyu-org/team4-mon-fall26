@@ -1,0 +1,11 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Resend confirmation · PlayNYU{% endblock %}
+{% block content %}
+  <h1>Send the confirmation email again</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Send link</button>
+  </form>
+  <p><a href="{% url 'login' %}">Back to log in</a></p>
+{% endblock %}

@@ -11,6 +11,10 @@
   <ul>
     <li><a href="{% url 'teams:list' %}">My teams</a></li>
     <li><a href="{% url 'teams:create' %}">Create a team</a></li>
+    {% if not user.is_authenticated %}
+      <li><a href="{% url 'accounts:register' %}">Register</a></li>
+      <li><a href="{% url 'login' %}">Log in</a></li>
+    {% endif %}
   </ul>
 </body>
 </html>
