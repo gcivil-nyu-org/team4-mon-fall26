@@ -62,11 +62,12 @@ class EditProfileTests(TestCase):
         profile = PlayerProfile.objects.get(user=self.user)
         self.assertEqual((profile.n_number, profile.net_id), ("N87654321", "sp9876"))
 
-    def test_first_save_creates_the_profile(self):
+    def test_edit_without_profile_redirects_to_create(self):
         newcomer = make_user("newcomer")
         self.client.force_login(newcomer)
-        self.client.post(reverse("profiles:edit", args=[newcomer.pk]), VALID)
-        self.assertEqual(PlayerProfile.objects.get(user=newcomer).net_id, "sp9876")
+        response = self.client.post(reverse("profiles:edit", args=[newcomer.pk]), VALID)
+        self.assertRedirects(response, reverse("profiles:create"))
+        self.assertFalse(PlayerProfile.objects.filter(user=newcomer).exists())
 
     def test_valid_update_redirects_so_refresh_does_not_resubmit(self):
         response = self.client.post(self.url, VALID)
@@ -139,3 +140,68 @@ class EditProfileTests(TestCase):
     def test_nav_links_to_edit_profile(self):
         response = self.client.get(reverse("teams:list"))
         self.assertContains(response, self.url)
+
+
+class CreateProfileTests(TestCase):
+    def setUp(self):
+        self.user = make_user("newcomer")
+        self.url = reverse("profiles:create")
+        self.client.force_login(self.user)
+
+    def test_form_is_shown_with_name_prefilled(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<h1>Create profile</h1>", html=True)
+        self.assertContains(response, 'value="Alex"')
+        self.assertContains(response, 'name="n_number"')
+        self.assertContains(response, 'name="net_id"')
+
+    def test_valid_profile_is_created_and_saved(self):
+        response = self.client.post(self.url, VALID, follow=True)
+        profile = PlayerProfile.objects.get(user=self.user)
+        self.user.refresh_from_db()
+        self.assertEqual(
+            (self.user.first_name, self.user.last_name, profile.n_number, profile.net_id),
+            ("Sam", "Park", "N87654321", "sp9876"),
+        )
+        self.assertContains(response, "Your profile has been created.")
+
+    def test_valid_create_redirects_so_refresh_does_not_resubmit(self):
+        response = self.client.post(self.url, VALID)
+        self.assertEqual(response.status_code, 302)
+
+    def test_invalid_create_saves_nothing(self):
+        response = self.client.post(self.url, {**VALID, "n_number": "123"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Your profile was not created.")
+        self.assertContains(response, "N followed by 8 digits")
+        self.assertFalse(PlayerProfile.objects.filter(user=self.user).exists())
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Alex")
+
+    def test_duplicate_net_id_rejected(self):
+        make_user("other", n_number="N11111111", net_id="sp9876")
+        response = self.client.post(self.url, VALID)
+        self.assertContains(response, "This NetID is already used by another account.")
+        self.assertFalse(PlayerProfile.objects.filter(user=self.user).exists())
+
+    def test_existing_profile_redirects_to_edit(self):
+        PlayerProfile.objects.create(user=self.user, n_number="N12345678", net_id="al1234")
+        response = self.client.post(self.url, VALID)
+        self.assertRedirects(response, reverse("profiles:edit", args=[self.user.pk]))
+        self.assertEqual(PlayerProfile.objects.get(user=self.user).net_id, "al1234")
+
+    def test_signed_out_user_is_sent_to_login(self):
+        self.client.logout()
+        response = self.client.post(self.url, VALID)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+        self.assertFalse(PlayerProfile.objects.exists())
+
+    def test_nav_shows_create_then_edit(self):
+        response = self.client.get(reverse("teams:list"))
+        self.assertContains(response, self.url)
+        self.assertNotContains(response, reverse("profiles:edit", args=[self.user.pk]))
+        self.client.post(self.url, VALID)
+        response = self.client.get(reverse("teams:list"))
+        self.assertContains(response, reverse("profiles:edit", args=[self.user.pk]))
