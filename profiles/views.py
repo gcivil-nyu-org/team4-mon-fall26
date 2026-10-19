@@ -2,11 +2,11 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
 
 from .forms import ProfileForm
+from .models import PlayerProfile
 
 
 def _profile_url(user):
@@ -24,10 +24,11 @@ def edit_profile(request, pk):
     if user.pk != request.user.pk:
         raise PermissionDenied("You can only edit your own profile.")
 
-    form = ProfileForm(request.POST or None, instance=user)
+    # TODO(T8): verification will create the profile; until then it's created on first save.
+    profile = PlayerProfile.objects.filter(user=user).first() or PlayerProfile(user=user)
+    form = ProfileForm(request.POST or None, instance=profile, user=user)
     if request.method == "POST" and form.is_valid():
-        with transaction.atomic():
-            form.save()
+        form.save()  # one transaction for the user and profile rows
         messages.success(request, "Your profile has been updated.")
         return redirect(_profile_url(user))
     # Invalid submissions fall through: the form is shown again with errors and nothing is saved.
