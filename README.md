@@ -2,6 +2,9 @@
 
 Django project for Team 4.
 
+## Links
+- Prod: http://playnyu-prod.eba-ax4phmwp.us-east-2.elasticbeanstalk.com/
+
 ## Branches
 
 - `main`: production (deploys to the production AWS account)
