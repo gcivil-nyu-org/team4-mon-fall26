@@ -23,5 +23,6 @@ urlpatterns = [
     # Temporary: Django's built-in login/logout until T9 (accounts) lands.
     path("accounts/", include("django.contrib.auth.urls")),
     path("teams/", include("teams.urls")),
+    path("profiles/", include("profiles.urls")),
     path("", include("core.urls")),
 ]
