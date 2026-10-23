@@ -18,10 +18,13 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from accounts.views import PlayNYULoginView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Temporary: Django's built-in login/logout until T9 (accounts) lands.
+    path("accounts/login/", PlayNYULoginView.as_view(), name="login"),
     path("accounts/", include("accounts.urls")),
+    # Django's built-in logout and password views.
     path("accounts/", include("django.contrib.auth.urls")),
     path("teams/", include("teams.urls")),
     path("profiles/", include("profiles.urls")),

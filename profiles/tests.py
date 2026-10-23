@@ -137,10 +137,85 @@ class EditProfileTests(TestCase):
         self.assertIn(reverse("login"), response.url)
         self.assert_unchanged()
 
-    def test_nav_links_to_edit_profile(self):
+    def test_nav_links_to_my_profile(self):
         response = self.client.get(reverse("teams:list"))
+        self.assertContains(response, reverse("profiles:detail", args=[self.user.pk]))
+
+class ProfileDetailTests(TestCase):
+    def setUp(self):
+        from teams.models import Roster, Team
+
+        self.owner = make_user("owner", n_number="N12345678", net_id="al1234")
+        self.viewer = make_user("viewer", first_name="Jo", last_name="Kim")
+        self.url = reverse("profiles:detail", args=[self.owner.pk])
+        mine = Team.objects.create(name="Violets", sport="Soccer", captain=self.owner)
+        Roster.objects.create(team=mine, player=self.owner, role=Roster.Role.CAPTAIN)
+        self.shared = mine
+        other = Team.objects.create(name="Bobcats", sport="Basketball", captain=self.owner)
+        Roster.objects.create(team=other, player=self.owner, role=Roster.Role.CAPTAIN)
+        Roster.objects.create(team=mine, player=self.viewer)
+        self.client.force_login(self.viewer)
+
+    def test_shows_name_and_teams(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Alex Lee")
+        self.assertContains(response, "Violets")
+        self.assertContains(response, "Bobcats")
+
+    def test_email_is_not_shown_to_other_players(self):
+        self.assertNotContains(self.client.get(self.url), "owner@nyu.edu")
+
+    def test_n_number_and_net_id_hidden_from_others(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, "N12345678")
+        self.assertNotContains(response, "al1234")
+        self.assertNotContains(response, reverse("profiles:edit", args=[self.owner.pk]))
+
+    def test_owner_sees_own_details_and_edit_link(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, "N12345678")
+        self.assertContains(response, "al1234")
+        self.assertContains(response, reverse("profiles:edit", args=[self.owner.pk]))
+
+    def test_only_shared_teams_are_links(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, reverse("teams:detail", args=[self.shared.pk]))
+        other = self.owner.roster_entries.exclude(team=self.shared).get().team
+        self.assertNotContains(response, reverse("teams:detail", args=[other.pk]))
+
+    def test_player_without_teams(self):
+        response = self.client.get(reverse("profiles:detail", args=[self.viewer.pk]))
+        self.assertContains(response, "Violets")
+        loner = make_user("loner")
+        response = self.client.get(reverse("profiles:detail", args=[loner.pk]))
+        self.assertContains(response, "Not on any teams yet.")
+
+    def test_unknown_or_unverified_player_is_404(self):
+        self.assertEqual(self.client.get(reverse("profiles:detail", args=[99999])).status_code, 404)
+        pending = make_user("pending")
+        pending.is_active = False
+        pending.save()
+        self.assertEqual(self.client.get(reverse("profiles:detail", args=[pending.pk])).status_code, 404)
+
+    def test_signed_out_user_is_sent_to_login(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_roster_links_to_player_profiles(self):
+        response = self.client.get(reverse("teams:detail", args=[self.shared.pk]))
         self.assertContains(response, self.url)
 
+    def test_saving_edit_goes_to_profile_page(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(
+            reverse("profiles:edit", args=[self.owner.pk]),
+            {"first_name": "Sam", "last_name": "Park", "n_number": "N87654321", "net_id": "sp9876"},
+        )
+        self.assertRedirects(response, self.url)
 
 class CreateProfileTests(TestCase):
     def setUp(self):
@@ -198,10 +273,8 @@ class CreateProfileTests(TestCase):
         self.assertIn(reverse("login"), response.url)
         self.assertFalse(PlayerProfile.objects.exists())
 
-    def test_nav_shows_create_then_edit(self):
+    def test_nav_shows_my_profile_and_edit_leads_to_create(self):
         response = self.client.get(reverse("teams:list"))
-        self.assertContains(response, self.url)
-        self.assertNotContains(response, reverse("profiles:edit", args=[self.user.pk]))
-        self.client.post(self.url, VALID)
-        response = self.client.get(reverse("teams:list"))
-        self.assertContains(response, reverse("profiles:edit", args=[self.user.pk]))
+        self.assertContains(response, reverse("profiles:detail", args=[self.user.pk]))
+        response = self.client.get(reverse("profiles:edit", args=[self.user.pk]))
+        self.assertRedirects(response, self.url)

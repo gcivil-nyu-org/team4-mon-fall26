@@ -1,0 +1,31 @@
+{% extends "teams/_layout.html" %}
+{% block title %}{{ player.get_full_name|default:"Player" }} · PlayNYU{% endblock %}
+{% block content %}
+  <h1>{{ player.get_full_name|default:"PlayNYU player" }}</h1>
+
+  {% if is_owner %}
+    <h2>Your details</h2>
+    <p>Only you can see these.</p>
+    <ul>
+      <li>N number: {{ profile.n_number|default:"not added yet" }}</li>
+      <li>NetID: {{ profile.net_id|default:"not added yet" }}</li>
+    </ul>
+    <p><a href="{% url 'profiles:edit' player.pk %}">Edit profile</a></p>
+  {% endif %}
+
+  <h2>Teams</h2>
+  <ul>
+    {% for item in teams %}
+      <li>
+        {% if item.can_open %}
+          <a href="{% url 'teams:detail' item.entry.team.pk %}">{{ item.entry.team.name }}</a>
+        {% else %}
+          {{ item.entry.team.name }}
+        {% endif %}
+        ({{ item.entry.team.sport }}{% if item.entry.team.season %}, {{ item.entry.team.season }}{% endif %}){% if item.entry.role == "captain" %}, Captain{% endif %}
+      </li>
+    {% empty %}
+      <li>Not on any teams yet.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

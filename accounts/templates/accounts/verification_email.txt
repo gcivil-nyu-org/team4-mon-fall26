@@ -1,0 +1,9 @@
+Hi {{ user.first_name|default:"there" }},
+
+Confirm your PlayNYU account by opening this link:
+
+{{ link }}
+
+The link works once and expires in 24 hours. If you didn't sign up for PlayNYU, you can ignore this email.
+
+PlayNYU

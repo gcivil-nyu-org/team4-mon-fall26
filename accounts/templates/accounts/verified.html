@@ -1,0 +1,10 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Email confirmed · PlayNYU{% endblock %}
+{% block content %}
+  <h1>Email confirmed</h1>
+  <p>Thanks{% if user.first_name %}, {{ user.first_name }}{% endif %}. Your PlayNYU account is active.</p>
+  <p>Log in, then add your N number and NetID on your profile.</p>
+  <form method="get" action="{% url 'login' %}">
+    <button type="submit">Log in</button>
+  </form>
+{% endblock %}
