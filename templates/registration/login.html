@@ -2,6 +2,7 @@
 {% block title %}Log in · PlayNYU{% endblock %}
 {% block content %}
   <h1>Log in</h1>
+  <p>Log in with your NYU email.</p>
   <form method="post">
     {% csrf_token %}
     {{ form.as_p }}

@@ -6,5 +6,6 @@ app_name = "profiles"
 
 urlpatterns = [
     path("<int:pk>/", views.profile_detail, name="detail"),
+    path("new/", views.create_profile, name="create"),
     path("<int:pk>/edit/", views.edit_profile, name="edit"),
 ]

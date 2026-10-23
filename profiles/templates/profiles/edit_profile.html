@@ -1,13 +1,13 @@
 {% extends "teams/_layout.html" %}
-{% block title %}Edit profile · PlayNYU{% endblock %}
+{% block title %}{{ heading|default:"Edit profile" }} · PlayNYU{% endblock %}
 {% block content %}
-  <h1>Edit profile</h1>
+  <h1>{{ heading|default:"Edit profile" }}</h1>
   {% if form.errors %}
-    <p>Your profile was not updated. Fix the errors below and submit again.</p>
+    <p>Your profile was not {{ rejected|default:"updated" }}. Fix the errors below and submit again.</p>
   {% endif %}
   <form method="post" novalidate>
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">Save changes</button>
+    <button type="submit">{{ button|default:"Save changes" }}</button>
   </form>
 {% endblock %}
