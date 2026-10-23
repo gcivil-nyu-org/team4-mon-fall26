@@ -1,0 +1,17 @@
+{% extends "teams/_layout.html" %}
+{% block title %}{% if resend_only %}New confirmation link{% else %}Link expired{% endif %} · PlayNYU{% endblock %}
+{% block content %}
+  {% if resend_only %}
+    <h1>Get a new confirmation link</h1>
+  {% else %}
+    <h1>This link has expired or is not valid</h1>
+    <p>Confirmation links work once and expire after 24 hours. If you already confirmed your email, just log in.</p>
+  {% endif %}
+  <p>Enter your NYU email and we'll send a new link.</p>
+  <form method="post" action="{% url 'accounts:resend' %}" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Send a new link</button>
+  </form>
+  <p><a href="{% url 'login' %}">Log in</a></p>
+{% endblock %}

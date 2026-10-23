@@ -3,18 +3,30 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import NoReverseMatch, reverse
+from django.urls import reverse
 
 from .forms import ProfileForm
 from .models import PlayerProfile
 
 
 def _profile_url(user):
-    """The profile page, or the edit page until the profile page (T11) exists."""
-    try:
-        return reverse("profiles:detail", args=[user.pk])
-    except NoReverseMatch:
-        return reverse("profiles:edit", args=[user.pk])
+    return reverse("profiles:detail", args=[user.pk])
+
+
+@login_required
+def profile_detail(request, pk):
+    """Any signed in user can view a player's profile. Email is never shown;
+    N number and NetID are shown only to the profile's owner."""
+    player = get_object_or_404(get_user_model(), pk=pk, is_active=True)
+    profile = PlayerProfile.objects.filter(user=player).first()
+    my_team_ids = set(request.user.roster_entries.values_list("team_id", flat=True))
+    roster = player.roster_entries.select_related("team", "team__season").order_by("-joined_at")
+    teams = [{"entry": entry, "can_open": entry.team_id in my_team_ids} for entry in roster]
+    return render(
+        request,
+        "profiles/profile_detail.html",
+        {"player": player, "profile": profile, "teams": teams, "is_owner": player.pk == request.user.pk},
+    )
 
 
 @login_required

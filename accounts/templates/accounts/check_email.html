@@ -1,0 +1,16 @@
+{% extends "teams/_layout.html" %}
+{% block title %}Check your email · PlayNYU{% endblock %}
+{% block content %}
+  <h1>Check your email</h1>
+  <p>
+    We sent a confirmation link to {% if email %}<strong>{{ email }}</strong>{% else %}your NYU email{% endif %}.
+    Open it to activate your account. The link works once and expires in 24 hours.
+  </p>
+  <p>Didn't get it? Check your spam folder, or request a new link.</p>
+  <form method="post" action="{% url 'accounts:resend' %}">
+    {% csrf_token %}
+    <input type="hidden" name="email" value="{{ email|default:'' }}">
+    {% if email %}<button type="submit">Send a new link</button>{% endif %}
+  </form>
+  {% if not email %}<p><a href="{% url 'accounts:resend' %}">Request a new link</a></p>{% endif %}
+{% endblock %}
