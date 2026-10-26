@@ -13,8 +13,7 @@ class SignUpForm(UserCreationForm):
     """The NYU email doubles as the username, so users log in with their email."""
 
     email = forms.EmailField(
-        label="NYU email",
-        help_text="Usually your NetID, e.g. ab1234@nyu.edu."
+        label="NYU email", help_text="Usually your NetID, e.g. ab1234@nyu.edu."
     )
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
@@ -27,9 +26,7 @@ class SignUpForm(UserCreationForm):
         email = self.cleaned_data["email"].strip().lower()
 
         if not email.endswith(NYU_DOMAIN):
-            raise forms.ValidationError(
-                "Please use your NYU ID (an @nyu.edu email)."
-            )
+            raise forms.ValidationError("Please use your NYU ID (an @nyu.edu email).")
 
         User = get_user_model()
 
@@ -64,15 +61,19 @@ class LoginForm(AuthenticationForm):
         self.fields["username"].label = "NYU email"
 
         # Classes come from the template (docs/DESIGN.md, "Forms").
-        self.fields["username"].widget.attrs.update({
-            "placeholder": "yourname@nyu.edu",
-            "autocomplete": "username",
-        })
+        self.fields["username"].widget.attrs.update(
+            {
+                "placeholder": "yourname@nyu.edu",
+                "autocomplete": "username",
+            }
+        )
 
-        self.fields["password"].widget.attrs.update({
-            "placeholder": "Enter your password",
-            "autocomplete": "current-password",
-        })
+        self.fields["password"].widget.attrs.update(
+            {
+                "placeholder": "Enter your password",
+                "autocomplete": "current-password",
+            }
+        )
 
     def clean_username(self):
         return self.cleaned_data["username"].strip().lower()
@@ -84,20 +85,16 @@ class LoginForm(AuthenticationForm):
         except forms.ValidationError:
             username = self.cleaned_data.get("username") or ""
 
-            user = get_user_model().objects.filter(
-                username__iexact=username,
-                is_active=False
-            ).first()
+            user = (
+                get_user_model()
+                .objects.filter(username__iexact=username, is_active=False)
+                .first()
+            )
 
             # Only say "unverified" when the password is right,
             # so the form doesn't reveal who has an account.
-            if user and user.check_password(
-                self.cleaned_data.get("password") or ""
-            ):
-                raise forms.ValidationError(
-                    UNVERIFIED_MESSAGE,
-                    code="unverified"
-                )
+            if user and user.check_password(self.cleaned_data.get("password") or ""):
+                raise forms.ValidationError(UNVERIFIED_MESSAGE, code="unverified")
 
             raise
 

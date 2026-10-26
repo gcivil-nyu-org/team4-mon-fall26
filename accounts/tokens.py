@@ -18,7 +18,9 @@ class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
             ts = base36_to_int(token.split("-")[0])
         except ValueError:
             return False
-        return self._num_seconds(self._now()) - ts <= settings.EMAIL_VERIFICATION_TIMEOUT
+        return (
+            self._num_seconds(self._now()) - ts <= settings.EMAIL_VERIFICATION_TIMEOUT
+        )
 
 
 email_verification_token = EmailVerificationTokenGenerator()

@@ -20,12 +20,21 @@ def profile_detail(request, pk):
     player = get_object_or_404(get_user_model(), pk=pk, is_active=True)
     profile = PlayerProfile.objects.filter(user=player).first()
     my_team_ids = set(request.user.roster_entries.values_list("team_id", flat=True))
-    roster = player.roster_entries.select_related("team", "team__season").order_by("-joined_at")
-    teams = [{"entry": entry, "can_open": entry.team_id in my_team_ids} for entry in roster]
+    roster = player.roster_entries.select_related("team", "team__season").order_by(
+        "-joined_at"
+    )
+    teams = [
+        {"entry": entry, "can_open": entry.team_id in my_team_ids} for entry in roster
+    ]
     return render(
         request,
         "profiles/profile_detail.html",
-        {"player": player, "profile": profile, "teams": teams, "is_owner": player.pk == request.user.pk},
+        {
+            "player": player,
+            "profile": profile,
+            "teams": teams,
+            "is_owner": player.pk == request.user.pk,
+        },
     )
 
 
@@ -56,7 +65,9 @@ def create_profile(request):
 
     # Loaded separately from request.user so a rejected form never touches the signed-in user object.
     user = get_user_model().objects.get(pk=request.user.pk)
-    form = ProfileForm(request.POST or None, instance=PlayerProfile(user=user), user=user)
+    form = ProfileForm(
+        request.POST or None, instance=PlayerProfile(user=user), user=user
+    )
     if request.method == "POST" and form.is_valid():
         form.save()  # one transaction for the user and profile rows
         messages.success(request, "Your profile has been created.")
@@ -64,5 +75,10 @@ def create_profile(request):
     return render(
         request,
         "profiles/edit_profile.html",
-        {"form": form, "heading": "Create profile", "button": "Create profile", "rejected": "created"},
+        {
+            "form": form,
+            "heading": "Create profile",
+            "button": "Create profile",
+            "rejected": "created",
+        },
     )
