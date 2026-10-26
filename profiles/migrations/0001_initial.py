@@ -15,12 +15,51 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='PlayerProfile',
+            name="PlayerProfile",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('n_number', models.CharField(blank=True, error_messages={'unique': 'This N number is already used by another account.'}, max_length=9, null=True, unique=True, verbose_name='N number')),
-                ('net_id', models.CharField(blank=True, error_messages={'unique': 'This NetID is already used by another account.'}, max_length=20, null=True, unique=True, verbose_name='NetID')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='player_profile', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "n_number",
+                    models.CharField(
+                        blank=True,
+                        error_messages={
+                            "unique": "This N number is already used by another account."
+                        },
+                        max_length=9,
+                        null=True,
+                        unique=True,
+                        verbose_name="N number",
+                    ),
+                ),
+                (
+                    "net_id",
+                    models.CharField(
+                        blank=True,
+                        error_messages={
+                            "unique": "This NetID is already used by another account."
+                        },
+                        max_length=20,
+                        null=True,
+                        unique=True,
+                        verbose_name="NetID",
+                    ),
+                ),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="player_profile",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]

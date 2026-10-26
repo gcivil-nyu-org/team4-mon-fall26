@@ -1,0 +1,9 @@
+[tool.black]
+line-length = 88
+extend-exclude = '''
+/(
+    venv
+  | \.elasticbeanstalk
+  | staticfiles
+)/
+'''

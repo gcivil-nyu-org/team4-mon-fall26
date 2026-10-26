@@ -37,13 +37,17 @@ class ProfileForm(forms.ModelForm):
     def clean_n_number(self):
         value = self.cleaned_data["n_number"].strip().upper()
         if not N_NUMBER_RE.match(value):
-            raise forms.ValidationError("Enter your N number as N followed by 8 digits, e.g. N12345678.")
+            raise forms.ValidationError(
+                "Enter your N number as N followed by 8 digits, e.g. N12345678."
+            )
         return value
 
     def clean_net_id(self):
         value = self.cleaned_data["net_id"].strip().lower()
         if not NET_ID_RE.match(value):
-            raise forms.ValidationError("Enter your NetID as letters followed by digits, e.g. ab1234.")
+            raise forms.ValidationError(
+                "Enter your NetID as letters followed by digits, e.g. ab1234."
+            )
         return value
 
     def save(self):
