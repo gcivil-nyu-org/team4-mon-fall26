@@ -1,12 +1,31 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}My teams · PlayNYU{% endblock %}
 {% block content %}
-  <h1>My teams</h1>
-  <ul>
-    {% for team in teams %}
-      <li><a href="{% url 'teams:detail' team.pk %}">{{ team.name }}</a> ({{ team.sport }}{% if team.season %}, {{ team.season }}{% endif %})</li>
-    {% empty %}
-      <li>You're not on any teams yet. <a href="{% url 'teams:create' %}">Create one</a>.</li>
-    {% endfor %}
-  </ul>
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">My teams</h1>
+    <a class="btn btn-primary" href="{% url 'teams:create' %}">Create a team</a>
+  </div>
+  {% if teams %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+      {% for team in teams %}
+        <div class="col">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <h2 class="h5 card-title">
+                <a class="stretched-link text-decoration-none" href="{% url 'teams:detail' team.pk %}">{{ team.name }}</a>
+              </h2>
+              <p class="card-text text-body-secondary mb-0">
+                {{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card card-body text-center py-5">
+      <p class="mb-3">You're not on any teams yet.</p>
+      <div><a class="btn btn-primary" href="{% url 'teams:create' %}">Create one</a></div>
+    </div>
+  {% endif %}
 {% endblock %}

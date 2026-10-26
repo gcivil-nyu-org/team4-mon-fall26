@@ -1,19 +1,48 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% load teams_extras %}
 {% block title %}{{ team.name }} · PlayNYU{% endblock %}
 {% block content %}
-  <h1>{{ team.name }}</h1>
-  <p>{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}</p>
-  <h2>Roster</h2>
-  <ul>
-    {% for entry in roster %}
-      <li>
-        <a href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
-        {% if entry.role == "captain" %}(Captain){% endif %}
-      </li>
-    {% endfor %}
-  </ul>
-  {% if is_captain %}
-    <p><a href="{% url 'teams:add_player' team.pk %}">Add a player</a></p>
-  {% endif %}
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-4">
+    <div>
+      <h1 class="h2 mb-1">{{ team.name }}</h1>
+      <p class="text-body-secondary mb-0">{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}</p>
+    </div>
+    <div class="d-flex gap-2">
+      {% if is_captain %}
+        {% if is_full %}
+          <button class="btn btn-secondary" type="button" disabled>Roster full</button>
+        {% else %}
+          <a class="btn btn-primary" href="{% url 'teams:add_player' team.pk %}">Add a player</a>
+        {% endif %}
+      {% else %}
+        <form method="post" action="{% url 'teams:leave' team.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-outline-danger" type="submit">Leave team</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between">
+      <h2 class="h5 mb-0">Roster</h2>
+      <span class="text-body-secondary">{{ roster|length }} / {{ team.max_roster_size }}</span>
+    </div>
+    <ul class="list-group list-group-flush">
+      {% for entry in roster %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>
+            <a href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
+            {% if entry.role == "captain" %}<span class="badge text-bg-primary ms-2">Captain</span>{% endif %}
+          </span>
+          {% if is_captain and entry.role == "player" %}
+            <form method="post" action="{% url 'teams:remove_player' team.pk entry.pk %}">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger" type="submit">Remove</button>
+            </form>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
 {% endblock %}
