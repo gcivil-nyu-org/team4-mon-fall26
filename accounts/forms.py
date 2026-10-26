@@ -9,7 +9,9 @@ UNVERIFIED_MESSAGE = "Please confirm your email first. Check your inbox for the 
 class SignUpForm(UserCreationForm):
     """The NYU email doubles as the username, so users log in with their email."""
 
-    email = forms.EmailField(label="NYU email", help_text="Usually your NetID, e.g. ab1234@nyu.edu.")
+    email = forms.EmailField(
+        label="NYU email", help_text="Usually your NetID, e.g. ab1234@nyu.edu."
+    )
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
 
@@ -22,7 +24,10 @@ class SignUpForm(UserCreationForm):
         if not email.endswith(NYU_DOMAIN):
             raise forms.ValidationError("Please use your NYU ID (an @nyu.edu email).")
         User = get_user_model()
-        if User.objects.filter(email__iexact=email).exists() or User.objects.filter(username__iexact=email).exists():
+        if (
+            User.objects.filter(email__iexact=email).exists()
+            or User.objects.filter(username__iexact=email).exists()
+        ):
             raise forms.ValidationError(
                 "An account with this email already exists. Log in, or request a new confirmation email."
             )
@@ -52,7 +57,11 @@ class LoginForm(AuthenticationForm):
             return super().clean()
         except forms.ValidationError:
             username = self.cleaned_data.get("username") or ""
-            user = get_user_model().objects.filter(username__iexact=username, is_active=False).first()
+            user = (
+                get_user_model()
+                .objects.filter(username__iexact=username, is_active=False)
+                .first()
+            )
             # Only say "unverified" when the password is right, so the form doesn't reveal who has an account.
             if user and user.check_password(self.cleaned_data.get("password") or ""):
                 raise forms.ValidationError(UNVERIFIED_MESSAGE, code="unverified")

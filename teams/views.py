@@ -23,7 +23,9 @@ def create_team(request):
             team = form.save(commit=False)
             team.captain = request.user
             team.save()
-            Roster.objects.create(team=team, player=request.user, role=Roster.Role.CAPTAIN)
+            Roster.objects.create(
+                team=team, player=request.user, role=Roster.Role.CAPTAIN
+            )
         messages.success(request, f"Team {team.name} created. You are the captain.")
         return redirect("teams:detail", pk=team.pk)
     return render(request, "teams/team_form.html", {"form": form})
@@ -40,7 +42,11 @@ def team_detail(request, pk):
     return render(
         request,
         "teams/team_detail.html",
-        {"team": team, "roster": roster, "is_captain": team.captain_id == request.user.pk},
+        {
+            "team": team,
+            "roster": roster,
+            "is_captain": team.captain_id == request.user.pk,
+        },
     )
 
 

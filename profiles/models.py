@@ -6,7 +6,9 @@ class PlayerProfile(models.Model):
     """One row per user. Holds the NYU identifiers the user edits on their profile."""
 
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="player_profile"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="player_profile",
     )
     # Nullable so profiles that haven't been filled in yet don't clash on uniqueness.
     n_number = models.CharField(
