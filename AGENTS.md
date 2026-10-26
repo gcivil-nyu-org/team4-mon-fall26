@@ -1,5 +1,7 @@
 # Instructions for coding agents
 
+These rules apply to every AI coding agent or assistant working in this repo, whichever tool it runs in, and to every task. This file is the single source of truth. Tool-specific files such as `CLAUDE.md` only point here, so put new rules in this file, not in those.
+
 PlayNYU is a Django app (Django templates, no JavaScript framework) deployed on AWS Elastic Beanstalk.
 
 ## UI work
