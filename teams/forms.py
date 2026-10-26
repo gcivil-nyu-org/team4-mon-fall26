@@ -67,8 +67,9 @@ class AddPlayerForm(BootstrapFormMixin, forms.Form):
             )
         current = season_team_for(user, self.team.season)
         if current is not None:
+            # Don't name the other team: the captain may not be allowed to see it.
             raise forms.ValidationError(
-                f"That player is already on {current.name} this season."
+                "That player is already on another team this season."
             )
 
         self.player = user

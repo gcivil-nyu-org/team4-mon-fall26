@@ -149,7 +149,7 @@ class RosterRuleTests(TestCase):
         other = make_team(make_user("cap2"), name="Others", season=self.season)
         Roster.objects.create(team=other, player=player)
         response = self.client.post(self.url, {"email": "player@nyu.edu"})
-        self.assertContains(response, "already on Others this season")
+        self.assertContains(response, "already on another team this season")
         self.assertFalse(self.team.roster.filter(player=player).exists())
 
     def test_player_on_team_in_other_season_allowed(self):

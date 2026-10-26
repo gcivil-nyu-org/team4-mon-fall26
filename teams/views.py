@@ -59,11 +59,20 @@ def add_player(request, pk):
         raise PermissionDenied("Only the captain can add players.")
 
     form = AddPlayerForm(request.POST or None, team=team)
-    if request.method == "POST" and form.is_valid():
-        # TODO: players are added without consent; replace with an invite/accept flow later.
-        Roster.objects.create(team=team, player=form.player, role=Roster.Role.PLAYER)
-        messages.success(request, f"Added {form.player.email} to {team.name}.")
-        return redirect("teams:detail", pk=team.pk)
+    if request.method == "POST":
+        with transaction.atomic():
+            # Lock the team so two adds can't both pass the roster-size check.
+            # TODO: the one-team-per-season check can still race across two teams.
+            Team.objects.select_for_update().get(pk=team.pk)
+            added = form.is_valid()
+            if added:
+                # TODO: players are added without consent; replace with an invite/accept flow later.
+                Roster.objects.create(
+                    team=team, player=form.player, role=Roster.Role.PLAYER
+                )
+        if added:
+            messages.success(request, f"Added {form.player.email} to {team.name}.")
+            return redirect("teams:detail", pk=team.pk)
     return render(request, "teams/add_player.html", {"form": form, "team": team})
 
 
