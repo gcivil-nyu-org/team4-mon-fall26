@@ -1,31 +1,368 @@
 {% extends "teams/_layout.html" %}
-{% block title %}{{ player.get_full_name|default:"Player" }} · PlayNYU{% endblock %}
+
+{% block title %}
+    {{ player.get_full_name|default:"Player" }} · PlayNYU
+{% endblock %}
+
 {% block content %}
-  <h1>{{ player.get_full_name|default:"PlayNYU player" }}</h1>
 
-  {% if is_owner %}
-    <h2>Your details</h2>
-    <p>Only you can see these.</p>
-    <ul>
-      <li>N number: {{ profile.n_number|default:"not added yet" }}</li>
-      <li>NetID: {{ profile.net_id|default:"not added yet" }}</li>
-    </ul>
-    <p><a href="{% url 'profiles:edit' player.pk %}">Edit profile</a></p>
-  {% endif %}
+<style>
+    /* Main profile background */
+    .profile-page {
+        min-height: 75vh;
+        background: linear-gradient(135deg, #efe9f7 0%, #faf8fc 100%);
+        border-radius: 24px;
+        padding: 48px 24px;
+    }
 
-  <h2>Teams</h2>
-  <ul>
-    {% for item in teams %}
-      <li>
-        {% if item.can_open %}
-          <a href="{% url 'teams:detail' item.entry.team.pk %}">{{ item.entry.team.name }}</a>
-        {% else %}
-          {{ item.entry.team.name }}
-        {% endif %}
-        ({{ item.entry.team.sport }}{% if item.entry.team.season %}, {{ item.entry.team.season }}{% endif %}){% if item.entry.role == "captain" %}, Captain{% endif %}
-      </li>
-    {% empty %}
-      <li>Not on any teams yet.</li>
-    {% endfor %}
-  </ul>
+    /* Profile card */
+    .profile-card {
+        background: #ffffff;
+        border-radius: 22px;
+        padding: 40px;
+        box-shadow: 0 18px 55px rgba(87, 6, 140, 0.13);
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    /* Profile header */
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-bottom: 30px;
+    }
+
+    /* Avatar placeholder */
+    .profile-avatar {
+        width: 85px;
+        height: 85px;
+        min-width: 85px;
+        border-radius: 50%;
+        background: #efe9f7;
+        color: #57068c;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .profile-title {
+        color: #57068c;
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 6px;
+    }
+
+    .profile-subtitle {
+        color: #6b7280;
+        margin-bottom: 0;
+    }
+
+    /* Section headings */
+    .profile-section-title {
+        color: #29213a;
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin-bottom: 18px;
+    }
+
+    /* Private details section */
+    .profile-details {
+        background: #faf8fc;
+        border: 1px solid #efe9f7;
+        border-radius: 16px;
+        padding: 25px;
+        margin-bottom: 30px;
+    }
+
+    .profile-detail-item {
+        margin-bottom: 16px;
+    }
+
+    .profile-detail-label {
+        display: block;
+        color: #6b7280;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .profile-detail-value {
+        color: #29213a;
+        font-size: 1rem;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+
+    /* Edit profile button */
+    .btn-nyu {
+        display: inline-block;
+        background: #57068c;
+        border: 1px solid #57068c;
+        color: #ffffff;
+        border-radius: 10px;
+        padding: 12px 22px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background-color 0.2s;
+    }
+
+    .btn-nyu:hover {
+        background: #43046d;
+        border-color: #43046d;
+        color: #ffffff;
+    }
+
+    /* Team cards */
+    .team-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 15px;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .team-card:hover {
+        border-color: #d8b4ef;
+        box-shadow: 0 5px 20px rgba(87, 6, 140, 0.08);
+    }
+
+    .team-name {
+        color: #57068c;
+        font-size: 1.1rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .team-name:hover {
+        color: #43046d;
+        text-decoration: underline;
+    }
+
+    .team-info {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+    }
+
+    /* Captain badge */
+    .captain-badge {
+        display: inline-block;
+        background: #efe9f7;
+        color: #57068c;
+        border-radius: 20px;
+        padding: 5px 12px;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    /* Empty teams state */
+    .empty-teams {
+        background: #faf8fc;
+        border: 1px dashed #d8b4ef;
+        border-radius: 14px;
+        padding: 30px;
+        text-align: center;
+        color: #6b7280;
+    }
+
+    /* Responsive layout */
+    @media (max-width: 767px) {
+        .profile-page {
+            padding: 20px 12px;
+            border-radius: 16px;
+        }
+
+        .profile-card {
+            padding: 25px 20px;
+        }
+
+        .profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .profile-title {
+            font-size: 1.6rem;
+        }
+
+        .profile-details {
+            padding: 20px;
+        }
+    }
+</style>
+
+<!-- MAIN PROFILE PAGE -->
+<div class="profile-page">
+
+    <div class="container">
+
+        <div class="profile-card">
+
+            <!-- PROFILE HEADER -->
+            <div class="profile-header">
+
+                <!-- Decorative avatar -->
+                <div class="profile-avatar" aria-hidden="true">
+                    {{ player.first_name|first|upper|default:"P" }}
+                </div>
+
+                <div>
+                    <h1 class="profile-title">
+                        {{ player.get_full_name|default:"PlayNYU player" }}
+                    </h1>
+
+                    <p class="profile-subtitle">
+                        PlayNYU Student Profile
+                    </p>
+                </div>
+
+            </div>
+
+            <hr class="my-4">
+
+            <!-- PRIVATE STUDENT DETAILS -->
+            {% if is_owner %}
+
+                <section class="profile-details">
+
+                    <h2 class="profile-section-title">
+                        Your Details
+                    </h2>
+
+                    <p class="text-muted small mb-4">
+                        Only you can see this information.
+                    </p>
+
+                    <div class="row">
+
+                        <!-- N Number -->
+                        <div class="col-12 col-md-6 profile-detail-item">
+
+                            <span class="profile-detail-label">
+                                N Number
+                            </span>
+
+                            <span class="profile-detail-value">
+                                {{ profile.n_number|default:"Not added yet" }}
+                            </span>
+
+                        </div>
+
+                        <!-- NetID -->
+                        <div class="col-12 col-md-6 profile-detail-item">
+
+                            <span class="profile-detail-label">
+                                NetID
+                            </span>
+
+                            <span class="profile-detail-value">
+                                {{ profile.net_id|default:"Not added yet" }}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                    <!-- Edit profile button -->
+                    <a
+                        href="{% url 'profiles:edit' player.pk %}"
+                        class="btn-nyu mt-2"
+                    >
+                        Edit Profile
+                    </a>
+
+                </section>
+
+            {% endif %}
+
+            <!-- TEAMS SECTION -->
+            <section class="profile-teams">
+
+                <h2 class="profile-section-title">
+                    Teams
+                </h2>
+
+                <div class="row">
+
+                    {% for item in teams %}
+
+                        <div class="col-12 col-md-6">
+
+                            <div class="team-card h-100">
+
+                                <!-- Team name -->
+                                <h3 class="h5 mb-2">
+
+                                    {% if item.can_open %}
+
+                                        <a
+                                            href="{% url 'teams:detail' item.entry.team.pk %}"
+                                            class="team-name"
+                                        >
+                                            {{ item.entry.team.name }}
+                                        </a>
+
+                                    {% else %}
+
+                                        <span class="team-name">
+                                            {{ item.entry.team.name }}
+                                        </span>
+
+                                    {% endif %}
+
+                                </h3>
+
+                                <!-- Sport -->
+                                <p class="team-info">
+                                    <strong>Sport:</strong>
+                                    {{ item.entry.team.sport }}
+                                </p>
+
+                                <!-- Season -->
+                                {% if item.entry.team.season %}
+                                    <p class="team-info mt-1">
+                                        <strong>Season:</strong>
+                                        {{ item.entry.team.season }}
+                                    </p>
+                                {% endif %}
+
+                                <!-- Captain badge -->
+                                {% if item.entry.role == "captain" %}
+                                    <div class="mt-3">
+                                        <span class="captain-badge">
+                                            Captain
+                                        </span>
+                                    </div>
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% empty %}
+
+                        <div class="col-12">
+                            <div class="empty-teams">
+                                <p class="mb-0">
+                                    Not on any teams yet.
+                                </p>
+                            </div>
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </div>
+
+</div>
+
 {% endblock %}
