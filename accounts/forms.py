@@ -63,14 +63,13 @@ class LoginForm(AuthenticationForm):
 
         self.fields["username"].label = "NYU email"
 
+        # Classes come from the template (docs/DESIGN.md, "Forms").
         self.fields["username"].widget.attrs.update({
-            "class": "form-control form-control-lg",
             "placeholder": "yourname@nyu.edu",
             "autocomplete": "username",
         })
 
         self.fields["password"].widget.attrs.update({
-            "class": "form-control form-control-lg",
             "placeholder": "Enter your password",
             "autocomplete": "current-password",
         })
