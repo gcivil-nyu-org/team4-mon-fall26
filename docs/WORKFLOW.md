@@ -7,8 +7,18 @@
 | `testing` | The testing AWS environment (Travis deploys it when the build passes) | Feature branches, through a reviewed PR |
 | `main` | Production (Travis deploys it when the build passes) | Only `testing`, after the change has been checked on the testing site |
 
-- Branch from `testing`: `yourname/short-description` (e.g. `nihal/roster-rules`).
+- Never commit or push to `main` directly, and never open a PR into `main` from a feature branch. Every push to `main` deploys to production.
+- Don't commit straight to `testing` either: work on your own branch and merge it through a PR.
+- Branch from the latest `testing`: `yourname/short-description` (e.g. `nihal/roster-rules`).
 - Open every PR against `testing`, never straight to `main`.
+
+### From your branch to production
+
+1. Branch from `testing`, build, and run the checks below locally.
+2. Open a PR into `testing`. It needs a review and a green Travis build, then merge.
+3. Travis deploys `testing` to the testing site. Check your change there.
+4. Once `testing` is good, a team member opens a PR from `testing` into `main`. It needs a review and a green build, then merge. Travis deploys `main` to production.
+5. If `main` ever gets a change that `testing` doesn't have, merge `main` back into `testing` through a PR before the next `testing` → `main` PR.
 - Keep PRs to one card where you can. If a PR depends on another open PR, say so at the top of the description.
 
 ## Pull requests
