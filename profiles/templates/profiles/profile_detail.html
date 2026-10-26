@@ -1,31 +1,68 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}{{ player.get_full_name|default:"Player" }} · PlayNYU{% endblock %}
 {% block content %}
-  <h1>{{ player.get_full_name|default:"PlayNYU player" }}</h1>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+      {% include "components/avatar.html" with person=player size="xl" %}
+      <div class="page-header">
+        <div class="subheader">Player</div>
+        <h1>{{ player.get_full_name|default:"PlayNYU player" }}</h1>
+        <div class="page-meta"><span class="pn-num">{{ teams|length }}</span> team{{ teams|length|pluralize }}</div>
+      </div>
+    </div>
+    {% if is_owner %}
+      <a class="btn btn-outline-secondary" href="{% url 'profiles:edit' player.pk %}"><i aria-hidden="true" class="ti ti-pencil me-1"></i>Edit profile</a>
+    {% endif %}
+  </div>
 
-  {% if is_owner %}
-    <h2>Your details</h2>
-    <p>Only you can see these.</p>
-    <ul>
-      <li>N number: {{ profile.n_number|default:"not added yet" }}</li>
-      <li>NetID: {{ profile.net_id|default:"not added yet" }}</li>
-    </ul>
-    <p><a href="{% url 'profiles:edit' player.pk %}">Edit profile</a></p>
-  {% endif %}
-
-  <h2>Teams</h2>
-  <ul>
-    {% for item in teams %}
-      <li>
-        {% if item.can_open %}
-          <a href="{% url 'teams:detail' item.entry.team.pk %}">{{ item.entry.team.name }}</a>
+  <div class="row row-cards">
+    <div class="{% if is_owner %}col-lg-8{% else %}col-12{% endif %}">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Teams</h3></div>
+        {% if teams %}
+          <div class="list-group list-group-flush">
+            {% for item in teams %}
+              <div class="list-group-item d-flex align-items-center gap-3">
+                {% include "components/team_logo.html" with team=item.entry.team size="md" %}
+                <div class="flex-fill min-w-0">
+                  {% if item.can_open %}
+                    <a class="text-reset fw-medium" href="{% url 'teams:detail' item.entry.team.pk %}">{{ item.entry.team.name }}</a>
+                  {% else %}
+                    <span class="fw-medium">{{ item.entry.team.name }}</span>
+                  {% endif %}
+                  <div class="small text-secondary">{{ item.entry.team.sport }}{% if item.entry.team.season %} · {{ item.entry.team.season }}{% endif %}</div>
+                </div>
+                {% if item.entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
         {% else %}
-          {{ item.entry.team.name }}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
+              <p class="empty-title">Not on any teams yet.</p>
+              {% if is_owner %}<p class="empty-subtitle text-secondary">Create a team, or ask a captain to add you with your NYU email.</p>{% endif %}
+            </div>
+          </div>
         {% endif %}
-        ({{ item.entry.team.sport }}{% if item.entry.team.season %}, {{ item.entry.team.season }}{% endif %}){% if item.entry.role == "captain" %}, Captain{% endif %}
-      </li>
-    {% empty %}
-      <li>Not on any teams yet.</li>
-    {% endfor %}
-  </ul>
+      </div>
+    </div>
+
+    {% if is_owner %}
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Your details</h3>
+            <div class="card-actions"><span class="small text-secondary"><i aria-hidden="true" class="ti ti-lock me-1"></i>Only you can see these</span></div>
+          </div>
+          <div class="card-body">
+            <dl class="row mb-0">
+              <dt class="col-5 fw-normal text-secondary">N number</dt><dd class="col-7 pn-num">{{ profile.n_number|default:"not added yet" }}</dd>
+              <dt class="col-5 fw-normal text-secondary">NetID</dt><dd class="col-7 mb-0">{{ profile.net_id|default:"not added yet" }}</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
 {% endblock %}

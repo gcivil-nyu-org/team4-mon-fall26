@@ -1,0 +1,39 @@
+# Team workflow
+
+## Branches
+
+| Branch | Deploys to | Who merges into it |
+|---|---|---|
+| `testing` | The testing AWS environment (Travis deploys it when the build passes) | Feature branches, through a reviewed PR |
+| `main` | Production (Travis deploys it when the build passes) | Only `testing`, after the change has been checked on the testing site |
+
+- Branch from `testing`: `yourname/short-description` (e.g. `nihal/roster-rules`).
+- Open every PR against `testing`, never straight to `main`.
+- Keep PRs to one card where you can. If a PR depends on another open PR, say so at the top of the description.
+
+## Pull requests
+
+- Title: what it does, with card numbers if any ("Cards 3-5: roster rules, remove player, leave team").
+- Description: what changed and why, any migrations, how you tested it (commands and manual steps), and screenshots for UI changes.
+- Reviewed and approved by someone other than the author before merging.
+- Before opening, run what Travis CI runs on every push and PR: `flake8 .`, `coverage run manage.py test` and `coverage report --fail-under=80` (`pip install -r requirements-dev.txt` first). Format with black.
+
+## Definition of done
+
+A card is done when:
+
+- It is merged through a pull request reviewed by someone else
+- The tests pass (`python manage.py test` locally, and the Travis build is green)
+- It works on the deployed site
+- The ZenHub card is in Done with the owner's name
+
+## Working agreements
+
+- One owner per card. Pairing is fine, but one name stays on the card.
+- Merge to `testing` first, and to `main` only after checking on the testing site.
+- Every page extends `templates/base.html` and follows [DESIGN.md](DESIGN.md). Don't add your own layout.
+- If you are blocked, say so at standup the same day.
+
+## Data
+
+The database is SQLite for now, so data resets on every deploy. Don't rely on data you entered on a deployed site still being there.

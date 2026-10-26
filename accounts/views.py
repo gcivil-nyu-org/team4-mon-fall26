@@ -60,7 +60,7 @@ def verify(request, uidb64, token):
             user=user, defaults={"net_id": _net_id_from_email(user.email)}
         )
         # TODO(#59): add the Casual Player role once role membership exists.
-    return render(request, "accounts/verified.html", {"user": user})
+    return render(request, "accounts/verified.html", {"verified_user": user})
 
 
 def _net_id_from_email(email):

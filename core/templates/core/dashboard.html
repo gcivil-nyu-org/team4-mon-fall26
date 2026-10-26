@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Home · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h1>Hi{% if user.first_name %}, {{ user.first_name }}{% endif %}</h1>
+      <div class="page-meta">Here's what's happening with your teams.</div>
+    </div>
+    <a class="btn btn-primary" href="{% url 'teams:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Create a team</a>
+  </div>
+
+  <div class="row row-cards mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Teams</div>
+        <div class="h1 mb-0 pn-num">{{ team_count }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Captain of</div>
+        <div class="h1 mb-0 pn-num">{{ captain_count }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Teammates</div>
+        <div class="h1 mb-0 pn-num">{{ teammate_count }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Games played</div>
+        <div class="h1 mb-0 pn-num text-secondary">–</div>
+        <div class="small text-secondary">Scores coming soon</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">My teams</h3>
+          <div class="card-actions"><a href="{% url 'teams:list' %}">View all</a></div>
+        </div>
+        {% if entries %}
+          <div class="list-group list-group-flush">
+            {% for entry in entries %}
+              <a class="list-group-item list-group-item-action d-flex align-items-center gap-3" href="{% url 'teams:detail' entry.team.pk %}">
+                {% include "components/team_logo.html" with team=entry.team size="md" %}
+                <div class="flex-fill">
+                  <div class="fw-medium">{{ entry.team.name }}</div>
+                  <div class="small text-secondary">{{ entry.team.sport }}{% if entry.team.season %} · {{ entry.team.season }}{% endif %}</div>
+                </div>
+                {% if entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
+                <i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
+              <p class="empty-title">No teams yet</p>
+              <p class="empty-subtitle text-secondary">Create a team, or ask a captain to add you with your NYU email.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Teammates</h3></div>
+        <div class="card-body">
+          {% if teammates %}
+            <div class="avatar-list">
+              {% for mate in teammates %}{% include "components/avatar.html" with person=mate size="sm" labelled=True %}{% endfor %}
+              {% if teammate_count > 5 %}<span class="avatar avatar-sm rounded-circle pn-num" aria-label="and {{ teammate_count|add:'-5' }} more">+{{ teammate_count|add:"-5" }}</span>{% endif %}
+            </div>
+          {% else %}
+            <div class="empty py-2">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-users"></i></div>
+              <p class="empty-subtitle text-secondary">Your teammates will show up here once you join a team.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Standings</h3></div>
+        <div class="card-body">
+          <div class="empty py-3">
+            <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+            <p class="empty-title">No standings yet</p>
+            <p class="empty-subtitle text-secondary">Leaderboards appear once games are played.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

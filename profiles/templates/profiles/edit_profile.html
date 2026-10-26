@@ -1,13 +1,23 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}{{ heading|default:"Edit profile" }} · PlayNYU{% endblock %}
 {% block content %}
-  <h1>{{ heading|default:"Edit profile" }}</h1>
-  {% if form.errors %}
-    <p>Your profile was not {{ rejected|default:"updated" }}. Fix the errors below and submit again.</p>
-  {% endif %}
-  <form method="post" novalidate>
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">{{ button|default:"Save changes" }}</button>
-  </form>
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <h1>{{ heading|default:"Edit profile" }}</h1>
+          <div class="page-meta">Your N number and NetID are only shown to you.</div>
+        </div>
+        {% if form.errors %}
+          <div class="alert alert-danger" role="alert">Your profile was not {{ rejected|default:"updated" }}. Fix the errors below and submit again.</div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <button class="btn btn-primary w-100" type="submit">{{ button|default:"Save changes" }}</button>
+          <a class="btn btn-ghost-secondary w-100 mt-2" href="{% url 'profiles:detail' user.pk %}">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
 {% endblock %}

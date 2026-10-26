@@ -1,11 +1,25 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}Add a player · PlayNYU{% endblock %}
 {% block content %}
-  <h1>Add a player to {{ team.name }}</h1>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Add player</button>
-  </form>
-  <p><a href="{% url 'teams:detail' team.pk %}">Back to roster</a></p>
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="d-flex align-items-center gap-3 mb-4">
+          {% include "components/team_logo.html" with team=team size="md" %}
+          <div class="page-header">
+            <h1>Add a player</h1>
+            <div class="page-meta">{{ team.name }} · <span class="pn-num">{{ team.roster.count }} of {{ team.max_roster_size }}</span> spots filled</div>
+          </div>
+        </div>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit"><i aria-hidden="true" class="ti ti-user-plus me-1"></i>Add player</button>
+            <a class="btn btn-ghost-secondary" href="{% url 'teams:detail' team.pk %}">Back to roster</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 {% endblock %}

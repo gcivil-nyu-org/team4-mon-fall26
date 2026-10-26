@@ -1,12 +1,37 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}My teams · PlayNYU{% endblock %}
 {% block content %}
-  <h1>My teams</h1>
-  <ul>
-    {% for team in teams %}
-      <li><a href="{% url 'teams:detail' team.pk %}">{{ team.name }}</a> ({{ team.sport }}{% if team.season %}, {{ team.season }}{% endif %})</li>
-    {% empty %}
-      <li>You're not on any teams yet. <a href="{% url 'teams:create' %}">Create one</a>.</li>
-    {% endfor %}
-  </ul>
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h1>My teams</h1>
+      <div class="page-meta">Teams you captain or play on.</div>
+    </div>
+    <a class="btn btn-primary" href="{% url 'teams:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Create a team</a>
+  </div>
+  {% if teams %}
+    <div class="row row-cards">
+      {% for team in teams %}
+        <div class="col-sm-6 col-lg-4">
+          <div class="card card-link card-link-pop h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+              {% include "components/team_logo.html" with team=team size="lg" %}
+              <div class="min-w-0">
+                <a class="stretched-link text-reset fw-semibold d-block text-truncate" href="{% url 'teams:detail' team.pk %}">{{ team.name }}</a>
+                <div class="small text-secondary">{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
+        <p class="empty-title">No teams yet</p>
+        <p class="empty-subtitle text-secondary">Create a team, or ask a captain to add you with your NYU email.</p>
+        <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'teams:create' %}">Create a team</a></div>
+      </div>
+    </div>
+  {% endif %}
 {% endblock %}

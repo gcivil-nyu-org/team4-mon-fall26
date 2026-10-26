@@ -9,12 +9,18 @@ class Season(models.Model):
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    max_roster_size = models.PositiveSmallIntegerField(
+        default=12, help_text="Most players a team in this season can have."
+    )
 
     def __str__(self):
         return self.name
 
 
 class Team(models.Model):
+    # Cap for teams that are not in a season.
+    DEFAULT_MAX_ROSTER_SIZE = 12
+
     name = models.CharField(max_length=100)
     sport = models.CharField(max_length=50)
     season = models.ForeignKey(
@@ -36,6 +42,27 @@ class Team(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def max_roster_size(self):
+        if self.season:
+            return self.season.max_roster_size
+        return self.DEFAULT_MAX_ROSTER_SIZE
+
+    def is_full(self):
+        return self.roster.count() >= self.max_roster_size
+
+
+def season_team_for(player, season):
+    """The team the player is on in this season, or None. Teams with no season don't count."""
+    if season is None:
+        return None
+    entry = (
+        Roster.objects.filter(player=player, team__season=season)
+        .select_related("team")
+        .first()
+    )
+    return entry.team if entry else None
 
 
 class Roster(models.Model):

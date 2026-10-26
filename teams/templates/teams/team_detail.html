@@ -1,19 +1,88 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% load teams_extras %}
 {% block title %}{{ team.name }} · PlayNYU{% endblock %}
 {% block content %}
-  <h1>{{ team.name }}</h1>
-  <p>{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}</p>
-  <h2>Roster</h2>
-  <ul>
-    {% for entry in roster %}
-      <li>
-        <a href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
-        {% if entry.role == "captain" %}(Captain){% endif %}
-      </li>
-    {% endfor %}
-  </ul>
-  {% if is_captain %}
-    <p><a href="{% url 'teams:add_player' team.pk %}">Add a player</a></p>
-  {% endif %}
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+      {% include "components/team_logo.html" with team=team size="xl" %}
+      <div class="page-header">
+        {% if team.season %}<div class="subheader">{{ team.season }}</div>{% endif %}
+        <h1>{{ team.name }}</h1>
+        <div class="page-meta">{{ team.sport }} · Captain {{ team.captain.get_full_name|default:team.captain.email }}</div>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      {% if is_captain %}
+        {% if is_full %}
+          <button class="btn btn-primary" type="button" disabled title="The roster has {{ team.max_roster_size }} players, the most allowed.">Roster full</button>
+        {% else %}
+          <a class="btn btn-primary" href="{% url 'teams:add_player' team.pk %}"><i aria-hidden="true" class="ti ti-user-plus me-1"></i>Add a player</a>
+        {% endif %}
+      {% else %}
+        <form method="post" action="{% url 'teams:leave' team.pk %}" onsubmit="return confirm('Leave {{ team.name|escapejs }}?');">
+          {% csrf_token %}
+          <button class="btn btn-outline-danger" type="submit"><i aria-hidden="true" class="ti ti-logout me-1"></i>Leave team</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Roster</h3>
+          <div class="card-actions"><span class="text-secondary pn-num">{{ roster|length }} / {{ team.max_roster_size }}</span></div>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for entry in roster %}
+            <div class="list-group-item d-flex align-items-center gap-3{% if entry.player_id == user.pk %} pn-row-me{% endif %}">
+              {% include "components/avatar.html" with person=entry.player size="sm" %}
+              <div class="flex-fill min-w-0">
+                <a class="text-reset fw-medium" href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
+                {% if entry.player_id == user.pk %}<span class="small text-secondary ms-1">(you)</span>{% endif %}
+              </div>
+              {% if entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
+              {% if is_captain and entry.role == "player" %}
+                <form method="post" action="{% url 'teams:remove_player' team.pk entry.pk %}" onsubmit="return confirm('Remove {{ entry.player.get_full_name|default:entry.player.email|escapejs }} from {{ team.name|escapejs }}?');">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-ghost-danger" type="submit">Remove</button>
+                </form>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Team info</h3></div>
+        <div class="card-body">
+          <dl class="row mb-3">
+            <dt class="col-5 fw-normal text-secondary">Sport</dt><dd class="col-7">{{ team.sport }}</dd>
+            <dt class="col-5 fw-normal text-secondary">Season</dt><dd class="col-7">{{ team.season|default:"None" }}</dd>
+            <dt class="col-5 fw-normal text-secondary">Created</dt><dd class="col-7">{{ team.created_at|date:"M j, Y" }}</dd>
+          </dl>
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="text-secondary">Roster spots</span>
+            <span class="pn-num">{{ roster|length }} / {{ team.max_roster_size }}</span>
+          </div>
+          <div class="progress progress-sm">
+            <div class="progress-bar bg-primary" style="width: {% widthratio roster|length team.max_roster_size 100 %}%" role="progressbar" aria-label="Roster spots filled" aria-valuenow="{{ roster|length }}" aria-valuemin="0" aria-valuemax="{{ team.max_roster_size }}"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Results</h3></div>
+        <div class="card-body">
+          <div class="empty py-3">
+            <div class="empty-icon"><i aria-hidden="true" class="ti ti-scoreboard"></i></div>
+            <p class="empty-title">No games yet</p>
+            <p class="empty-subtitle text-secondary">Scores and form appear here once the season starts.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}

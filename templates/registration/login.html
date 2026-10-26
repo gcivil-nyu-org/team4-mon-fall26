@@ -1,17 +1,22 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}Log in · PlayNYU{% endblock %}
 {% block content %}
-  <h1>Log in</h1>
-  <p>Log in with your NYU email.</p>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <input type="hidden" name="next" value="{{ next }}">
-    <button type="submit">Log in</button>
-  </form>
-  <p><a href="{% url 'accounts:resend' %}">Didn't get your confirmation email?</a></p>
-  <p>New here?</p>
-  <form method="get" action="{% url 'accounts:signup' %}">
-    <button type="submit">Sign up</button>
-  </form>
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <h1>Log in</h1>
+          <div class="page-meta">Log in with your NYU email.</div>
+        </div>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <button class="btn btn-primary w-100" type="submit">Log in</button>
+        </form>
+        <div class="text-center small mt-3"><a href="{% url 'accounts:resend' %}">Didn't get your confirmation email?</a></div>
+      </div>
+    </div>
+    <div class="text-center text-secondary mt-3">New here? <a href="{% url 'accounts:signup' %}">Sign up</a></div>
+  </div>
 {% endblock %}

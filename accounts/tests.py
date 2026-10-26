@@ -81,6 +81,11 @@ class VerifyTests(TestCase):
         self.user = get_user_model().objects.get(email=EMAIL)
         self.link = link_from(mail.outbox[0])
 
+    def test_confirmed_page_does_not_show_signed_in_menu(self):
+        response = self.client.get(self.link)
+        self.assertNotContains(response, "Log out")
+        self.assertContains(response, "Log in")
+
     def test_link_activates_account_and_creates_profile(self):
         response = self.client.get(self.link)
         self.assertContains(response, "Email confirmed")

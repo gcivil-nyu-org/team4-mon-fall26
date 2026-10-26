@@ -138,6 +138,8 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"  # target of `manage.py collectstatic`
+# Project-wide static files (the design system CSS). App static files are found automatically.
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 
 # Email
