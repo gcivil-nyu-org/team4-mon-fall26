@@ -7,11 +7,12 @@
   <div class="mb-3">
     <label class="form-label{% if field.field.required %} required{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
     {{ field|control }}
-    {% for error in field.errors %}
-      <div class="invalid-feedback">{{ error }}</div>
-    {% endfor %}
+    {# Django points aria-describedby at these ids. #}
+    {% if field.errors %}
+      <div class="invalid-feedback d-block" id="{{ field.auto_id }}_error">{% for error in field.errors %}<div>{{ error }}</div>{% endfor %}</div>
+    {% endif %}
     {% if field.help_text %}
-      <small class="form-hint">{{ field.help_text|safe }}</small>
+      <div class="form-hint" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</div>
     {% endif %}
   </div>
 {% endfor %}

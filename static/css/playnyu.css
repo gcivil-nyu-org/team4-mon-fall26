@@ -17,6 +17,7 @@
   --tblr-link-color-rgb: 87, 6, 140;
   --tblr-link-hover-color: #45056f;
   --tblr-link-hover-color-rgb: 69, 5, 111;
+  --tblr-brand: #57068c;
   --pn-primary-hover: #45056f;
   --pn-primary-tint: #f3ebf9;
 
@@ -53,9 +54,6 @@
   --tblr-btn-hover-border-color: var(--tblr-primary);
   --tblr-btn-active-bg: var(--pn-primary-hover);
 }
-.bg-primary { background-color: var(--tblr-primary) !important; }
-.bg-primary-lt { background-color: var(--pn-primary-tint) !important; color: var(--tblr-primary) !important; }
-.text-primary { color: var(--tblr-primary) !important; }
 
 /* Shape */
 .card { border: 0; border-radius: var(--pn-radius-card); box-shadow: var(--pn-shadow); }
@@ -70,9 +68,37 @@
 /* Numbers line up in tables, stats and scores. */
 .pn-num { font-variant-numeric: tabular-nums; }
 
-/* The current user's row in a table or list. */
-.pn-row-me > * { --tblr-table-accent-bg: var(--pn-primary-tint); background-color: var(--pn-primary-tint); }
+/* The current user's row in a table (lists use .list-group-item.pn-row-me below). */
+.table .pn-row-me > * { --tblr-table-accent-bg: var(--pn-primary-tint); background-color: var(--pn-primary-tint); }
 
-/* Auth pages: brand mark above the card. */
+/* Narrow single-card pages: auth and simple forms. */
 .pn-auth { max-width: 26rem; margin: 2rem auto; }
 .pn-brand-mark { font-weight: 700; font-size: 1.25rem; color: var(--tblr-primary); letter-spacing: -0.01em; }
+
+/* Tabler's .page-header is a centered column with its own margin; ours is a plain block
+   (or a left/right row when the template adds d-flex). */
+.page-header { display: block; flex-direction: row; align-items: normal; margin: 0; min-height: 0; }
+.page-header.d-flex { align-items: center; }
+.page-wrapper .page-header { margin: 0; }
+
+/* Navbar: the active item uses the brand color, not just the underline. */
+.navbar .nav-item.active .nav-link { color: var(--tblr-primary); }
+
+/* Card titles are 600 (Tabler default is 500). */
+.card-title { font-weight: 600; }
+
+/* Icons scale with the avatar/logo they sit in, and with empty states. */
+.avatar .ti { font-size: 1.25em; }
+.avatar-xl .ti, .avatar-lg .ti { font-size: 1.75em; }
+.empty-icon .ti { font-size: 2.5rem; line-height: 1; color: var(--tblr-secondary); }
+
+/* Dense list rows (~48px with an sm avatar). */
+.card > .list-group-flush > .list-group-item { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.list-group-item.pn-row-me { background-color: var(--pn-primary-tint); }
+
+/* Info messages and active list items use the brand color, not Tabler's blue. */
+.alert-info { --tblr-alert-color: var(--tblr-primary); --tblr-alert-bg: var(--pn-primary-tint); }
+.list-group-item.active { border-inline-start-color: var(--tblr-primary); }
+
+/* Lets text-truncate work inside flex rows. */
+.min-w-0 { min-width: 0; }

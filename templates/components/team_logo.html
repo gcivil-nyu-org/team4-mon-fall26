@@ -1,2 +1,2 @@
 {% load ui %}{# A team: always a rounded square. See docs/DESIGN.md, "Team logo". TODO: show the uploaded logo once uploads exist. #}
-<span class="avatar avatar-{{ size|default:'sm' }} pn-logo bg-primary-lt" role="img" aria-label="{{ team.name }}"><i class="ti {{ team.sport|sport_icon }}"></i></span>
+<span class="avatar avatar-{{ size|default:'sm' }} pn-logo bg-primary-lt" {% if labelled %}role="img" aria-label="{{ team.name }}" title="{{ team.name }}"{% else %}aria-hidden="true"{% endif %}><i aria-hidden="true" class="ti {{ team.sport|sport_icon }}"></i></span>

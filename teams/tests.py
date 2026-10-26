@@ -134,6 +134,11 @@ class RosterRuleTests(TestCase):
         self.assertContains(response, "The roster is full (2 players).")
         self.assertEqual(self.team.roster.count(), 2)
 
+    def test_full_roster_add_page_redirects_to_team(self):
+        Roster.objects.create(team=self.team, player=make_user("p1"))
+        response = self.client.get(self.url)
+        self.assertRedirects(response, reverse("teams:detail", args=[self.team.pk]))
+
     def test_full_roster_hides_add_player(self):
         Roster.objects.create(team=self.team, player=make_user("p1"))
         response = self.client.get(reverse("teams:detail", args=[self.team.pk]))

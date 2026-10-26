@@ -6,7 +6,7 @@ register = template.Library()
 
 SPORT_ICONS = {
     "soccer": "ti-ball-football",
-    "football": "ti-ball-football",
+    "american football": "ti-ball-american-football",
     "basketball": "ti-ball-basketball",
     "volleyball": "ti-ball-volleyball",
     "tennis": "ti-ball-tennis",
