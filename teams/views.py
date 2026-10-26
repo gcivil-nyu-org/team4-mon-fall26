@@ -4,6 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
 
 from .forms import AddPlayerForm, TeamCreateForm
 from .models import Roster, Team
@@ -17,13 +18,15 @@ def team_list(request):
 
 @login_required
 def create_team(request):
-    form = TeamCreateForm(request.POST or None)
+    form = TeamCreateForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             team = form.save(commit=False)
             team.captain = request.user
             team.save()
-            Roster.objects.create(team=team, player=request.user, role=Roster.Role.CAPTAIN)
+            Roster.objects.create(
+                team=team, player=request.user, role=Roster.Role.CAPTAIN
+            )
         messages.success(request, f"Team {team.name} created. You are the captain.")
         return redirect("teams:detail", pk=team.pk)
     return render(request, "teams/team_form.html", {"form": form})
@@ -40,7 +43,12 @@ def team_detail(request, pk):
     return render(
         request,
         "teams/team_detail.html",
-        {"team": team, "roster": roster, "is_captain": team.captain_id == request.user.pk},
+        {
+            "team": team,
+            "roster": roster,
+            "is_captain": team.captain_id == request.user.pk,
+            "is_full": len(roster) >= team.max_roster_size,
+        },
     )
 
 
@@ -57,3 +65,31 @@ def add_player(request, pk):
         messages.success(request, f"Added {form.player.email} to {team.name}.")
         return redirect("teams:detail", pk=team.pk)
     return render(request, "teams/add_player.html", {"form": form, "team": team})
+
+
+@login_required
+@require_POST
+def remove_player(request, pk, entry_pk):
+    team = get_object_or_404(Team, pk=pk)
+    if team.captain_id != request.user.pk:
+        raise PermissionDenied("Only the captain can remove players.")
+    entry = get_object_or_404(
+        team.roster.select_related("player"), pk=entry_pk, role=Roster.Role.PLAYER
+    )
+    entry.delete()
+    messages.success(request, f"Removed {entry.player.email} from {team.name}.")
+    return redirect("teams:detail", pk=team.pk)
+
+
+@login_required
+@require_POST
+def leave_team(request, pk):
+    team = get_object_or_404(Team, pk=pk)
+    entry = get_object_or_404(team.roster, player=request.user)
+    # Nobody else can manage the team yet, so the captain has to stay.
+    if entry.role == Roster.Role.CAPTAIN:
+        messages.error(request, "Captains can't leave their own team.")
+        return redirect("teams:detail", pk=team.pk)
+    entry.delete()
+    messages.success(request, f"You left {team.name}.")
+    return redirect("teams:list")
