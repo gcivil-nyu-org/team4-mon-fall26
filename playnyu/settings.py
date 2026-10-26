@@ -164,7 +164,9 @@ else:
             "BACKEND": "django.core.mail.backends.console.EmailBackend",
         },
     }
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "PlayNYU <no-reply@playnyu.example>")
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "PlayNYU <no-reply@playnyu.example>"
+)
 
 # Email confirmation links expire after 24 hours.
 EMAIL_VERIFICATION_TIMEOUT = 60 * 60 * 24

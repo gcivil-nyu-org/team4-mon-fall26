@@ -24,12 +24,16 @@ class CreateTeamTests(TestCase):
         self.client.force_login(self.user)
 
     def test_creator_becomes_captain(self):
-        response = self.client.post(reverse("teams:create"), {"name": "Violets", "sport": "Soccer"})
+        response = self.client.post(
+            reverse("teams:create"), {"name": "Violets", "sport": "Soccer"}
+        )
         team = Team.objects.get(name="Violets")
         self.assertRedirects(response, reverse("teams:detail", args=[team.pk]))
         self.assertEqual(team.captain, self.user)
         self.assertTrue(
-            Roster.objects.filter(team=team, player=self.user, role=Roster.Role.CAPTAIN).exists()
+            Roster.objects.filter(
+                team=team, player=self.user, role=Roster.Role.CAPTAIN
+            ).exists()
         )
 
     def test_anonymous_redirected_to_login(self):
@@ -51,7 +55,9 @@ class AddPlayerTests(TestCase):
         response = self.client.post(self.url, {"email": "PLAYER@nyu.edu"})
         self.assertRedirects(response, reverse("teams:detail", args=[self.team.pk]))
         self.assertTrue(
-            Roster.objects.filter(team=self.team, player=self.player, role=Roster.Role.PLAYER).exists()
+            Roster.objects.filter(
+                team=self.team, player=self.player, role=Roster.Role.PLAYER
+            ).exists()
         )
 
     def test_non_nyu_email_rejected(self):

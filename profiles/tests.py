@@ -19,7 +19,12 @@ def make_user(username, first_name="Alex", last_name="Lee", n_number=None, net_i
     return user
 
 
-VALID = {"first_name": "Sam", "last_name": "Park", "n_number": "N87654321", "net_id": "sp9876"}
+VALID = {
+    "first_name": "Sam",
+    "last_name": "Park",
+    "n_number": "N87654321",
+    "net_id": "sp9876",
+}
 
 
 class EditProfileTests(TestCase):
@@ -33,7 +38,12 @@ class EditProfileTests(TestCase):
         profile = self.user.player_profile
         profile.refresh_from_db()
         self.assertEqual(
-            (self.user.first_name, self.user.last_name, profile.n_number, profile.net_id),
+            (
+                self.user.first_name,
+                self.user.last_name,
+                profile.n_number,
+                profile.net_id,
+            ),
             ("Alex", "Lee", "N12345678", "al1234"),
         )
 
@@ -52,13 +62,20 @@ class EditProfileTests(TestCase):
         self.user.refresh_from_db()
         profile = PlayerProfile.objects.get(user=self.user)
         self.assertEqual(
-            (self.user.first_name, self.user.last_name, profile.n_number, profile.net_id),
+            (
+                self.user.first_name,
+                self.user.last_name,
+                profile.n_number,
+                profile.net_id,
+            ),
             ("Sam", "Park", "N87654321", "sp9876"),
         )
         self.assertContains(response, "Your profile has been updated.")
 
     def test_values_are_normalised(self):
-        self.client.post(self.url, {**VALID, "n_number": " n87654321 ", "net_id": "SP9876"})
+        self.client.post(
+            self.url, {**VALID, "n_number": " n87654321 ", "net_id": "SP9876"}
+        )
         profile = PlayerProfile.objects.get(user=self.user)
         self.assertEqual((profile.n_number, profile.net_id), ("N87654321", "sp9876"))
 
@@ -101,7 +118,9 @@ class EditProfileTests(TestCase):
     def test_duplicate_n_number_and_net_id_rejected(self):
         make_user("other", n_number="N87654321", net_id="sp9876")
         response = self.client.post(self.url, VALID)
-        self.assertContains(response, "This N number is already used by another account.")
+        self.assertContains(
+            response, "This N number is already used by another account."
+        )
         self.assertContains(response, "This NetID is already used by another account.")
         self.assert_unchanged()
 
@@ -114,7 +133,9 @@ class EditProfileTests(TestCase):
         self.client.post(self.url, {**VALID, "n_number": "bad"})
         response = self.client.post(self.url, VALID)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(PlayerProfile.objects.get(user=self.user).n_number, "N87654321")
+        self.assertEqual(
+            PlayerProfile.objects.get(user=self.user).n_number, "N87654321"
+        )
 
     def test_other_users_profile_is_forbidden(self):
         other = make_user("other", first_name="Jo", last_name="Kim")
@@ -141,6 +162,7 @@ class EditProfileTests(TestCase):
         response = self.client.get(reverse("teams:list"))
         self.assertContains(response, reverse("profiles:detail", args=[self.user.pk]))
 
+
 class ProfileDetailTests(TestCase):
     def setUp(self):
         from teams.models import Roster, Team
@@ -151,7 +173,9 @@ class ProfileDetailTests(TestCase):
         mine = Team.objects.create(name="Violets", sport="Soccer", captain=self.owner)
         Roster.objects.create(team=mine, player=self.owner, role=Roster.Role.CAPTAIN)
         self.shared = mine
-        other = Team.objects.create(name="Bobcats", sport="Basketball", captain=self.owner)
+        other = Team.objects.create(
+            name="Bobcats", sport="Basketball", captain=self.owner
+        )
         Roster.objects.create(team=other, player=self.owner, role=Roster.Role.CAPTAIN)
         Roster.objects.create(team=mine, player=self.viewer)
         self.client.force_login(self.viewer)
@@ -193,11 +217,16 @@ class ProfileDetailTests(TestCase):
         self.assertContains(response, "Not on any teams yet.")
 
     def test_unknown_or_unverified_player_is_404(self):
-        self.assertEqual(self.client.get(reverse("profiles:detail", args=[99999])).status_code, 404)
+        self.assertEqual(
+            self.client.get(reverse("profiles:detail", args=[99999])).status_code, 404
+        )
         pending = make_user("pending")
         pending.is_active = False
         pending.save()
-        self.assertEqual(self.client.get(reverse("profiles:detail", args=[pending.pk])).status_code, 404)
+        self.assertEqual(
+            self.client.get(reverse("profiles:detail", args=[pending.pk])).status_code,
+            404,
+        )
 
     def test_signed_out_user_is_sent_to_login(self):
         self.client.logout()
@@ -213,9 +242,15 @@ class ProfileDetailTests(TestCase):
         self.client.force_login(self.owner)
         response = self.client.post(
             reverse("profiles:edit", args=[self.owner.pk]),
-            {"first_name": "Sam", "last_name": "Park", "n_number": "N87654321", "net_id": "sp9876"},
+            {
+                "first_name": "Sam",
+                "last_name": "Park",
+                "n_number": "N87654321",
+                "net_id": "sp9876",
+            },
         )
         self.assertRedirects(response, self.url)
+
 
 class CreateProfileTests(TestCase):
     def setUp(self):
@@ -236,7 +271,12 @@ class CreateProfileTests(TestCase):
         profile = PlayerProfile.objects.get(user=self.user)
         self.user.refresh_from_db()
         self.assertEqual(
-            (self.user.first_name, self.user.last_name, profile.n_number, profile.net_id),
+            (
+                self.user.first_name,
+                self.user.last_name,
+                profile.n_number,
+                profile.net_id,
+            ),
             ("Sam", "Park", "N87654321", "sp9876"),
         )
         self.assertContains(response, "Your profile has been created.")
@@ -261,7 +301,9 @@ class CreateProfileTests(TestCase):
         self.assertFalse(PlayerProfile.objects.filter(user=self.user).exists())
 
     def test_existing_profile_redirects_to_edit(self):
-        PlayerProfile.objects.create(user=self.user, n_number="N12345678", net_id="al1234")
+        PlayerProfile.objects.create(
+            user=self.user, n_number="N12345678", net_id="al1234"
+        )
         response = self.client.post(self.url, VALID)
         self.assertRedirects(response, reverse("profiles:edit", args=[self.user.pk]))
         self.assertEqual(PlayerProfile.objects.get(user=self.user).net_id, "al1234")

@@ -1,0 +1,19 @@
+language: python
+python:
+  - "3.13"
+
+branches:
+  only:
+    - main
+
+install:
+  - pip install -r requirements.txt
+  - pip install -r requirements-dev.txt
+
+script:
+  - black --check .
+  - flake8 .
+  - coverage run manage.py test
+
+after_success:
+  - coveralls

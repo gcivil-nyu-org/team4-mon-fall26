@@ -59,13 +59,18 @@ class SignUpTests(TestCase):
         self.assertEqual(get_user_model().objects.count(), 1)
 
     def test_password_problems_rejected(self):
-        for data in ({**VALID, "password2": "different-pass-1"}, {**VALID, "password1": "123", "password2": "123"}):
+        for data in (
+            {**VALID, "password2": "different-pass-1"},
+            {**VALID, "password1": "123", "password2": "123"},
+        ):
             response = self.client.post(self.url, data)
             self.assertContains(response, "Your account was not created.")
         self.assertFalse(get_user_model().objects.exists())
 
     def test_signed_in_user_is_redirected(self):
-        user = get_user_model().objects.create_user("ab1234@nyu.edu", "ab1234@nyu.edu", "x-pass-12345")
+        user = get_user_model().objects.create_user(
+            "ab1234@nyu.edu", "ab1234@nyu.edu", "x-pass-12345"
+        )
         self.client.force_login(user)
         self.assertRedirects(self.client.get(self.url), reverse("teams:list"))
 
@@ -96,7 +101,9 @@ class VerifyTests(TestCase):
         self.assertFalse(self.user.is_active)
 
     def test_unknown_user_link_is_rejected(self):
-        response = self.client.get(reverse("accounts:verify", args=["bm9wZQ", "abc-123"]))
+        response = self.client.get(
+            reverse("accounts:verify", args=["bm9wZQ", "abc-123"])
+        )
         self.assertContains(response, "expired or is not valid", status_code=400)
 
     def test_link_expires_after_24_hours(self):
@@ -125,10 +132,14 @@ class ResendTests(TestCase):
         response = self.client.post(self.url, {"email": EMAIL.upper()})
         self.assertRedirects(response, reverse("accounts:check_email"))
         self.assertEqual(len(mail.outbox), 1)
-        self.assertContains(self.client.get(link_from(mail.outbox[0])), "Email confirmed")
+        self.assertContains(
+            self.client.get(link_from(mail.outbox[0])), "Email confirmed"
+        )
 
     def test_unknown_or_active_email_sends_nothing_but_looks_the_same(self):
-        active = get_user_model().objects.create_user("cd5678@nyu.edu", "cd5678@nyu.edu", "x-pass-12345")
+        active = get_user_model().objects.create_user(
+            "cd5678@nyu.edu", "cd5678@nyu.edu", "x-pass-12345"
+        )
         for email in ("zz9999@nyu.edu", active.email):
             response = self.client.post(self.url, {"email": email})
             self.assertRedirects(response, reverse("accounts:check_email"))
@@ -146,18 +157,24 @@ class LoginTests(TestCase):
         self.user = get_user_model().objects.get(email=EMAIL)
 
     def test_unverified_user_cannot_log_in_and_is_told_why(self):
-        response = self.client.post(self.url, {"username": EMAIL, "password": VALID["password1"]})
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": VALID["password1"]}
+        )
         self.assertContains(response, "Please confirm your email first.")
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_wrong_password_does_not_reveal_unverified_account(self):
-        response = self.client.post(self.url, {"username": EMAIL, "password": "wrong-pass-123"})
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": "wrong-pass-123"}
+        )
         self.assertNotContains(response, "Please confirm your email first.")
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_verified_user_logs_in_with_email_in_any_case(self):
         self.client.get(link_from(mail.outbox[0]))
-        response = self.client.post(self.url, {"username": "SP1234@nyu.edu", "password": VALID["password1"]})
+        response = self.client.post(
+            self.url, {"username": "SP1234@nyu.edu", "password": VALID["password1"]}
+        )
         self.assertRedirects(response, reverse("teams:list"))
         self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.pk)
 

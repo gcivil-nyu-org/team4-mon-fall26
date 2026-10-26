@@ -26,7 +26,9 @@ class AddPlayerForm(forms.Form):
 
         # TODO(T8): once verification lands, only allow verified players.
         # TODO(T25): this error reveals whether an account exists; rate-limit this endpoint.
-        user = get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+        user = (
+            get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+        )
         if user is None:
             raise forms.ValidationError("No PlayNYU account with that email.")
         if Roster.objects.filter(team=self.team, player=user).exists():

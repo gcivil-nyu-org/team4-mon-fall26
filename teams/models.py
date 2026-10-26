@@ -21,13 +21,17 @@ class Team(models.Model):
         Season, null=True, blank=True, on_delete=models.SET_NULL, related_name="teams"
     )
     captain = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="captained_teams"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="captained_teams",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["name", "season"], name="unique_team_name_per_season")
+            models.UniqueConstraint(
+                fields=["name", "season"], name="unique_team_name_per_season"
+            )
         ]
 
     def __str__(self):
@@ -43,14 +47,18 @@ class Roster(models.Model):
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="roster")
     player = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="roster_entries"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="roster_entries",
     )
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.PLAYER)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["team", "player"], name="unique_player_per_team")
+            models.UniqueConstraint(
+                fields=["team", "player"], name="unique_player_per_team"
+            )
         ]
 
     def __str__(self):
