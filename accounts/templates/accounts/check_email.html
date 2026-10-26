@@ -1,16 +1,28 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}Check your email · PlayNYU{% endblock %}
 {% block content %}
-  <h1>Check your email</h1>
-  <p>
-    We sent a confirmation link to {% if email %}<strong>{{ email }}</strong>{% else %}your NYU email{% endif %}.
-    Open it to activate your account. The link works once and expires in 24 hours.
-  </p>
-  <p>Didn't get it? Check your spam folder, or request a new link.</p>
-  <form method="post" action="{% url 'accounts:resend' %}">
-    {% csrf_token %}
-    <input type="hidden" name="email" value="{{ email|default:'' }}">
-    {% if email %}<button type="submit">Send a new link</button>{% endif %}
-  </form>
-  {% if not email %}<p><a href="{% url 'accounts:resend' %}">Request a new link</a></p>{% endif %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4 text-center">
+        <span class="avatar avatar-lg rounded-circle bg-primary-lt mb-3"><i aria-hidden="true" class="ti ti-mail-check"></i></span>
+        <div class="page-header mb-3">
+          <h1>Check your email</h1>
+        </div>
+        <p class="text-secondary">
+          We sent a confirmation link to {% if email %}<strong class="text-body">{{ email }}</strong>{% else %}your NYU email{% endif %}.
+          Open it to activate your account. The link works once and expires in 24 hours.
+        </p>
+        <p class="text-secondary small">Didn't get it? Check your spam folder, or request a new link.</p>
+        {% if email %}
+          <form method="post" action="{% url 'accounts:resend' %}">
+            {% csrf_token %}
+            <input type="hidden" name="email" value="{{ email }}">
+            <button class="btn btn-outline-secondary" type="submit">Send a new link</button>
+          </form>
+        {% else %}
+          <a class="btn btn-outline-secondary" href="{% url 'accounts:resend' %}">Request a new link</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 {% endblock %}

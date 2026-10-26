@@ -1,213 +1,23 @@
-{% extends "teams/_layout.html" %}
-
+{% extends "base.html" %}
 {% block title %}{{ heading|default:"Edit profile" }} · PlayNYU{% endblock %}
-
 {% block content %}
-
-<style>
-    /* Main page background */
-    .edit-profile-page {
-        min-height: 75vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(135deg, #efe9f7 0%, #faf8fc 100%);
-        border-radius: 24px;
-        padding: 48px 24px;
-    }
-
-    /* White form card */
-    .edit-profile-card {
-        width: 100%;
-        max-width: 650px;
-        background: #ffffff;
-        border-radius: 22px;
-        padding: 44px;
-        box-shadow: 0 18px 55px rgba(87, 6, 140, 0.13);
-    }
-
-    /* Heading */
-    .edit-profile-title h1{
-        color: #57068c;
-        font-size: 2rem;
-        font-weight: 800;
-        margin-bottom: 10px;
-    }
-
-    .edit-profile-subtitle {
-        color: #6b7280;
-        font-size: 1rem;
-        margin-bottom: 30px;
-    }
-
-    /* Form labels */
-    .edit-profile-card .form-label {
-        color: #374151;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-
-    /* Form inputs */
-    .edit-profile-card input:not([type="hidden"]),
-    .edit-profile-card select,
-    .edit-profile-card textarea {
-        display: block;
-        width: 100%;
-        padding: 12px 15px;
-        font-size: 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 10px;
-        background: #ffffff;
-        transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .edit-profile-card input:focus,
-    .edit-profile-card select:focus,
-    .edit-profile-card textarea:focus {
-        outline: none;
-        border-color: #57068c;
-        box-shadow: 0 0 0 4px rgba(87, 6, 140, 0.12);
-    }
-
-    /* Purple save button */
-    .btn-nyu {
-        display: inline-block;
-        background: #57068c;
-        border: 1px solid #57068c;
-        color: #ffffff;
-        border-radius: 10px;
-        padding: 14px 24px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .btn-nyu:hover {
-        background: #43046d;
-        border-color: #43046d;
-        color: #ffffff;
-    }
-
-    .btn-nyu:focus-visible {
-        outline: 3px solid #b68ad1;
-        outline-offset: 3px;
-    }
-
-    /* Validation errors */
-    .edit-profile-error {
-        color: #b42318;
-        font-size: 0.875rem;
-        margin-top: 6px;
-    }
-
-    /* Help text */
-    .edit-profile-help {
-        color: #6b7280;
-        font-size: 0.875rem;
-        margin-top: 6px;
-    }
-
-    /* Mobile responsiveness */
-    @media (max-width: 767px) {
-        .edit-profile-page {
-            padding: 25px 12px;
-            border-radius: 16px;
-        }
-
-        .edit-profile-card {
-            padding: 28px 22px;
-        }
-
-        .edit-profile-title {
-            font-size: 1.6rem;
-        }
-    }
-</style>
-
-<!-- MAIN EDIT PROFILE PAGE -->
-<div class="edit-profile-page">
-
-    <div class="edit-profile-card">
-
-        <!-- Page heading -->
-        <div class="text-center">
-
-          <h1>
-              {{ heading|default:"Edit profile" }}
-          </h1>
-
-          <p class="edit-profile-subtitle">
-              Update your PlayNYU profile information.
-          </p>
-
-      </div>
-
-        <!-- General validation message -->
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <h1>{{ heading|default:"Edit profile" }}</h1>
+          <div class="page-meta">Your N number and NetID are only shown to you.</div>
+        </div>
         {% if form.errors %}
-            <div class="alert alert-danger" role="alert">
-                Your profile was not {{ rejected|default:"updated" }}.
-                Please correct the errors below and try again.
-            </div>
+          <div class="alert alert-danger" role="alert">Your profile was not {{ rejected|default:"updated" }}. Fix the errors below and submit again.</div>
         {% endif %}
-
-        <!-- Non-field errors -->
-        {% if form.non_field_errors %}
-            <div class="alert alert-danger" role="alert">
-                {{ form.non_field_errors }}
-            </div>
-        {% endif %}
-
-        <!-- Django profile form -->
         <form method="post" novalidate>
-
-            {% csrf_token %}
-
-            {% for field in form %}
-
-                <div class="mb-4">
-
-                    <!-- Field label -->
-                    <label
-                        for="{{ field.id_for_label }}"
-                        class="form-label"
-                    >
-                        {{ field.label }}
-                    </label>
-
-                    <!-- Django form field -->
-                    {{ field }}
-
-                    <!-- Help text -->
-                    {% if field.help_text %}
-                        <div class="edit-profile-help">
-                            {{ field.help_text }}
-                        </div>
-                    {% endif %}
-
-                    <!-- Field errors -->
-                    {% if field.errors %}
-                        <div class="edit-profile-error" role="alert">
-                            {{ field.errors }}
-                        </div>
-                    {% endif %}
-
-                </div>
-
-            {% endfor %}
-
-            <!-- Save button -->
-            <button
-                type="submit"
-                class="btn btn-nyu w-100"
-            >
-                {{ button|default:"Save changes" }}
-            </button>
-
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <button class="btn btn-primary w-100" type="submit">{{ button|default:"Save changes" }}</button>
+          <a class="btn btn-ghost-secondary w-100 mt-2" href="{% url 'profiles:detail' user.pk %}">Cancel</a>
         </form>
-
+      </div>
     </div>
-
-</div>
-
+  </div>
 {% endblock %}

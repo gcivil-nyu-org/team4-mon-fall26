@@ -1,0 +1,104 @@
+/*
+ * PlayNYU design tokens and the few custom classes the design system needs.
+ * Everything else comes from Tabler. See docs/DESIGN.md before adding to this file.
+ */
+
+:root,
+[data-bs-theme="light"] {
+  /* Brand: NYU violet is the only accent. */
+  --tblr-primary: #57068c;
+  --tblr-primary-rgb: 87, 6, 140;
+  --tblr-primary-text-emphasis: #45056f;
+  --tblr-primary-bg-subtle: #f3ebf9;
+  --tblr-primary-border-subtle: #d9c2ea;
+  --tblr-primary-lt: #f3ebf9;
+  --tblr-primary-lt-rgb: 243, 235, 249;
+  --tblr-link-color: #57068c;
+  --tblr-link-color-rgb: 87, 6, 140;
+  --tblr-link-hover-color: #45056f;
+  --tblr-link-hover-color-rgb: 69, 5, 111;
+  --tblr-brand: #57068c;
+  --pn-primary-hover: #45056f;
+  --pn-primary-tint: #f3ebf9;
+
+  /* Type */
+  --tblr-font-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tblr-body-font-size: 0.875rem;
+
+  /* Shape and elevation */
+  --pn-radius-card: 12px;
+  --pn-radius-control: 8px;
+  --pn-radius-logo: 10px;
+  --pn-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.06);
+  --pn-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.05), 0 8px 24px rgba(0, 0, 0, 0.09);
+}
+
+/* Buttons and badges read the primary color from component variables, so set them here. */
+.btn-primary {
+  --tblr-btn-bg: var(--tblr-primary);
+  --tblr-btn-border-color: var(--tblr-primary);
+  --tblr-btn-hover-bg: var(--pn-primary-hover);
+  --tblr-btn-hover-border-color: var(--pn-primary-hover);
+  --tblr-btn-active-bg: var(--pn-primary-hover);
+  --tblr-btn-active-border-color: var(--pn-primary-hover);
+  --tblr-btn-disabled-bg: var(--tblr-primary);
+  --tblr-btn-disabled-border-color: var(--tblr-primary);
+  --tblr-btn-color: #fff;
+  --tblr-btn-hover-color: #fff;
+  --tblr-btn-active-color: #fff;
+}
+.btn-outline-primary {
+  --tblr-btn-color: var(--tblr-primary);
+  --tblr-btn-border-color: var(--tblr-primary);
+  --tblr-btn-hover-bg: var(--tblr-primary);
+  --tblr-btn-hover-border-color: var(--tblr-primary);
+  --tblr-btn-active-bg: var(--pn-primary-hover);
+}
+
+/* Shape */
+.card { border: 0; border-radius: var(--pn-radius-card); box-shadow: var(--pn-shadow); }
+.card-link-pop:hover { box-shadow: var(--pn-shadow-hover); }
+.btn, .form-control, .form-select { border-radius: var(--pn-radius-control); }
+.pn-logo { border-radius: var(--pn-radius-logo); }
+
+/* Page header: titles are plain <h1> so templates stay simple. */
+.page-header h1 { font-size: 1.5rem; font-weight: 700; line-height: 2rem; margin: 0; }
+.page-header .page-meta { color: var(--tblr-secondary); margin-top: 0.125rem; }
+
+/* Numbers line up in tables, stats and scores. */
+.pn-num { font-variant-numeric: tabular-nums; }
+
+/* The current user's row in a table (lists use .list-group-item.pn-row-me below). */
+.table .pn-row-me > * { --tblr-table-accent-bg: var(--pn-primary-tint); background-color: var(--pn-primary-tint); }
+
+/* Narrow single-card pages: auth and simple forms. */
+.pn-auth { max-width: 26rem; margin: 2rem auto; }
+.pn-brand-mark { font-weight: 700; font-size: 1.25rem; color: var(--tblr-primary); letter-spacing: -0.01em; }
+
+/* Tabler's .page-header is a centered column with its own margin; ours is a plain block
+   (or a left/right row when the template adds d-flex). */
+.page-header { display: block; flex-direction: row; align-items: normal; margin: 0; min-height: 0; }
+.page-header.d-flex { align-items: center; }
+.page-wrapper .page-header { margin: 0; }
+
+/* Navbar: the active item uses the brand color, not just the underline. */
+.navbar .nav-item.active .nav-link { color: var(--tblr-primary); }
+
+/* Card titles are 600 (Tabler default is 500). */
+.card-title { font-weight: 600; }
+
+/* Icons scale with the avatar/logo they sit in, and with empty states. */
+.avatar .ti { font-size: 1.25em; }
+.avatar-xl .ti, .avatar-lg .ti { font-size: 1.75em; }
+.empty-icon .ti { font-size: 2.5rem; line-height: 1; color: var(--tblr-secondary); }
+
+/* Dense list rows (~48px with an sm avatar). */
+.card > .list-group-flush > .list-group-item { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.list-group-item.pn-row-me { background-color: var(--pn-primary-tint); }
+
+/* Info messages and active list items use the brand color, not Tabler's blue. */
+.alert-info { --tblr-alert-color: var(--tblr-primary); --tblr-alert-bg: var(--pn-primary-tint); }
+.list-group-item.active { border-inline-start-color: var(--tblr-primary); }
+
+/* Lets text-truncate work inside flex rows. */
+.min-w-0 { min-width: 0; }

@@ -27,7 +27,11 @@ def signup(request):
 
 def check_email(request):
     """Screen 1: tell the user a confirmation link is on its way."""
-    return render(request, "accounts/check_email.html", {"email": request.session.get("verification_email")})
+    return render(
+        request,
+        "accounts/check_email.html",
+        {"email": request.session.get("verification_email")},
+    )
 
 
 def verify(request, uidb64, token):
@@ -37,21 +41,35 @@ def verify(request, uidb64, token):
     except (ValueError, OverflowError, get_user_model().DoesNotExist):
         user = None
 
-    if user is None or user.is_active or not email_verification_token.check_token(user, token):
-        return render(request, "accounts/link_invalid.html", {"form": ResendVerificationForm()}, status=400)
+    if (
+        user is None
+        or user.is_active
+        or not email_verification_token.check_token(user, token)
+    ):
+        return render(
+            request,
+            "accounts/link_invalid.html",
+            {"form": ResendVerificationForm()},
+            status=400,
+        )
 
     with transaction.atomic():
         user.is_active = True
         user.save(update_fields=["is_active"])
-        PlayerProfile.objects.get_or_create(user=user, defaults={"net_id": _net_id_from_email(user.email)})
+        PlayerProfile.objects.get_or_create(
+            user=user, defaults={"net_id": _net_id_from_email(user.email)}
+        )
         # TODO(#59): add the Casual Player role once role membership exists.
-    return render(request, "accounts/verified.html", {"user": user})
+    return render(request, "accounts/verified.html", {"verified_user": user})
 
 
 def _net_id_from_email(email):
     """NYU emails are usually netid@nyu.edu; use that as the starting NetID when it fits."""
     local = email.split("@")[0].lower()
-    if NET_ID_RE.match(local) and not PlayerProfile.objects.filter(net_id=local).exists():
+    if (
+        NET_ID_RE.match(local)
+        and not PlayerProfile.objects.filter(net_id=local).exists()
+    ):
         return local
     return None
 
@@ -60,13 +78,19 @@ def resend_verification(request):
     form = ResendVerificationForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         email = form.cleaned_data["email"]
-        user = get_user_model().objects.filter(email__iexact=email, is_active=False).first()
+        user = (
+            get_user_model()
+            .objects.filter(email__iexact=email, is_active=False)
+            .first()
+        )
         if user:
             send_verification_email(request, user)
         # Same screen either way, so this form doesn't reveal which emails have accounts.
         request.session["verification_email"] = email
         return redirect("accounts:check_email")
-    return render(request, "accounts/link_invalid.html", {"form": form, "resend_only": True})
+    return render(
+        request, "accounts/link_invalid.html", {"form": form, "resend_only": True}
+    )
 
 
 class PlayNYULoginView(LoginView):

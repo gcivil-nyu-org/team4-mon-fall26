@@ -1,16 +1,47 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PlayNYU</title>
-</head>
-<body>
-  <h1>PlayNYU</h1>
-  <p>The Django skeleton is running.</p>
-  <ul>
-    <li><a href="{% url 'teams:list' %}">My teams</a></li>
-    <li><a href="{% url 'teams:create' %}">Create a team</a></li>
-  </ul>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}PlayNYU · Intramural sports at NYU{% endblock %}
+{% block content %}
+  <div class="row align-items-center g-3 py-4 py-lg-5">
+    <div class="col-lg-6">
+      <div class="subheader mb-2">NYU intramurals</div>
+      <h1 class="display-6 fw-bold mb-3">Find your team. Play your season.</h1>
+      <p class="fs-3 text-secondary mb-4">PlayNYU is where NYU students sign up, build a roster and keep track of their intramural teams.</p>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary btn-lg" href="{% url 'accounts:signup' %}">Sign up with your NYU email</a>
+        <a class="btn btn-ghost-secondary btn-lg" href="{% url 'login' %}">Log in</a>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="row row-cards">
+        <div class="col-sm-6">
+          <div class="card card-body">
+            <span class="avatar avatar-md pn-logo bg-primary-lt mb-3"><i aria-hidden="true" class="ti ti-user-check"></i></span>
+            <div class="fw-semibold">Verified students only</div>
+            <div class="small text-secondary">Every player confirms an @nyu.edu email.</div>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="card card-body">
+            <span class="avatar avatar-md pn-logo bg-primary-lt mb-3"><i aria-hidden="true" class="ti ti-users-group"></i></span>
+            <div class="fw-semibold">Build your roster</div>
+            <div class="small text-secondary">Create a team and add players by NYU email.</div>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="card card-body">
+            <span class="avatar avatar-md pn-logo bg-primary-lt mb-3"><i aria-hidden="true" class="ti ti-shield-check"></i></span>
+            <div class="fw-semibold">Fair rosters</div>
+            <div class="small text-secondary">Roster limits and one team per season.</div>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="card card-body">
+            <span class="avatar avatar-md pn-logo bg-primary-lt mb-3"><i aria-hidden="true" class="ti ti-trophy"></i></span>
+            <div class="fw-semibold">Standings</div>
+            <div class="small text-secondary">Leaderboards for every season, coming soon.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

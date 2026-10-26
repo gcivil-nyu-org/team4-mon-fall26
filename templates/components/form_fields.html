@@ -1,0 +1,18 @@
+{% load ui %}{# Renders every field of `form`. See docs/DESIGN.md, "Forms". #}
+{% for error in form.non_field_errors %}
+  <div class="alert alert-danger" role="alert">{{ error }}</div>
+{% endfor %}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{% for field in form.visible_fields %}
+  <div class="mb-3">
+    <label class="form-label{% if field.field.required %} required{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field|control }}
+    {# Django points aria-describedby at these ids. #}
+    {% if field.errors %}
+      <div class="invalid-feedback d-block" id="{{ field.auto_id }}_error">{% for error in field.errors %}<div>{{ error }}</div>{% endfor %}</div>
+    {% endif %}
+    {% if field.help_text %}
+      <div class="form-hint" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</div>
+    {% endif %}
+  </div>
+{% endfor %}

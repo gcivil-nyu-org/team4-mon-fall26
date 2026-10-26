@@ -57,6 +57,9 @@ def add_player(request, pk):
     team = get_object_or_404(Team, pk=pk)
     if team.captain_id != request.user.pk:
         raise PermissionDenied("Only the captain can add players.")
+    if request.method == "GET" and team.is_full():
+        messages.info(request, f"The roster is full ({team.max_roster_size} players).")
+        return redirect("teams:detail", pk=team.pk)
 
     form = AddPlayerForm(request.POST or None, team=team)
     if request.method == "POST":

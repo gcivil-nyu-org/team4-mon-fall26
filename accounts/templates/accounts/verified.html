@@ -1,10 +1,17 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}Email confirmed · PlayNYU{% endblock %}
 {% block content %}
-  <h1>Email confirmed</h1>
-  <p>Thanks{% if user.first_name %}, {{ user.first_name }}{% endif %}. Your PlayNYU account is active.</p>
-  <p>Log in, then add your N number and NetID on your profile.</p>
-  <form method="get" action="{% url 'login' %}">
-    <button type="submit">Log in</button>
-  </form>
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4 text-center">
+        <span class="avatar avatar-lg rounded-circle bg-green-lt mb-3"><i aria-hidden="true" class="ti ti-circle-check"></i></span>
+        <div class="page-header mb-3">
+          <h1>Email confirmed</h1>
+        </div>
+        <p class="text-secondary">Thanks{% if verified_user.first_name %}, {{ verified_user.first_name }}{% endif %}. Your PlayNYU account is active.</p>
+        <p class="text-secondary small">Log in, then add your N number and NetID on your profile.</p>
+        <a class="btn btn-primary w-100" href="{% url 'login' %}">Log in</a>
+      </div>
+    </div>
+  </div>
 {% endblock %}
