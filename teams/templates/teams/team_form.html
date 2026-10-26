@@ -1,10 +1,19 @@
-{% extends "teams/_layout.html" %}
+{% extends "base.html" %}
 {% block title %}Create a team · PlayNYU{% endblock %}
 {% block content %}
-  <h1>Create a team</h1>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Create team</button>
-  </form>
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h1 class="h3 mb-4">Create a team</h1>
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% include "teams/_form_fields.html" %}
+            <button class="btn btn-primary" type="submit">Create team</button>
+            <a class="btn btn-link" href="{% url 'teams:list' %}">Cancel</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
