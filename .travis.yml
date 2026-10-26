@@ -1,0 +1,38 @@
+# CI: every push and pull request runs lint, tests and coverage.
+# CD: a passing push to `testing` deploys to the testing environment,
+#     and a passing push to `main` deploys to production. Pull request builds never deploy.
+# AWS keys and the testing environment details are set in Travis: Settings > Environment Variables.
+language: python
+dist: jammy
+python:
+  - "3.12"
+cache: pip
+
+install:
+  - pip install -r requirements-dev.txt
+
+script:
+  - flake8 .
+  - coverage run manage.py test
+  - coverage report --fail-under=80
+
+deploy:
+  - provider: elasticbeanstalk
+    access_key_id: $AWS_ACCESS_KEY_ID_TESTING
+    secret_access_key: $AWS_SECRET_ACCESS_KEY_TESTING
+    region: $EB_REGION_TESTING
+    app: $EB_APP_TESTING
+    env: $EB_ENV_TESTING
+    bucket_name: $EB_BUCKET_TESTING
+    on:
+      branch: testing
+
+  - provider: elasticbeanstalk
+    access_key_id: $AWS_ACCESS_KEY_ID_PROD
+    secret_access_key: $AWS_SECRET_ACCESS_KEY_PROD
+    region: us-east-2
+    app: playnyu
+    env: playnyu-prod
+    bucket_name: elasticbeanstalk-us-east-2-505435643700
+    on:
+      branch: main

@@ -1,0 +1,4 @@
+# Tools for CI and local checks. The app itself only needs requirements.txt.
+-r requirements.txt
+flake8>=7.1
+coverage>=7.6

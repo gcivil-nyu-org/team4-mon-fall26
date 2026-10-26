@@ -141,6 +141,7 @@ class EditProfileTests(TestCase):
         response = self.client.get(reverse("teams:list"))
         self.assertContains(response, reverse("profiles:detail", args=[self.user.pk]))
 
+
 class ProfileDetailTests(TestCase):
     def setUp(self):
         from teams.models import Roster, Team
@@ -216,6 +217,7 @@ class ProfileDetailTests(TestCase):
             {"first_name": "Sam", "last_name": "Park", "n_number": "N87654321", "net_id": "sp9876"},
         )
         self.assertRedirects(response, self.url)
+
 
 class CreateProfileTests(TestCase):
     def setUp(self):
