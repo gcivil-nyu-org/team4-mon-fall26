@@ -1,0 +1,17 @@
+{% load ui %}{# Renders every field of `form`. See docs/DESIGN.md, "Forms". #}
+{% for error in form.non_field_errors %}
+  <div class="alert alert-danger" role="alert">{{ error }}</div>
+{% endfor %}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{% for field in form.visible_fields %}
+  <div class="mb-3">
+    <label class="form-label{% if field.field.required %} required{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field|control }}
+    {% for error in field.errors %}
+      <div class="invalid-feedback">{{ error }}</div>
+    {% endfor %}
+    {% if field.help_text %}
+      <small class="form-hint">{{ field.help_text|safe }}</small>
+    {% endif %}
+  </div>
+{% endfor %}

@@ -9,7 +9,7 @@
           <p class="text-body-secondary mb-4">{{ team.roster.count }} of {{ team.max_roster_size }} roster spots filled.</p>
           <form method="post" novalidate>
             {% csrf_token %}
-            {% include "teams/_form_fields.html" %}
+            {% include "components/form_fields.html" %}
             <button class="btn btn-primary" type="submit">Add player</button>
             <a class="btn btn-link" href="{% url 'teams:detail' team.pk %}">Back to roster</a>
           </form>

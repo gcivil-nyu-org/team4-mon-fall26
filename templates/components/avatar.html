@@ -1,0 +1,2 @@
+{% load ui %}{# A person: always a circle. See docs/DESIGN.md, "Avatar". TODO: show the profile photo once uploads exist. #}
+<span class="avatar avatar-{{ size|default:'sm' }} rounded-circle bg-primary-lt" role="img" aria-label="{{ person.get_full_name|default:'Player' }}">{{ person|initials }}</span>
