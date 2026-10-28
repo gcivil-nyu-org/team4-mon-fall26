@@ -1,10 +1,11 @@
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Roster, Season, Team
+from .models import FreeAgentRequest, Roster, Season, Team
 
 
 # TODO(T10): switch to the shared fixtures once they land.
@@ -260,3 +261,104 @@ class LeaveTeamTests(TestCase):
             {"name": "New", "sport": "Soccer", "season": season.pk},
         )
         self.assertTrue(Team.objects.filter(name="New").exists())
+
+
+class FreeAgentRequestTests(TestCase):
+    def setUp(self):
+        self.season = make_season()
+        self.player = make_user("freeagent")
+        self.url = reverse("teams:free_agent_pool")
+        self.client.force_login(self.player)
+
+    def test_player_can_join_the_free_agent_pool(self):
+        response = self.client.post(
+            self.url, {"season": self.season.pk, "sport": "Soccer"}
+        )
+        self.assertRedirects(response, self.url)
+        self.assertTrue(
+            FreeAgentRequest.objects.filter(
+                player=self.player, season=self.season, sport="Soccer"
+            ).exists()
+        )
+
+    def test_player_can_cancel_their_request(self):
+        request = FreeAgentRequest.objects.create(
+            player=self.player, season=self.season, sport="Soccer"
+        )
+        response = self.client.post(
+            reverse("teams:cancel_free_agent_request", args=[request.pk])
+        )
+        self.assertRedirects(response, self.url)
+        self.assertFalse(FreeAgentRequest.objects.filter(pk=request.pk).exists())
+
+    def test_player_cannot_cancel_another_players_request(self):
+        request = FreeAgentRequest.objects.create(
+            player=self.player, season=self.season, sport="Soccer"
+        )
+        other_player = make_user("other")
+        self.client.force_login(other_player)
+        response = self.client.post(
+            reverse("teams:cancel_free_agent_request", args=[request.pk])
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(FreeAgentRequest.objects.filter(pk=request.pk).exists())
+
+    def test_player_already_on_a_team_cannot_request_placement(self):
+        team = make_team(make_user("captain"), season=self.season)
+        Roster.objects.create(team=team, player=self.player)
+        response = self.client.post(
+            self.url, {"season": self.season.pk, "sport": "Soccer"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            FreeAgentRequest.objects.filter(
+                player=self.player, season=self.season
+            ).exists()
+        )
+
+    def test_inactive_season_rejects_a_request(self):
+        self.season.is_active = False
+        self.season.save(update_fields=["is_active"])
+        response = self.client.post(
+            self.url, {"season": self.season.pk, "sport": "Soccer"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(FreeAgentRequest.objects.exists())
+
+
+class FreeAgentMatchingTests(TestCase):
+    def setUp(self):
+        self.season = make_season(max_roster_size=2)
+        self.captain = make_user("captain")
+        self.team = make_team(self.captain, season=self.season)
+        self.admin = make_user("leagueadmin")
+        admin_group, _ = Group.objects.get_or_create(name="League Admin")
+        self.admin.groups.add(admin_group)
+        self.url = reverse("teams:manage_season_free_agents", args=[self.season.pk])
+
+    def test_only_league_admin_can_manage_free_agents(self):
+        self.client.force_login(make_user("player"))
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_admin_matches_requests_to_a_sport_team_with_space(self):
+        player = make_user("poolplayer")
+        request = FreeAgentRequest.objects.create(
+            player=player, season=self.season, sport="soccer"
+        )
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse("teams:match_free_agents", args=[self.season.pk])
+        )
+        self.assertRedirects(response, self.url)
+        self.assertTrue(self.team.roster.filter(player=player).exists())
+        self.assertFalse(FreeAgentRequest.objects.filter(pk=request.pk).exists())
+
+    def test_requests_stay_pending_when_no_matching_team_has_space(self):
+        player = make_user("poolplayer")
+        request = FreeAgentRequest.objects.create(
+            player=player, season=self.season, sport="Basketball"
+        )
+        self.client.force_login(self.admin)
+        self.client.post(reverse("teams:match_free_agents", args=[self.season.pk]))
+        self.assertFalse(self.team.roster.filter(player=player).exists())
+        self.assertTrue(FreeAgentRequest.objects.filter(pk=request.pk).exists())

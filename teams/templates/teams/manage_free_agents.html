@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{% if season %}{{ season.name }} placement{% else %}Manage placement{% endif %} · PlayNYU{% endblock %}
+{% block content %}
+  {% if season %}
+    <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <div class="subheader">League Admin · Free agents</div>
+        <h1>{{ season.name }}</h1>
+        <div class="page-meta">{{ free_agents|length }} request{{ free_agents|length|pluralize }} · {{ available_spots }} open roster spot{{ available_spots|pluralize }}</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{% url 'teams:manage_free_agents' %}">All seasons</a>
+    </div>
+
+    {% if free_agents and available_spots %}
+      <form class="mb-4" method="post" action="{% url 'teams:match_free_agents' season.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-primary" type="submit"><i aria-hidden="true" class="ti ti-arrows-shuffle me-1"></i>Match free agents</button>
+      </form>
+    {% elif free_agents %}
+      <div class="alert alert-warning" role="status">There are no open roster spots. Requests will stay in the pool until a team has room.</div>
+    {% endif %}
+
+    <div class="row row-cards">
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Free agent requests</h2></div>
+          {% if free_agents %}
+            <div class="list-group list-group-flush">
+              {% for item in free_agents %}
+                <div class="list-group-item d-flex align-items-center gap-3">
+                  {% include "components/avatar.html" with person=item.player size="sm" %}
+                  <div class="flex-fill min-w-0">
+                    <div class="fw-medium">{{ item.player.get_full_name|default:item.player.email }}</div>
+                    <div class="small text-secondary">{{ item.player.email }} · {{ item.sport }} · Requested {{ item.requested_at|date:"M j, Y" }}</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="card-body">
+              <div class="empty py-3">
+                <div class="empty-icon"><i aria-hidden="true" class="ti ti-user-check"></i></div>
+                <p class="empty-title">No pending requests</p>
+                <p class="empty-subtitle text-secondary">Free agents for this season will appear here.</p>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Teams and roster space</h2></div>
+          {% if teams %}
+            <div class="list-group list-group-flush">
+              {% for team in teams %}
+                <div class="list-group-item d-flex align-items-center gap-3">
+                  {% include "components/team_logo.html" with team=team size="sm" %}
+                  <div class="flex-fill min-w-0">
+                    <div class="fw-medium">{{ team.name }}</div>
+                    <div class="small text-secondary">{{ team.sport }}</div>
+                  </div>
+                  <span class="small text-secondary pn-num">{{ team.roster_count }} / {{ team.max_roster_size }}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="card-body">
+              <div class="empty py-3">
+                <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
+                <p class="empty-title">No teams in this season</p>
+                <p class="empty-subtitle text-secondary">Create teams before matching free agents.</p>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="page-header mb-4">
+      <div class="subheader">League Admin</div>
+      <h1>Manage free agent placement</h1>
+      <div class="page-meta">Choose an active season to review requests and match players into available roster spots.</div>
+    </div>
+
+    {% if seasons %}
+      <div class="row row-cards">
+        {% for item in seasons %}
+          <div class="col-sm-6 col-lg-4">
+            <div class="card card-link card-link-pop h-100">
+              <div class="card-body d-flex align-items-center gap-3">
+                <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-calendar-event"></i></div>
+                <div class="min-w-0">
+                  <a class="stretched-link text-reset fw-semibold d-block text-truncate" href="{% url 'teams:manage_season_free_agents' item.pk %}">{{ item.name }}</a>
+                  <div class="small text-secondary"><span class="pn-num">{{ item.request_count }}</span> pending request{{ item.request_count|pluralize }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="card">
+        <div class="empty">
+          <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-off"></i></div>
+          <p class="empty-title">No active seasons</p>
+          <p class="empty-subtitle text-secondary">Activate a season before managing free agent placement.</p>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endblock %}

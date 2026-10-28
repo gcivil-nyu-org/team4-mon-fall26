@@ -10,6 +10,7 @@ from profiles.models import PlayerProfile
 
 from .emails import send_verification_email
 from .forms import LoginForm, ResendVerificationForm, SignUpForm
+from .roles import CASUAL_PLAYER_ROLE, assign_role
 from .rate_limits import (
     clear_login_failures,
     consume_verification_email_request,
@@ -82,7 +83,7 @@ def verify(request, uidb64, token):
         PlayerProfile.objects.get_or_create(
             user=user, defaults={"net_id": _net_id_from_email(user.email)}
         )
-        # TODO(#59): add the Casual Player role once role membership exists.
+        assign_role(user, CASUAL_PLAYER_ROLE)
     return render(request, "accounts/verified.html", {"verified_user": user})
 
 
@@ -127,9 +128,7 @@ class PlayNYULoginView(LoginView):
         if not decision.allowed:
             # Use an unbound form so rendering this response won't run password
             # verification again for a request that has already been throttled.
-            form = self.get_form_class()(
-                request=request, initial={"username": email}
-            )
+            form = self.get_form_class()(request=request, initial={"username": email})
             response = self.render_to_response(
                 self.get_context_data(form=form, rate_limited=True)
             )
@@ -142,8 +141,7 @@ class PlayNYULoginView(LoginView):
         email = self.request.POST.get("username", "").strip().lower()
         record_login_failure(email, self.request)
         if any(
-            error.code == "unverified"
-            for error in form.non_field_errors().as_data()
+            error.code == "unverified" for error in form.non_field_errors().as_data()
         ):
             # Keep the distinction private until the password is correct, then
             # send the user to the existing confirmation/resend flow.

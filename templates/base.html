@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static user_roles %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -60,6 +60,14 @@
                 <li class="nav-item{% if namespace == 'teams' %} active{% endif %}">
                   <a class="nav-link" href="{% url 'teams:list' %}"{% if namespace == 'teams' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-users-group me-2"></i>My teams</a>
                 </li>
+                <li class="nav-item{% if request.resolver_match.url_name == 'free_agent_pool' %} active{% endif %}">
+                  <a class="nav-link" href="{% url 'teams:free_agent_pool' %}"{% if request.resolver_match.url_name == 'free_agent_pool' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-user-search me-2"></i>Free agents</a>
+                </li>
+                {% if user.is_superuser or user|has_account_role:"League Admin" %}
+                  <li class="nav-item{% if 'manage_free_agents' in request.resolver_match.url_name %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'teams:manage_free_agents' %}"{% if 'manage_free_agents' in request.resolver_match.url_name %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-arrows-shuffle me-2"></i>Placement</a>
+                  </li>
+                {% endif %}
               </ul>
             {% endwith %}
           {% endif %}
