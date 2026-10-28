@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import Roster, Team, season_team_for
+from .models import FreeAgentRequest, Roster, Season, Team, season_team_for
 
 NYU_DOMAIN = "@nyu.edu"
 
@@ -60,3 +60,35 @@ class AddPlayerForm(forms.Form):
 
         self.player = user
         return email
+
+
+class FreeAgentRequestForm(forms.Form):
+    season = forms.ModelChoiceField(
+        queryset=Season.objects.none(),
+        label="Season",
+        empty_label="Choose a season",
+    )
+    sport = forms.CharField(max_length=50, label="Sport")
+
+    def __init__(self, *args, user, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+        self.fields["season"].queryset = (
+            Season.objects.filter(is_active=True)
+            .exclude(teams__roster__player=user)
+            .order_by("start_date", "name")
+            .distinct()
+        )
+
+    def clean_season(self):
+        season = self.cleaned_data["season"]
+        if season_team_for(self.user, season) is not None:
+            raise forms.ValidationError(
+                "You already have a team in this season and can't request placement."
+            )
+        if FreeAgentRequest.objects.filter(player=self.user, season=season).exists():
+            raise forms.ValidationError("You already requested placement this season.")
+        return season
+
+    def clean_sport(self):
+        return self.cleaned_data["sport"].strip()

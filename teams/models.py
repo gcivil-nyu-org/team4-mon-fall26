@@ -90,3 +90,31 @@ class Roster(models.Model):
 
     def __str__(self):
         return f"{self.player} on {self.team} ({self.role})"
+
+
+class FreeAgentRequest(models.Model):
+    """A verified player asking a League Admin for placement in a season."""
+
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="free_agent_requests",
+    )
+    season = models.ForeignKey(
+        Season,
+        on_delete=models.CASCADE,
+        related_name="free_agent_requests",
+    )
+    sport = models.CharField(max_length=50)
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["requested_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["player", "season"], name="unique_free_agent_request_per_season"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.player} seeking placement in {self.season}"

@@ -92,6 +92,7 @@ class VerifyTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
         self.assertEqual(PlayerProfile.objects.get(user=self.user).net_id, "sp1234")
+        self.assertTrue(self.user.groups.filter(name="Casual Player").exists())
 
     def test_link_works_only_once(self):
         self.client.get(self.link)

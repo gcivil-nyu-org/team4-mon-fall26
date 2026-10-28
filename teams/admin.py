@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Roster, Season, Team
+from .models import FreeAgentRequest, Roster, Season, Team
 
 
 class RosterInline(admin.TabularInline):
@@ -16,3 +16,4 @@ class TeamAdmin(admin.ModelAdmin):
 
 admin.site.register(Season)
 admin.site.register(Roster)
+admin.site.register(FreeAgentRequest)
