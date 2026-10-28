@@ -161,11 +161,11 @@ class LoginTests(TestCase):
         self.client.post(reverse("accounts:signup"), VALID)
         self.user = get_user_model().objects.get(email=EMAIL)
 
-    def test_unverified_user_cannot_log_in_and_is_told_why(self):
+    def test_unverified_user_is_redirected_to_confirmation_flow(self):
         response = self.client.post(
             self.url, {"username": EMAIL, "password": VALID["password1"]}
         )
-        self.assertContains(response, "Please confirm your email first.")
+        self.assertRedirects(response, reverse("accounts:check_email"))
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_wrong_password_does_not_reveal_unverified_account(self):

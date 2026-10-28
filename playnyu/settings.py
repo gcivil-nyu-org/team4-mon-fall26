@@ -173,9 +173,31 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 # Email confirmation links expire after 24 hours.
 EMAIL_VERIFICATION_TIMEOUT = 60 * 60 * 24
 
+# Authentication throttles use the configured database. With SQLite, counters
+# are shared by processes on the same instance; a multi-instance deployment
+# needs a shared database backend. Tune the limits with environment variables.
+LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS = int(
+    os.environ.get("LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS", "5")
+)
+LOGIN_RATE_LIMIT_IP_ATTEMPTS = int(
+    os.environ.get("LOGIN_RATE_LIMIT_IP_ATTEMPTS", "20")
+)
+LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(
+    os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "900")
+)
+VERIFICATION_EMAIL_RATE_LIMIT_EMAIL_ATTEMPTS = int(
+    os.environ.get("VERIFICATION_EMAIL_RATE_LIMIT_EMAIL_ATTEMPTS", "3")
+)
+VERIFICATION_EMAIL_RATE_LIMIT_IP_ATTEMPTS = int(
+    os.environ.get("VERIFICATION_EMAIL_RATE_LIMIT_IP_ATTEMPTS", "10")
+)
+VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS = int(
+    os.environ.get("VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS", "3600")
+)
+
 
 # Auth redirects
-# Temporary: uses Django's built-in login views until T9 (accounts) lands.
+# Login is customized; logout and password reset use Django's built-in views.
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "teams:list"
 LOGOUT_REDIRECT_URL = "core:home"
