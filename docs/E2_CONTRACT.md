@@ -53,6 +53,11 @@ Nothing else. `closed` is final. Moving a season to the state it is already in i
 | `create_team` | no | yes | no | no |
 | `request_free_agent` | no | yes | yes | no |
 | `match_free_agents` | no | yes | yes | no |
+| `add_player` | no | yes | yes | no |
+| `remove_player` | no | yes | no | no |
+| `leave_team` | no | yes | no | no |
+
+Rosters are locked once a season is `active`: players can still be added (by the captain or by free-agent matching), but nobody can leave or be removed, so no one switches teams mid-season. The existing one-team-per-season rule already stops a player joining a second team.
 
 Ask with `season_allows(season.state, action)`. It returns `False` for an unknown state. Don't compare state strings in views or forms.
 
@@ -103,7 +108,7 @@ Places that read the old fields and must change in the same PR as the migration:
 | Issue | Imports | Rule it must enforce |
 |---|---|---|
 | #106 Manage sports and event types | `validate_catalog_name`, `name_key`, `group_legacy_sports` | Sport names are unique by `name_key`; event-type names are unique by `name_key` within their sport; the sport text fields move to a required `Sport` FK in the three migrations above. |
-| #107 Season lifecycle and League Admin controls | `SeasonState`, `can_transition` / `validate_transition`, `SeasonAction`, `season_allows`, `validate_season_dates`, `state_from_legacy_is_active` | Every `is_active` check becomes a `season_allows` check for the matching action; state changes only along `ALLOWED_TRANSITIONS`, and only by League Admins or superusers. |
+| #107 Season lifecycle and League Admin controls | `SeasonState`, `can_transition` / `validate_transition`, `SeasonAction`, `season_allows`, `validate_season_dates`, `state_from_legacy_is_active` | Every `is_active` check becomes a `season_allows` check for the matching action, and `add_player`, `remove_player` and `leave_team` check `add_player` / `remove_player` / `leave_team`; state changes only along `ALLOWED_TRANSITIONS`, and only by League Admins or superusers. |
 | #108 Optional season divisions | `validate_catalog_name`, `name_key`, `division_matches` | A team's division belongs to its own season; matching only places a request with a division on a team in that division. |
 | #109 Admin workflow and integration tests | All of the above | Tests the whole flow end to end: create sport, create season, open it, register teams and requests, match, activate, close. |
 
@@ -117,5 +122,5 @@ Places that read the old fields and must change in the same PR as the migration:
 Not yet decided. Answer these on #105 before #107 starts, then move the answers into the sections above.
 
 - **Teams with no season.** `Team.season` is nullable today. Do lifecycle rules apply to such teams at all, or does E2 require every new team to have a season?
-- **Roster changes by state.** Adding, removing or leaving a team and cancelling a free-agent request aren't in the actions table. Are they allowed in `active`? (`closed` is read-only, so not there.)
+- **Cancelling a free-agent request.** Allowed wherever `request_free_agent` is (open and active), or only in `open`?
 - **Draft visibility.** "Players can't see a draft season" has no helper yet. Is it enough for each list and form to exclude `draft`, or should there be a shared queryset helper?

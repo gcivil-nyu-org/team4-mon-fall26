@@ -38,13 +38,22 @@ class SeasonAction(models.TextChoices):
     CREATE_TEAM = "create_team", "Create team"
     REQUEST_FREE_AGENT = "request_free_agent", "Request free agent"
     MATCH_FREE_AGENTS = "match_free_agents", "Match free agents"
+    ADD_PLAYER = "add_player", "Add player"
+    REMOVE_PLAYER = "remove_player", "Remove player"
+    LEAVE_TEAM = "leave_team", "Leave team"
 
 
 ALLOWED_ACTIONS = {
     SeasonState.DRAFT: frozenset(),
     SeasonState.OPEN: frozenset(SeasonAction.values),
+    # Players can still be added once play starts, but nobody leaves or is
+    # removed, so no one can switch teams mid-season.
     SeasonState.ACTIVE: frozenset(
-        {SeasonAction.REQUEST_FREE_AGENT, SeasonAction.MATCH_FREE_AGENTS}
+        {
+            SeasonAction.REQUEST_FREE_AGENT,
+            SeasonAction.MATCH_FREE_AGENTS,
+            SeasonAction.ADD_PLAYER,
+        }
     ),
     SeasonState.CLOSED: frozenset(),
 }

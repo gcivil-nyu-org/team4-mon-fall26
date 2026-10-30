@@ -68,6 +68,24 @@ class SeasonAllowsTests(SimpleTestCase):
                 "active": True,
                 "closed": False,
             },
+            "add_player": {
+                "draft": False,
+                "open": True,
+                "active": True,
+                "closed": False,
+            },
+            "remove_player": {
+                "draft": False,
+                "open": True,
+                "active": False,
+                "closed": False,
+            },
+            "leave_team": {
+                "draft": False,
+                "open": True,
+                "active": False,
+                "closed": False,
+            },
         }
         for action, by_state in expected.items():
             for state, allowed in by_state.items():
