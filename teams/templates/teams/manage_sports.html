@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+  <h1>Manage Sports</h1>
+  <p class="text-muted">Sports available for PlayNYU events.</p>
+
+  {% if sports %}
+  <ul class="list-group">
+    {% for sport in sports %}
+    <li class="list-group-item">{{ sport.name }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No sports have been added yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

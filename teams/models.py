@@ -1,5 +1,35 @@
+
 from django.conf import settings
 from django.db import models
+
+
+
+class Sport(models.Model):
+    """A sport available for teams and events."""
+
+    name = models.CharField(max_length=50, unique=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        self.name = (self.name or "").strip()
+
+        if not self.name:
+            raise ValidationError({"name": "Sport name cannot be empty."})
+
+        if (
+            Sport.objects.filter(name__iexact=self.name)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            raise ValidationError({"name": "A sport with this name already exists."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
 
 
 class Season(models.Model):
@@ -57,6 +87,7 @@ def season_team_for(player, season):
     """The team the player is on in this season, or None. Teams with no season don't count."""
     if season is None:
         return None
+
     entry = (
         Roster.objects.filter(player=player, team__season=season)
         .select_related("team")

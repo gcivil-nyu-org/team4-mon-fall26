@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 
 from .forms import AddPlayerForm, FreeAgentRequestForm, TeamCreateForm
-from .models import FreeAgentRequest, Roster, Season, Team, season_team_for
+from .models import FreeAgentRequest, Roster, Season, Team, Sport,season_team_for
 
 
 @login_required
@@ -310,3 +310,15 @@ def match_free_agents(request, season_pk):
     else:
         messages.success(request, f"Placed {matched} player(s) in {season.name}.")
     return redirect("teams:manage_season_free_agents", season_pk=season.pk)
+@login_required
+def manage_sports(request):
+    """Display the sports catalog to League Admins."""
+    _require_league_admin(request.user)
+
+    sports = Sport.objects.order_by("name")
+
+    return render(
+        request,
+        "teams/manage_sports.html",
+        {"sports": sports},
+    )

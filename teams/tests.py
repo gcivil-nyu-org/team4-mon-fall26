@@ -2,11 +2,11 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import FreeAgentRequest, Roster, Season, Team
-
+from .models import FreeAgentRequest, Roster, Season, Sport, Team
 
 # TODO(T10): switch to the shared fixtures once they land.
 def make_user(username, email=None):
@@ -362,3 +362,70 @@ class FreeAgentMatchingTests(TestCase):
         self.client.post(reverse("teams:match_free_agents", args=[self.season.pk]))
         self.assertFalse(self.team.roster.filter(player=player).exists())
         self.assertTrue(FreeAgentRequest.objects.filter(pk=request.pk).exists())
+
+
+class SportModelTests(TestCase):
+    """Tests for the Sport model."""
+
+    def test_create_valid_sport(self):
+        sport = Sport.objects.create(name="Basketball")
+        self.assertEqual(sport.name, "Basketball")
+        self.assertEqual(str(sport), "Basketball")
+
+    def test_empty_sport_name_rejected(self):
+        with self.assertRaises(ValidationError):
+            Sport.objects.create(name="   ")
+
+    def test_case_insensitive_duplicate_rejected(self):
+        Sport.objects.create(name="Basketball")
+        with self.assertRaises(ValidationError):
+            Sport.objects.create(name="basketball")
+
+
+class ManageSportsTests(TestCase):
+    """Tests for League Admin sports management access."""
+
+    def setUp(self):
+        self.admin = make_user("sports_admin")
+        self.player = make_user("sports_player")
+
+        admin_group, _ = Group.objects.get_or_create(
+            name="League Admin"
+        )
+        self.admin.groups.add(admin_group)
+
+        self.url = reverse("teams:manage_sports")
+
+    def test_anonymous_user_redirected_to_login(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_regular_player_cannot_manage_sports(self):
+        self.client.force_login(self.player)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 403)
+
+    def test_league_admin_can_manage_sports(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_league_admin_can_see_sports(self):
+        Sport.objects.create(name="Basketball")
+        self.client.force_login(self.admin)
+
+        response = self.client.get(self.url)
+        self.assertContains(response, "Basketball")
+
+    def test_superuser_can_manage_sports(self):
+        superuser = get_user_model().objects.create_superuser(
+            username="sports_superuser",
+            email="sports_superuser@nyu.edu",
+            password="pass12345!",
+        )
+
+        self.client.force_login(superuser)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+
