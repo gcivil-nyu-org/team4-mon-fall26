@@ -25,16 +25,19 @@ Every change is tracked on a GitHub issue and its ZenHub card, so the board alwa
 
 1. **Find the issue before you write code.** Search open issues (`gh issue list --search "<keywords>"`). If none covers the work, create one: `gh issue create` with a title saying what it does, "Parent epic: #N" if there is one, and numbered acceptance criteria. Don't start work without an issue number.
 2. **Assign it.** Assign the issue to the person you're working for (`gh issue edit <N> --add-assignee @me`), or to the teammate they name. If it's already assigned to someone else, don't take it over: tell the person you're working for and let them decide.
-3. **Move the ZenHub card at each step.** The pipelines are:
+3. **Move the ZenHub card at each step.** The board ([team4-mon-fall26](https://app.zenhub.com/workspaces/team4-mon-fall26-6abac080de366f002dc4cba5/board)) has these pipelines, in order:
 
-   | When | Pipeline |
+   | Pipeline | What goes there |
    |---|---|
-   | Issue created, not started | Backlog |
-   | You start work (branch created) | In Progress |
-   | PR opened into `testing` | Review/QA |
-   | Merged and checked on the testing site | Done |
+   | New Issues | ZenHub puts new issues here. Move them out once triaged. |
+   | Icebox | Ideas nobody plans to do soon |
+   | Product Backlog | Planned, but not this sprint |
+   | Sprint Backlog | This sprint, not started |
+   | In Progress | Work started (branch created) |
+   | Review/QA | PR open into `testing`, or merged and waiting to be checked on the testing site |
+   | Done | Meets the [definition of done](docs/WORKFLOW.md#definition-of-done) |
 
-   Move it with the ZenHub API when `ZENHUB_TOKEN` is set in the environment. If it isn't, don't guess: tell the person you're working for which card to move and to which pipeline.
+   Use the ZenHub GraphQL API (`https://api.zenhub.com/public/graphql`, header `Authorization: Bearer $ZENHUB_TOKEN`, workspace ID `6abac080de366f002dc4cba5`) when `ZENHUB_TOKEN` is set: look the card up with `issueByInfo` (repository GitHub ID `1393685894`) and move it with the `moveIssue` mutation. Each person keeps their own token in their environment; never put a token in the repo, a PR, an issue or a chat. If `ZENHUB_TOKEN` isn't set, don't guess: tell the person you're working for which card to move and to which pipeline.
 4. **Log progress on the issue.** Comment on the issue when you start (branch name), when you open the PR (link), and when you hit a blocker or change scope. Keep each comment to a line or two. Decisions belong on the issue, not only in chat.
 5. **Link the PR.** Put the issue number in the PR title, and use "Closes #N" in the description (or "Part of #N" if the issue needs more than this PR).
 

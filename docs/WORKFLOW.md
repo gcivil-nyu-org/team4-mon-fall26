@@ -31,7 +31,7 @@
 ## Issues and ZenHub
 
 - No work without an issue. If one doesn't exist, create it before you start, with acceptance criteria and its parent epic.
-- Assign yourself (or the owner) before starting, and keep the ZenHub card current: Backlog → In Progress (branch created) → Review/QA (PR open) → Done (see below).
+- Assign yourself (or the owner) before starting, and keep the ZenHub card current: Sprint Backlog → In Progress (branch created) → Review/QA (PR open) → Done (see below). Planned work for later sprints sits in Product Backlog.
 - Log progress as short comments on the issue: start, PR link, blockers, scope changes.
 - Coding agents follow the same rules; the details are in [AGENTS.md](../AGENTS.md#issues-and-zenhub-tracking-required).
 
