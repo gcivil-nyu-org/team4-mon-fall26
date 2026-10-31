@@ -13,6 +13,7 @@ Team docs live in [`docs/`](docs/). Link to them instead of copying their conten
 |---|---|---|
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | Branches, pull requests, definition of done, working agreements | Before your first PR, and whenever you're unsure where code goes |
 | [docs/DESIGN.md](docs/DESIGN.md) | The UI design system: stack, tokens, components, page recipes, UI PR checklist | Before touching any template, CSS or page |
+| [docs/E2_CONTRACT.md](docs/E2_CONTRACT.md) | E2 rules: sports, event types, season lifecycle, divisions, data migration | Before working on #106, #107, #108 or #109 |
 
 Coding agents start from [AGENTS.md](AGENTS.md), which points to these docs. To add a doc: one topic per file in `docs/`, named in caps like the ones above, with a row added to this table in the same PR.
 
