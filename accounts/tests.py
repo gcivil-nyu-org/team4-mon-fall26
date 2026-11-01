@@ -2,14 +2,18 @@ import re
 from datetime import datetime, timedelta
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from profiles.models import PlayerProfile
 
+from .models import RateLimitBucket
 from .tokens import email_verification_token
+
 
 VALID = {
     "email": "SP1234@NYU.edu",
@@ -94,6 +98,7 @@ class VerifyTests(TestCase):
         self.assertEqual(PlayerProfile.objects.get(user=self.user).net_id, "sp1234")
         self.assertTrue(self.user.groups.filter(name="Casual Player").exists())
 
+
     def test_link_works_only_once(self):
         self.client.get(self.link)
         response = self.client.get(self.link)
@@ -154,6 +159,23 @@ class ResendTests(TestCase):
     def test_resend_page_loads(self):
         self.assertContains(self.client.get(self.url), "Get a new confirmation link")
 
+    def test_resend_rate_limit_after_three_requests(self):
+        # Signup in setUp already consumes one of the three email slots.
+        for _ in range(2):
+            response = self.client.post(self.url, {"email": EMAIL})
+            self.assertRedirects(response, reverse("accounts:check_email"))
+
+        self.assertEqual(len(mail.outbox), 2)
+
+        response = self.client.post(self.url, {"email": EMAIL})
+        self.assertRedirects(
+            response,
+            reverse("accounts:check_email"),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(len(mail.outbox), 2)
+        self.assertTrue(self.client.session["verification_rate_limited"])
+
 
 class LoginTests(TestCase):
     url = reverse("login")
@@ -189,6 +211,87 @@ class LoginTests(TestCase):
         self.assertContains(response, reverse("accounts:signup"))
         self.assertContains(response, reverse("accounts:resend"))
 
+    def test_login_rate_limit_after_five_failed_attempts(self):
+        for _ in range(5):
+            response = self.client.post(
+                self.url, {"username": EMAIL, "password": "wrong-password"}
+            )
+            self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": VALID["password1"]}
+        )
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Retry-After", response)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_successful_login_clears_failed_attempts(self):
+        self.client.get(link_from(mail.outbox[0]))
+
+        for _ in range(2):
+            self.client.post(
+                self.url, {"username": EMAIL, "password": "wrong-password"}
+            )
+
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": VALID["password1"]}
+        )
+        self.assertRedirects(response, reverse("teams:list"))
+        self.client.logout()
+
+        for _ in range(3):
+            self.client.post(
+                self.url, {"username": EMAIL, "password": "wrong-password"}
+            )
+
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": VALID["password1"]}
+        )
+        self.assertRedirects(response, reverse("teams:list"))
+
+    def test_login_rate_limit_expires(self):
+        for _ in range(settings.LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS):
+            self.client.post(
+                self.url, {"username": EMAIL, "password": "wrong-password"}
+            )
+
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": VALID["password1"]}
+        )
+        self.assertEqual(response.status_code, 429)
+
+        RateLimitBucket.objects.update(
+            window_started_at=timezone.now()
+            - timedelta(seconds=settings.LOGIN_RATE_LIMIT_WINDOW_SECONDS + 1)
+        )
+
+        self.client.get(link_from(mail.outbox[0]))
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": VALID["password1"]}
+        )
+        self.assertRedirects(response, reverse("teams:list"))
+
+    def test_login_rate_limit_by_ip(self):
+        for i in range(settings.LOGIN_RATE_LIMIT_IP_ATTEMPTS):
+            response = self.client.post(
+                self.url,
+                {
+                    "username": f"unknown{i}@nyu.edu",
+                    "password": "wrong-password",
+                },
+                REMOTE_ADDR="192.0.2.10",
+            )
+            self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            self.url,
+            {"username": EMAIL, "password": VALID["password1"]},
+            REMOTE_ADDR="192.0.2.10",
+        )
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Retry-After", response)
+        self.assertNotIn("_auth_user_id", self.client.session)
+
 
 class NetIdFromEmailTests(TestCase):
     def verify(self, email):
@@ -203,6 +306,8 @@ class NetIdFromEmailTests(TestCase):
         self.assertIsNone(self.verify("jane.doe@nyu.edu").net_id)
 
     def test_net_id_already_taken_is_left_blank(self):
-        other = get_user_model().objects.create_user("x", "x@nyu.edu", "x-pass-12345")
+        other = get_user_model().objects.create_user(
+            "x", "x@nyu.edu", "x-pass-12345"
+        )
         PlayerProfile.objects.create(user=other, net_id="ab1234")
         self.assertIsNone(self.verify("ab1234@nyu.edu").net_id)
