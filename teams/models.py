@@ -1,5 +1,8 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+
+from .catalog_rules import name_key, validate_catalog_name
 
 
 class Season(models.Model):
@@ -17,6 +20,43 @@ class Season(models.Model):
         return self.name
 
 
+class Division(models.Model):
+    season = models.ForeignKey(
+        Season, on_delete=models.CASCADE, related_name="divisions"
+    )
+    name = models.CharField(max_length=50)
+    name_key = models.CharField(max_length=150, editable=False)
+
+    class Meta:
+        ordering = ["name", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["season", "name_key"], name="unique_division_name_per_season"
+            )
+        ]
+
+    def clean(self):
+        self.name = validate_catalog_name(self.name)
+        self.name_key = name_key(self.name)
+        if (
+            self.season_id
+            and type(self)
+            .objects.filter(season_id=self.season_id, name_key=self.name_key)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            raise ValidationError(
+                {"name": "A division with this name already exists in this season."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
 class Team(models.Model):
     # Cap for teams that are not in a season.
     DEFAULT_MAX_ROSTER_SIZE = 12
@@ -25,6 +65,13 @@ class Team(models.Model):
     sport = models.CharField(max_length=50)
     season = models.ForeignKey(
         Season, null=True, blank=True, on_delete=models.SET_NULL, related_name="teams"
+    )
+    division = models.ForeignKey(
+        Division,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="teams",
     )
     captain = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -39,6 +86,18 @@ class Team(models.Model):
                 fields=["name", "season"], name="unique_team_name_per_season"
             )
         ]
+
+    def clean(self):
+        if self.division_id and (
+            self.season_id is None or self.division.season_id != self.season_id
+        ):
+            raise ValidationError(
+                {"division": "Choose a division from this team's season."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -105,6 +164,13 @@ class FreeAgentRequest(models.Model):
         on_delete=models.CASCADE,
         related_name="free_agent_requests",
     )
+    division = models.ForeignKey(
+        Division,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="free_agent_requests",
+    )
     sport = models.CharField(max_length=50)
     requested_at = models.DateTimeField(auto_now_add=True)
 
@@ -115,6 +181,16 @@ class FreeAgentRequest(models.Model):
                 fields=["player", "season"], name="unique_free_agent_request_per_season"
             )
         ]
+
+    def clean(self):
+        if self.division_id and self.division.season_id != self.season_id:
+            raise ValidationError(
+                {"division": "Choose a division from the requested season."}
+            )
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.player} seeking placement in {self.season}"

@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import FreeAgentRequest, Roster, Season, Team, season_team_for
+from .catalog_rules import name_key, validate_catalog_name
+from .models import Division, FreeAgentRequest, Roster, Season, Team, season_team_for
 
 NYU_DOMAIN = "@nyu.edu"
 
@@ -9,11 +10,19 @@ NYU_DOMAIN = "@nyu.edu"
 class TeamCreateForm(forms.ModelForm):
     class Meta:
         model = Team
-        fields = ["name", "sport", "season"]
+        fields = ["name", "sport", "season", "division"]
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        self.fields["division"].required = False
+        self.fields["division"].empty_label = "No division"
+        self.fields["division"].queryset = Division.objects.select_related(
+            "season"
+        ).order_by("season__name", "name")
+        self.fields["division"].label_from_instance = (
+            lambda division: f"{division.name} — {division.season.name}"
+        )
 
     def clean_season(self):
         season = self.cleaned_data["season"]
@@ -24,6 +33,43 @@ class TeamCreateForm(forms.ModelForm):
                 "Players can be on one team per season."
             )
         return season
+
+    def clean_division(self):
+        division = self.cleaned_data.get("division")
+        season = self.cleaned_data.get("season")
+        if division and (season is None or division.season_id != season.pk):
+            raise forms.ValidationError("Choose a division from the selected season.")
+        return division
+
+
+class DivisionCreateForm(forms.ModelForm):
+    class Meta:
+        model = Division
+        fields = ["name"]
+
+    def __init__(self, *args, season, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.season = season
+        self.instance.season = season
+
+    def clean_name(self):
+        name = validate_catalog_name(self.cleaned_data["name"])
+        key = name_key(name)
+        existing = Division.objects.filter(season=self.season, name_key=key)
+        if self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            raise forms.ValidationError(
+                "A division with this name already exists in this season."
+            )
+        return name
+
+    def save(self, commit=True):
+        division = super().save(commit=False)
+        division.season = self.season
+        if commit:
+            division.save()
+        return division
 
 
 class AddPlayerForm(forms.Form):
@@ -69,10 +115,22 @@ class FreeAgentRequestForm(forms.Form):
         empty_label="Choose a season",
     )
     sport = forms.CharField(max_length=50, label="Sport")
+    division = forms.ModelChoiceField(
+        queryset=Division.objects.none(),
+        label="Division",
+        required=False,
+        empty_label="No division",
+    )
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        self.fields["division"].queryset = Division.objects.select_related(
+            "season"
+        ).order_by("season__name", "name")
+        self.fields["division"].label_from_instance = (
+            lambda division: f"{division.name} — {division.season.name}"
+        )
         self.fields["season"].queryset = (
             Season.objects.filter(is_active=True)
             .exclude(teams__roster__player=user)
@@ -92,3 +150,10 @@ class FreeAgentRequestForm(forms.Form):
 
     def clean_sport(self):
         return self.cleaned_data["sport"].strip()
+
+    def clean_division(self):
+        division = self.cleaned_data.get("division")
+        season = self.cleaned_data.get("season")
+        if division and (season is None or division.season_id != season.pk):
+            raise forms.ValidationError("Choose a division from the selected season.")
+        return division

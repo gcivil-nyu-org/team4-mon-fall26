@@ -8,7 +8,10 @@
       <div class="page-meta">Request placement with a team in an active season.</div>
     </div>
     {% if user.is_superuser or user|has_account_role:"League Admin" %}
-      <a class="btn btn-outline-secondary" href="{% url 'teams:manage_free_agents' %}">Manage placement</a>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'teams:manage_divisions' %}">Manage divisions</a>
+        <a class="btn btn-outline-secondary" href="{% url 'teams:manage_free_agents' %}">Manage placement</a>
+      </div>
     {% endif %}
   </div>
 
@@ -44,7 +47,7 @@
                 {% include "components/avatar.html" with person=user size="sm" %}
                 <div class="flex-fill min-w-0">
                   <div class="fw-medium">{{ item.season.name }}</div>
-                  <div class="small text-secondary">{{ item.sport }} · Requested {{ item.requested_at|date:"M j, Y" }}</div>
+                  <div class="small text-secondary">{{ item.sport }}{% if item.division %} · {{ item.division.name }}{% else %} · Any division{% endif %} · Requested {{ item.requested_at|date:"M j, Y" }}</div>
                 </div>
                 <form method="post" action="{% url 'teams:cancel_free_agent_request' item.pk %}">
                   {% csrf_token %}
