@@ -75,6 +75,7 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 | `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | unset (emails print to the console) | Set to send real verification emails over SMTP |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL`, `DJANGO_SUPERUSER_PASSWORD` | unset | Admin user created on each deploy |
 | `TEST_PLAYER_EMAIL`, `TEST_PLAYER_PASSWORD` | unset | Regular player account created on each deploy (testing site only) |
+| `DEMO_USERS_PASSWORD` | unset | Password for the demo players created on each deploy (`demo.captain1@nyu.edu`, `demo.captain2@nyu.edu`, `demo.player1@nyu.edu` to `demo.player4@nyu.edu`; testing site only). Locally: `DEMO_USERS_PASSWORD=... python manage.py seed_demo_users` |
 
 ## Project layout
 
