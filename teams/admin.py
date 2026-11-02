@@ -10,7 +10,7 @@ class RosterInline(admin.TabularInline):
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
-    list_display = ("name", "sport", "season", "captain", "created_at")
+    list_display = ("name", "sport", "season", "division", "captain", "created_at")
     inlines = [RosterInline]
 
 

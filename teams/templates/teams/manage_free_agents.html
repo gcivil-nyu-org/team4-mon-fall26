@@ -8,7 +8,10 @@
         <h1>{{ season.name }}</h1>
         <div class="page-meta">{{ free_agents|length }} request{{ free_agents|length|pluralize }} · {{ available_spots }} open roster spot{{ available_spots|pluralize }}</div>
       </div>
-      <a class="btn btn-outline-secondary" href="{% url 'teams:manage_free_agents' %}">All seasons</a>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'teams:manage_season_divisions' season.pk %}">Manage divisions</a>
+        <a class="btn btn-outline-secondary" href="{% url 'teams:manage_free_agents' %}">All seasons</a>
+      </div>
     </div>
 
     {% if free_agents and available_spots %}
@@ -31,7 +34,7 @@
                   {% include "components/avatar.html" with person=item.player size="sm" %}
                   <div class="flex-fill min-w-0">
                     <div class="fw-medium">{{ item.player.get_full_name|default:item.player.email }}</div>
-                    <div class="small text-secondary">{{ item.player.email }} · {{ item.sport }} · Requested {{ item.requested_at|date:"M j, Y" }}</div>
+                    <div class="small text-secondary">{{ item.player.email }} · {{ item.sport }}{% if item.division %} · {{ item.division.name }}{% else %} · Any division{% endif %} · Requested {{ item.requested_at|date:"M j, Y" }}</div>
                   </div>
                 </div>
               {% endfor %}
@@ -58,7 +61,7 @@
                   {% include "components/team_logo.html" with team=team size="sm" %}
                   <div class="flex-fill min-w-0">
                     <div class="fw-medium">{{ team.name }}</div>
-                    <div class="small text-secondary">{{ team.sport }}</div>
+                    <div class="small text-secondary">{{ team.sport }}{% if team.division %} · {{ team.division.name }}{% endif %}</div>
                   </div>
                   <span class="small text-secondary pn-num">{{ team.roster_count }} / {{ team.max_roster_size }}</span>
                 </div>
@@ -81,6 +84,7 @@
       <div class="subheader">League Admin</div>
       <h1>Manage free agent placement</h1>
       <div class="page-meta">Choose an active season to review requests and match players into available roster spots.</div>
+      <a class="btn btn-outline-secondary mt-3" href="{% url 'teams:manage_divisions' %}">Manage divisions</a>
     </div>
 
     {% if seasons %}

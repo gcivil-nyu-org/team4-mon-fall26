@@ -14,7 +14,6 @@ from profiles.models import PlayerProfile
 from .models import RateLimitBucket
 from .tokens import email_verification_token
 
-
 VALID = {
     "email": "SP1234@NYU.edu",
     "first_name": "Sam",
@@ -97,7 +96,6 @@ class VerifyTests(TestCase):
         self.assertTrue(self.user.is_active)
         self.assertEqual(PlayerProfile.objects.get(user=self.user).net_id, "sp1234")
         self.assertTrue(self.user.groups.filter(name="Casual Player").exists())
-
 
     def test_link_works_only_once(self):
         self.client.get(self.link)
@@ -306,8 +304,6 @@ class NetIdFromEmailTests(TestCase):
         self.assertIsNone(self.verify("jane.doe@nyu.edu").net_id)
 
     def test_net_id_already_taken_is_left_blank(self):
-        other = get_user_model().objects.create_user(
-            "x", "x@nyu.edu", "x-pass-12345"
-        )
+        other = get_user_model().objects.create_user("x", "x@nyu.edu", "x-pass-12345")
         PlayerProfile.objects.create(user=other, net_id="ab1234")
         self.assertIsNone(self.verify("ab1234@nyu.edu").net_id)

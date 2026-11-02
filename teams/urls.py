@@ -22,6 +22,12 @@ urlpatterns = [
         name="cancel_free_agent_request",
     ),
     path("free-agents/manage/", views.manage_free_agents, name="manage_free_agents"),
+    path("seasons/divisions/", views.manage_divisions, name="manage_divisions"),
+    path(
+        "seasons/<int:season_pk>/divisions/",
+        views.manage_season_divisions,
+        name="manage_season_divisions",
+    ),
     path(
         "free-agents/manage/<int:season_pk>/",
         views.manage_season_free_agents,
