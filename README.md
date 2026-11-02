@@ -4,6 +4,7 @@ Django project for Team 4.
 
 ## Links
 - Prod: http://playnyu-prod.eba-ax4phmwp.us-east-2.elasticbeanstalk.com/
+- Testing: http://playnyu-test.eba-t3ythqtj.us-east-2.elasticbeanstalk.com/ (deploys from `testing`; the database resets on every deploy)
 
 ## Docs
 
@@ -73,6 +74,7 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated; add the AWS hostname |
 | `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | unset (emails print to the console) | Set to send real verification emails over SMTP |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL`, `DJANGO_SUPERUSER_PASSWORD` | unset | Admin user created on each deploy |
+| `TEST_PLAYER_EMAIL`, `TEST_PLAYER_PASSWORD` | unset | Regular player account created on each deploy (testing site only) |
 
 ## Project layout
 
