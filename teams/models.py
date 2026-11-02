@@ -3,6 +3,23 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from .catalog_rules import name_key, validate_catalog_name
+from .season_rules import (
+    SeasonState,
+    season_allows,
+    validate_season_dates,
+    validate_transition,
+)
+
+
+class SeasonQuerySet(models.QuerySet):
+    def allowing(self, action):
+        """Seasons whose state allows the action (see SeasonAction)."""
+        states = [state for state in SeasonState.values if season_allows(state, action)]
+        return self.filter(state__in=states)
+
+    def visible_to_players(self):
+        """Draft seasons are still being set up, so players don't see them."""
+        return self.exclude(state=SeasonState.DRAFT)
 
 
 class Sport(models.Model):
@@ -71,15 +88,30 @@ class EventType(models.Model):
 
 
 class Season(models.Model):
-    """Minimal season. Will grow when league scheduling is built."""
-
     name = models.CharField(max_length=100)
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    state = models.CharField(
+        max_length=10, choices=SeasonState.choices, default=SeasonState.DRAFT
+    )
     max_roster_size = models.PositiveSmallIntegerField(
         default=12, help_text="Most players a team in this season can have."
     )
+
+    objects = SeasonQuerySet.as_manager()
+
+    def clean(self):
+        if self.start_date:
+            validate_season_dates(self.start_date, self.end_date)
+
+    def allows(self, action):
+        return season_allows(self.state, action)
+
+    def move_to(self, target):
+        """Change state along ALLOWED_TRANSITIONS; raises ValidationError otherwise."""
+        validate_transition(self.state, target)
+        self.state = target
+        self.save(update_fields=["state"])
 
     def __str__(self):
         return self.name
@@ -179,6 +211,10 @@ class Team(models.Model):
 
     def is_full(self):
         return self.roster.count() >= self.max_roster_size
+
+    def allows(self, action):
+        """Season rules only apply to teams in a season."""
+        return self.season is None or self.season.allows(action)
 
 
 def season_team_for(player, season):

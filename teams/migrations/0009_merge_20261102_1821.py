@@ -6,9 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('teams', '0004_optional_season_divisions'),
-        ('teams', '0008_remove_freeagentrequest_sport_ref_and_more'),
+        ("teams", "0004_optional_season_divisions"),
+        ("teams", "0008_remove_freeagentrequest_sport_ref_and_more"),
     ]
 
-    operations = [
-    ]
+    operations = []

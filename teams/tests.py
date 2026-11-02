@@ -9,6 +9,7 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 
 from .models import EventType, FreeAgentRequest, Roster, Season, Sport, Team
+from .season_rules import SeasonState
 
 
 # TODO(T10): switch to the shared fixtures once they land.
@@ -130,9 +131,12 @@ class RosterPageTests(TestCase):
         self.assertNotContains(response, "Theirs")
 
 
-def make_season(name="Fall 2026", max_roster_size=12):
+def make_season(name="Fall 2026", max_roster_size=12, state=SeasonState.OPEN):
     return Season.objects.create(
-        name=name, start_date=datetime.date(2026, 9, 1), max_roster_size=max_roster_size
+        name=name,
+        start_date=datetime.date(2026, 9, 1),
+        max_roster_size=max_roster_size,
+        state=state,
     )
 
 
@@ -351,9 +355,9 @@ class FreeAgentRequestTests(TestCase):
             ).exists()
         )
 
-    def test_inactive_season_rejects_a_request(self):
-        self.season.is_active = False
-        self.season.save(update_fields=["is_active"])
+    def test_closed_season_rejects_a_request(self):
+        self.season.state = SeasonState.CLOSED
+        self.season.save(update_fields=["state"])
         response = self.client.post(
             self.url, {"season": self.season.pk, "sport": self.sport.pk}
         )

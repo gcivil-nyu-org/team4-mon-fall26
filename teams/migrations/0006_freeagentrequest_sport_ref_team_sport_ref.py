@@ -7,18 +7,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('teams', '0005_eventtype'),
+        ("teams", "0005_eventtype"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='freeagentrequest',
-            name='sport_ref',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='legacy_free_agent_requests', to='teams.sport'),
+            model_name="freeagentrequest",
+            name="sport_ref",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="legacy_free_agent_requests",
+                to="teams.sport",
+            ),
         ),
         migrations.AddField(
-            model_name='team',
-            name='sport_ref',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='legacy_teams', to='teams.sport'),
+            model_name="team",
+            name="sport_ref",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="legacy_teams",
+                to="teams.sport",
+            ),
         ),
     ]

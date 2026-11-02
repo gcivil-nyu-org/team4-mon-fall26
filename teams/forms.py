@@ -11,6 +11,7 @@ from .models import (
     Team,
     season_team_for,
 )
+from .season_rules import SeasonAction, validate_season_dates
 
 NYU_DOMAIN = "@nyu.edu"
 
@@ -29,11 +30,16 @@ class TeamCreateForm(forms.ModelForm):
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        seasons = Season.objects.allowing(SeasonAction.CREATE_TEAM)
+        self.fields["season"].queryset = seasons.order_by("start_date", "name")
+        self.fields["season"].empty_label = "No season"
         self.fields["division"].required = False
         self.fields["division"].empty_label = "No division"
-        self.fields["division"].queryset = Division.objects.select_related(
-            "season"
-        ).order_by("season__name", "name")
+        self.fields["division"].queryset = (
+            Division.objects.filter(season__in=seasons)
+            .select_related("season")
+            .order_by("season__name", "name")
+        )
         self.fields["division"].label_from_instance = (
             lambda division: f"{division.name} — {division.season.name}"
         )
@@ -144,15 +150,17 @@ class FreeAgentRequestForm(forms.Form):
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        self.fields["division"].queryset = Division.objects.select_related(
-            "season"
-        ).order_by("season__name", "name")
+        seasons = Season.objects.allowing(SeasonAction.REQUEST_FREE_AGENT)
+        self.fields["division"].queryset = (
+            Division.objects.filter(season__in=seasons)
+            .select_related("season")
+            .order_by("season__name", "name")
+        )
         self.fields["division"].label_from_instance = (
             lambda division: f"{division.name} — {division.season.name}"
         )
         self.fields["season"].queryset = (
-            Season.objects.filter(is_active=True)
-            .exclude(teams__roster__player=user)
+            seasons.exclude(teams__roster__player=user)
             .order_by("start_date", "name")
             .distinct()
         )
@@ -176,3 +184,29 @@ class FreeAgentRequestForm(forms.Form):
         if division and (season is None or division.season_id != season.pk):
             raise forms.ValidationError("Choose a division from the selected season.")
         return division
+
+
+class SeasonForm(forms.ModelForm):
+    """League Admins create and edit seasons. State changes go through the state buttons."""
+
+    class Meta:
+        model = Season
+        fields = ["name", "start_date", "end_date", "max_roster_size"]
+        widgets = {
+            "start_date": forms.DateInput(attrs={"type": "date"}),
+            "end_date": forms.DateInput(attrs={"type": "date"}),
+        }
+        help_texts = {"end_date": "Optional. Can be the same day as the start."}
+
+    def clean_name(self):
+        return " ".join(self.cleaned_data["name"].split())
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("start_date"), cleaned.get("end_date")
+        if start:
+            try:
+                validate_season_dates(start, end)
+            except forms.ValidationError as error:
+                self.add_error(None, error)
+        return cleaned

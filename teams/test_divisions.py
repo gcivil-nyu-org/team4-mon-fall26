@@ -9,6 +9,7 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 
 from .forms import FreeAgentRequestForm, TeamCreateForm
 from .models import Division, FreeAgentRequest, Roster, Season, Sport, Team
+from .season_rules import SeasonState
 
 
 def make_user(username):
@@ -18,7 +19,9 @@ def make_user(username):
 
 
 def make_season(name):
-    return Season.objects.create(name=name, start_date=datetime.date(2026, 9, 1))
+    return Season.objects.create(
+        name=name, start_date=datetime.date(2026, 9, 1), state=SeasonState.OPEN
+    )
 
 
 def make_sport():
