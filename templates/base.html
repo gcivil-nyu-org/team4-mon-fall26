@@ -57,18 +57,21 @@
                 <li class="nav-item{% if namespace == 'core' %} active{% endif %}">
                   <a class="nav-link" href="{% url 'core:home' %}"{% if namespace == 'core' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-layout-dashboard me-2"></i>Home</a>
                 </li>
-                <li class="nav-item{% if namespace == 'teams' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'teams:list' %}"{% if namespace == 'teams' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-users-group me-2"></i>My teams</a>
+                <li class="nav-item{% if namespace == 'teams' and nav_section != 'league_setup' and nav_section != 'seasons' %} active{% endif %}">
+                  <a class="nav-link" href="{% url 'teams:list' %}"{% if namespace == 'teams' and nav_section != 'league_setup' and nav_section != 'seasons' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-users-group me-2"></i>My teams</a>
                 </li>
                 <li class="nav-item{% if request.resolver_match.url_name == 'free_agent_pool' %} active{% endif %}">
                   <a class="nav-link" href="{% url 'teams:free_agent_pool' %}"{% if request.resolver_match.url_name == 'free_agent_pool' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-user-search me-2"></i>Free agents</a>
                 </li>
                 {% if user.is_superuser or user|has_account_role:"League Admin" %}
-                  <li class="nav-item{% if 'season' in request.resolver_match.url_name and 'division' not in request.resolver_match.url_name %} active{% endif %}">
-                    <a class="nav-link" href="{% url 'teams:manage_seasons' %}"{% if 'season' in request.resolver_match.url_name and 'division' not in request.resolver_match.url_name %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-calendar-event me-2"></i>Seasons</a>
+                  <li class="nav-item{% if nav_section == 'seasons' %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'teams:manage_seasons' %}"{% if nav_section == 'seasons' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-calendar-event me-2"></i>Seasons</a>
                   </li>
                   <li class="nav-item{% if 'manage_free_agents' in request.resolver_match.url_name %} active{% endif %}">
                     <a class="nav-link" href="{% url 'teams:manage_free_agents' %}"{% if 'manage_free_agents' in request.resolver_match.url_name %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-arrows-shuffle me-2"></i>Placement</a>
+                  </li>
+                  <li class="nav-item{% if nav_section == 'league_setup' %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'teams:league_setup' %}"{% if nav_section == 'league_setup' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-settings me-2"></i>League setup</a>
                   </li>
                 {% endif %}
               </ul>

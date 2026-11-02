@@ -5,6 +5,7 @@ from . import views
 app_name = "teams"
 
 urlpatterns = [
+    path("league/", views.league_setup, name="league_setup"),
     path("sports/manage/", views.manage_sports, name="manage_sports"),
     path(
         "event-types/manage/",

@@ -150,6 +150,16 @@ class ManageSeasonsPermissionTests(TestCase):
         url = reverse("teams:change_season_state", args=[self.season.pk])
         self.assertEqual(self.client.get(url).status_code, 405)
 
+    def test_only_the_seasons_nav_item_is_active_on_seasons_pages(self):
+        self.client.force_login(make_admin())
+        for url in (reverse("teams:manage_seasons"), reverse("teams:create_season")):
+            response = self.client.get(url)
+            self.assertContains(response, 'aria-current="page"', count=1)
+            self.assertContains(
+                response,
+                f'href="{reverse("teams:manage_seasons")}" aria-current="page"',
+            )
+
     def test_nav_shows_seasons_link_to_admins_only(self):
         self.client.force_login(make_user("player"))
         self.assertNotContains(

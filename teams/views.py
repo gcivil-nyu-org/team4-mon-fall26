@@ -12,8 +12,10 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from .forms import (
     AddPlayerForm,
     DivisionCreateForm,
+    EventTypeForm,
     FreeAgentRequestForm,
     SeasonForm,
+    SportForm,
     TeamCreateForm,
 )
 from .models import (
@@ -289,10 +291,33 @@ def manage_free_agents(request):
 
 
 @login_required
+def league_setup(request):
+    """League Admin hub linking to every E2 configuration page."""
+    _require_league_admin(request.user)
+    counts = {
+        "sports": Sport.objects.count(),
+        "event_types": EventType.objects.count(),
+        "divisions": Division.objects.count(),
+        "waiting_requests": FreeAgentRequest.objects.filter(
+            season__in=Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS)
+        ).count(),
+    }
+    return render(
+        request,
+        "teams/league_setup.html",
+        {"counts": counts, "nav_section": "league_setup"},
+    )
+
+
+@login_required
 def manage_divisions(request):
     _require_league_admin(request.user)
     seasons = Season.objects.order_by("-start_date", "name")
-    return render(request, "teams/manage_divisions.html", {"seasons": seasons})
+    return render(
+        request,
+        "teams/manage_divisions.html",
+        {"seasons": seasons, "nav_section": "league_setup"},
+    )
 
 
 @login_required
@@ -347,7 +372,12 @@ def manage_season_divisions(request, season_pk):
     return render(
         request,
         "teams/manage_divisions.html",
-        {"season": season, "form": form, "divisions": divisions},
+        {
+            "season": season,
+            "form": form,
+            "divisions": divisions,
+            "nav_section": "league_setup",
+        },
     )
 
 
@@ -424,25 +454,20 @@ def manage_sports(request):
     """Display and manage sports for League Admins."""
     _require_league_admin(request.user)
 
-    if request.method == "POST":
-        name = request.POST.get("name", "")
+    form = SportForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Sport added successfully.")
+        return redirect("teams:manage_sports")
 
-        sport = Sport(name=name)
-
-        try:
-            sport.save()
-        except ValidationError as exc:
-            messages.error(request, str(exc))
-        else:
-            messages.success(request, "Sport added successfully.")
-            return redirect("teams:manage_sports")
-
-    sports = Sport.objects.order_by("name")
+    sports = Sport.objects.annotate(event_type_count=Count("event_types")).order_by(
+        "name"
+    )
 
     return render(
         request,
         "teams/manage_sports.html",
-        {"sports": sports},
+        {"form": form, "sports": sports, "nav_section": "league_setup"},
     )
 
 
@@ -451,22 +476,12 @@ def manage_event_types(request):
     """Display and manage event types for League Admins."""
     _require_league_admin(request.user)
 
-    if request.method == "POST":
-        sport_id = request.POST.get("sport")
-        name = request.POST.get("name", "")
+    form = EventTypeForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Event type added successfully.")
+        return redirect("teams:manage_event_types")
 
-        sport = get_object_or_404(Sport, pk=sport_id)
-        event_type = EventType(sport=sport, name=name)
-
-        try:
-            event_type.save()
-        except ValidationError as exc:
-            messages.error(request, str(exc))
-        else:
-            messages.success(request, "Event type added successfully.")
-            return redirect("teams:manage_event_types")
-
-    sports = Sport.objects.order_by("name")
     event_types = EventType.objects.select_related("sport").order_by(
         "sport__name", "name"
     )
@@ -475,8 +490,10 @@ def manage_event_types(request):
         request,
         "teams/manage_event_types.html",
         {
-            "sports": sports,
+            "form": form,
+            "has_sports": Sport.objects.exists(),
             "event_types": event_types,
+            "nav_section": "league_setup",
         },
     )
 
@@ -499,7 +516,9 @@ def manage_seasons(request):
         {"season": season, "transitions": _season_transitions(season)}
         for season in seasons
     ]
-    return render(request, "teams/manage_seasons.html", {"rows": rows})
+    return render(
+        request, "teams/manage_seasons.html", {"rows": rows, "nav_section": "seasons"}
+    )
 
 
 @login_required
@@ -520,7 +539,11 @@ def season_form(request, pk=None):
                 f"Created {saved.name} as a draft. Players see it once you open registration.",
             )
         return redirect("teams:manage_seasons")
-    return render(request, "teams/season_form.html", {"form": form, "season": season})
+    return render(
+        request,
+        "teams/season_form.html",
+        {"form": form, "season": season, "nav_section": "seasons"},
+    )
 
 
 @login_required

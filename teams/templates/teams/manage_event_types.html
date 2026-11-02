@@ -1,71 +1,67 @@
-
 {% extends "base.html" %}
-
+{% load ui %}
+{% block title %}Event types · PlayNYU{% endblock %}
 {% block content %}
-<div class="container py-4">
-    <h1>Manage Event Types</h1>
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>Event types</h1>
+      <div class="page-meta">Kinds of events each sport offers, such as pickup or 3v3.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'teams:league_setup' %}">League setup</a>
+  </div>
 
-    <p class="text-muted">
-        Add and view event types for PlayNYU sports.
-    </p>
-
-    <form method="post" class="mb-4">
-        {% csrf_token %}
-
-        <div class="mb-3">
-            <label for="sport" class="form-label">
-                Sport
-            </label>
-
-            <select
-                id="sport"
-                name="sport"
-                class="form-select"
-                required
-            >
-                <option value="">Select a sport</option>
-                {% for sport in sports %}
-                    <option value="{{ sport.id }}">
-                        {{ sport.name }}
-                    </option>
-                {% endfor %}
-            </select>
+  <div class="row row-cards">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">All event types</h2>
+          <div class="card-actions"><span class="text-secondary small pn-num">{{ event_types|length }}</span></div>
         </div>
-
-        <div class="mb-3">
-            <label for="event-name" class="form-label">
-                Event Type Name
-            </label>
-
-            <input
-                type="text"
-                id="event-name"
-                name="name"
-                class="form-control"
-                maxlength="50"
-                placeholder="e.g. 3v3"
-                required
-            >
-        </div>
-
-        <button type="submit" class="btn btn-primary">
-            Add Event Type
-        </button>
-    </form>
-
-    <h2>Existing Event Types</h2>
-
-    {% if event_types %}
-        <ul class="list-group">
+        {% if event_types %}
+          <div class="list-group list-group-flush">
             {% for event_type in event_types %}
-                <li class="list-group-item">
-                    {{ event_type.sport.name }}
-                    — {{ event_type.name }}
-                </li>
+              <div class="list-group-item d-flex align-items-center gap-3">
+                <span class="avatar rounded bg-primary-lt"><i aria-hidden="true" class="ti {{ event_type.sport|sport_icon }}"></i></span>
+                <div class="min-w-0">
+                  <div class="fw-medium">{{ event_type.name }}</div>
+                  <div class="small text-secondary">{{ event_type.sport.name }}</div>
+                </div>
+              </div>
             {% endfor %}
-        </ul>
-    {% else %}
-        <p>No event types have been added yet.</p>
-    {% endif %}
-</div>
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-tags"></i></div>
+              <p class="empty-title">No event types yet</p>
+              <p class="empty-subtitle text-secondary">Add an event type to a sport.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Add an event type</h2></div>
+        <div class="card-body">
+          {% if has_sports %}
+            <form method="post" novalidate>
+              {% csrf_token %}
+              {% include "components/form_fields.html" %}
+              <button class="btn btn-primary" type="submit">Add event type</button>
+            </form>
+          {% else %}
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+              <p class="empty-title">No sports yet</p>
+              <p class="empty-subtitle text-secondary">Event types belong to a sport. Add a sport first.</p>
+              <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'teams:manage_sports' %}">Add a sport</a></div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
