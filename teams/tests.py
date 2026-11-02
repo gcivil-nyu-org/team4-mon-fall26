@@ -10,11 +10,13 @@ from django.urls import reverse
 
 from .models import EventType, FreeAgentRequest, Roster, Season, Sport, Team
 
+
 # TODO(T10): switch to the shared fixtures once they land.
 def make_user(username, email=None):
     return get_user_model().objects.create_user(
         username=username, email=email or f"{username}@nyu.edu", password="pass12345!"
     )
+
 
 def make_team(captain, name="Violets", season=None):
     sport, _ = Sport.objects.get_or_create(name="Soccer")
@@ -280,7 +282,8 @@ class LeaveTeamTests(TestCase):
         self.client.force_login(self.player)
         self.client.post(self.url)
         self.client.post(
-            reverse("teams:create"),{"name": "New", "sport": self.sport.pk, "season": season.pk},
+            reverse("teams:create"),
+            {"name": "New", "sport": self.sport.pk, "season": season.pk},
         )
         self.assertTrue(Team.objects.filter(name="New").exists())
 
@@ -333,9 +336,7 @@ class FreeAgentRequestTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 404)
-        self.assertTrue(
-            FreeAgentRequest.objects.filter(pk=request.pk).exists()
-        )
+        self.assertTrue(FreeAgentRequest.objects.filter(pk=request.pk).exists())
 
     def test_player_already_on_a_team_cannot_request_placement(self):
         team = make_team(make_user("captain"), season=self.season)
@@ -377,7 +378,8 @@ class FreeAgentMatchingTests(TestCase):
         self.url = reverse(
             "teams:manage_season_free_agents",
             args=[self.season.pk],
-    )
+        )
+
     def test_only_league_admin_can_manage_free_agents(self):
         self.client.force_login(make_user("player"))
         self.assertEqual(self.client.get(self.url).status_code, 403)
@@ -408,14 +410,11 @@ class FreeAgentMatchingTests(TestCase):
         )
 
         self.client.force_login(self.admin)
-        self.client.post(
-            reverse("teams:match_free_agents", args=[self.season.pk])
-        )
+        self.client.post(reverse("teams:match_free_agents", args=[self.season.pk]))
 
         self.assertFalse(self.team.roster.filter(player=player).exists())
-        self.assertTrue(
-            FreeAgentRequest.objects.filter(pk=request.pk).exists()
-        )
+        self.assertTrue(FreeAgentRequest.objects.filter(pk=request.pk).exists())
+
 
 class SportModelTests(TestCase):
     """Tests for the Sport model."""
@@ -442,9 +441,7 @@ class ManageSportsTests(TestCase):
         self.admin = make_user("sports_admin")
         self.player = make_user("sports_player")
 
-        admin_group, _ = Group.objects.get_or_create(
-            name="League Admin"
-        )
+        admin_group, _ = Group.objects.get_or_create(name="League Admin")
         self.admin.groups.add(admin_group)
 
         self.url = reverse("teams:manage_sports")
@@ -482,14 +479,13 @@ class ManageSportsTests(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
 
+
 class EventTypeModelTests(TestCase):
     """Tests for EventType catalog validation."""
 
     def test_create_valid_event_type(self):
         sport = Sport.objects.create(name="Soccer")
-        event_type = EventType.objects.create(
-            sport=sport, name="Pickup"
-        )
+        event_type = EventType.objects.create(sport=sport, name="Pickup")
 
         self.assertEqual(event_type.name, "Pickup")
         self.assertEqual(event_type.sport, sport)
@@ -510,25 +506,19 @@ class EventTypeModelTests(TestCase):
 
     def test_extra_spaces_are_normalized(self):
         sport = Sport.objects.create(name="Soccer")
-        event_type = EventType.objects.create(
-            sport=sport, name="  Friendly   Match  "
-        )
+        event_type = EventType.objects.create(sport=sport, name="  Friendly   Match  ")
 
         self.assertEqual(event_type.name, "Friendly Match")
 
         with self.assertRaises(ValidationError):
-            EventType.objects.create(
-                sport=sport, name="friendly match"
-            )
+            EventType.objects.create(sport=sport, name="friendly match")
 
     def test_same_event_type_allowed_in_different_sports(self):
         soccer = Sport.objects.create(name="Soccer")
         basketball = Sport.objects.create(name="Basketball")
 
         EventType.objects.create(sport=soccer, name="Pickup")
-        event_type = EventType.objects.create(
-            sport=basketball, name="Pickup"
-        )
+        event_type = EventType.objects.create(sport=basketball, name="Pickup")
 
         self.assertEqual(event_type.sport, basketball)
 
@@ -536,9 +526,8 @@ class EventTypeModelTests(TestCase):
         sport = Sport.objects.create(name="Soccer")
 
         with self.assertRaises(ValidationError):
-            EventType.objects.create(
-                sport=sport, name="A" * 51
-            )
+            EventType.objects.create(sport=sport, name="A" * 51)
+
 
 class ManageEventTypesTests(TestCase):
     """Tests for League Admin event-type management."""
@@ -547,9 +536,7 @@ class ManageEventTypesTests(TestCase):
         self.admin = make_user("event_admin")
         self.player = make_user("event_player")
 
-        admin_group, _ = Group.objects.get_or_create(
-            name="League Admin"
-        )
+        admin_group, _ = Group.objects.get_or_create(name="League Admin")
         self.admin.groups.add(admin_group)
 
         self.sport = Sport.objects.create(name="Basketball")
@@ -635,15 +622,15 @@ class ManageEventTypesTests(TestCase):
             ).exists()
         )
 
-from unittest import skip
 
-@skip("Historical migration test needs isolation from parallel Division migrations")
 class SportBackfillMigrationTests(TransactionTestCase):
     migrate_from = (
         "teams",
         "0006_freeagentrequest_sport_ref_team_sport_ref",
     )
     migrate_to = ("teams", "0007_backfill_sports")
+
+    parallel_migration = ("teams", "0004_optional_season_divisions")
 
     def tearDown(self):
         executor = MigrationExecutor(connection)
@@ -656,11 +643,13 @@ class SportBackfillMigrationTests(TransactionTestCase):
     def test_migration_backfills_legacy_sports(self):
         executor = MigrationExecutor(connection)
 
-        # Roll back to the historical Sport migration.
-        executor.migrate([self.migrate_from])
+        # Unapply both parallel branches before rebuilding the historical state.
+        executor.migrate([("teams", "0003_freeagentrequest")])
+        executor = MigrationExecutor(connection)
+        executor.migrate([self.migrate_from, self.parallel_migration])
 
         old_apps = executor.loader.project_state(
-            [self.migrate_from]
+            [self.migrate_from, self.parallel_migration]
         ).apps
 
         OldSport = old_apps.get_model("teams", "Sport")
@@ -693,10 +682,10 @@ class SportBackfillMigrationTests(TransactionTestCase):
 
         # Apply the Sport backfill migration.
         executor = MigrationExecutor(connection)
-        executor.migrate([self.migrate_to])
+        executor.migrate([self.migrate_to, self.parallel_migration])
 
         new_apps = executor.loader.project_state(
-            [self.migrate_to]
+            [self.migrate_to, self.parallel_migration]
         ).apps
 
         NewSport = new_apps.get_model("teams", "Sport")
@@ -718,16 +707,14 @@ class SportBackfillMigrationTests(TransactionTestCase):
 
         # Reverse the backfill migration.
         executor = MigrationExecutor(connection)
-        executor.migrate([self.migrate_from])
+        executor.migrate([self.migrate_from, self.parallel_migration])
 
         reversed_apps = executor.loader.project_state(
-            [self.migrate_from]
+            [self.migrate_from, self.parallel_migration]
         ).apps
 
         ReversedTeam = reversed_apps.get_model("teams", "Team")
-        ReversedRequest = reversed_apps.get_model(
-            "teams", "FreeAgentRequest"
-        )
+        ReversedRequest = reversed_apps.get_model("teams", "FreeAgentRequest")
 
         restored_team = ReversedTeam.objects.get(pk=team.pk)
         restored_request = ReversedRequest.objects.get(pk=request.pk)

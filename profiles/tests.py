@@ -165,16 +165,22 @@ class EditProfileTests(TestCase):
 
 class ProfileDetailTests(TestCase):
     def setUp(self):
-        from teams.models import Roster, Team
+        from teams.models import Roster, Sport, Team
 
         self.owner = make_user("owner", n_number="N12345678", net_id="al1234")
         self.viewer = make_user("viewer", first_name="Jo", last_name="Kim")
         self.url = reverse("profiles:detail", args=[self.owner.pk])
-        mine = Team.objects.create(name="Violets", sport="Soccer", captain=self.owner)
+        mine = Team.objects.create(
+            name="Violets",
+            sport=Sport.objects.create(name="Soccer"),
+            captain=self.owner,
+        )
         Roster.objects.create(team=mine, player=self.owner, role=Roster.Role.CAPTAIN)
         self.shared = mine
         other = Team.objects.create(
-            name="Bobcats", sport="Basketball", captain=self.owner
+            name="Bobcats",
+            sport=Sport.objects.create(name="Basketball"),
+            captain=self.owner,
         )
         Roster.objects.create(team=other, player=self.owner, role=Roster.Role.CAPTAIN)
         Roster.objects.create(team=mine, player=self.viewer)

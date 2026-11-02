@@ -5,7 +5,6 @@ from django.db import models
 from .catalog_rules import name_key, validate_catalog_name
 
 
-
 class Sport(models.Model):
     """A sport available for teams and events."""
 
@@ -29,6 +28,8 @@ class Sport(models.Model):
 
     def __str__(self):
         return self.name
+
+
 class EventType(models.Model):
     """An event type belonging to one sport."""
 
@@ -46,9 +47,11 @@ class EventType(models.Model):
             raise ValidationError({"name": exc.messages})
 
         if self.sport_id:
-            for event_type in EventType.objects.filter(
-                sport_id=self.sport_id
-            ).exclude(pk=self.pk).only("name"):
+            for event_type in (
+                EventType.objects.filter(sport_id=self.sport_id)
+                .exclude(pk=self.pk)
+                .only("name")
+            ):
                 if name_key(event_type.name) == name_key(self.name):
                     raise ValidationError(
                         {
@@ -65,8 +68,6 @@ class EventType(models.Model):
 
     def __str__(self):
         return f"{self.sport.name} - {self.name}"
-
-from .catalog_rules import name_key, validate_catalog_name
 
 
 class Season(models.Model):

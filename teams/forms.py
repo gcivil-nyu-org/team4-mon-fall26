@@ -176,4 +176,3 @@ class FreeAgentRequestForm(forms.Form):
         if division and (season is None or division.season_id != season.pk):
             raise forms.ValidationError("Choose a division from the selected season.")
         return division
-

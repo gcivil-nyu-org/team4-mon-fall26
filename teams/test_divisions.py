@@ -193,7 +193,7 @@ class DivisionManagementTests(TestCase):
         self.client.force_login(make_user("player"))
         self.assertEqual(self.client.get(self.url).status_code, 403)
         self.assertEqual(
-        self.client.get(reverse("teams:manage_divisions")).status_code, 403
+            self.client.get(reverse("teams:manage_divisions")).status_code, 403
         )
         admin = make_user("leagueadmin")
         assign_role(admin, LEAGUE_ADMIN_ROLE)

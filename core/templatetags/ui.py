@@ -37,6 +37,7 @@ def sport_icon(sport):
         DEFAULT_SPORT_ICON,
     )
 
+
 @register.filter
 def control(field):
     """Render a form field's widget with the design system's classes and error state."""

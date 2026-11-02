@@ -27,6 +27,7 @@ from .models import (
 )
 from .season_rules import division_matches
 
+
 @login_required
 def team_list(request):
     teams = Team.objects.filter(roster__player=request.user).select_related(
@@ -366,8 +367,9 @@ def match_free_agents(request, season_pk):
     else:
         messages.success(request, f"Placed {matched} player(s) in {season.name}.")
     return redirect("teams:manage_season_free_agents", season_pk=season.pk)
-@login_required
 
+
+@login_required
 def manage_sports(request):
     """Display and manage sports for League Admins."""
     _require_league_admin(request.user)
@@ -392,6 +394,7 @@ def manage_sports(request):
         "teams/manage_sports.html",
         {"sports": sports},
     )
+
 
 @login_required
 def manage_event_types(request):
