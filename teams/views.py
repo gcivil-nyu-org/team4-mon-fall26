@@ -295,6 +295,7 @@ def league_setup(request):
     """League Admin hub linking to every E2 configuration page."""
     _require_league_admin(request.user)
     counts = {
+        "seasons": Season.objects.count(),
         "sports": Sport.objects.count(),
         "event_types": EventType.objects.count(),
         "divisions": Division.objects.count(),

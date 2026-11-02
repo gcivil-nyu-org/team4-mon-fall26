@@ -1,4 +1,4 @@
-"""#109: League Admin configuration workflow (hub, permissions, create flows)."""
+"""#109: League Admin configuration workflow (hub, permissions, create flows, transitions)."""
 
 import datetime
 
@@ -31,9 +31,9 @@ def make_superuser(username="root"):
     )
 
 
-def make_season(name="Fall"):
+def make_season(name="Fall", state=SeasonState.OPEN):
     return Season.objects.create(
-        name=name, start_date=datetime.date(2026, 9, 1), state=SeasonState.OPEN
+        name=name, start_date=datetime.date(2026, 9, 1), state=state
     )
 
 
@@ -52,6 +52,9 @@ class LeagueSetupPermissionTests(TestCase):
             reverse("teams:manage_event_types"),
             reverse("teams:manage_divisions"),
             reverse("teams:manage_season_divisions", args=[self.season.pk]),
+            reverse("teams:manage_seasons"),
+            reverse("teams:create_season"),
+            reverse("teams:edit_season", args=[self.season.pk]),
         ]
 
     def test_anonymous_user_is_redirected_to_login(self):
@@ -93,12 +96,28 @@ class ForbiddenSubmissionTests(TestCase):
                 reverse("teams:manage_season_divisions", args=[self.season.pk]),
                 {"name": "East"},
             ),
+            (
+                reverse("teams:create_season"),
+                {"name": "Spring", "start_date": "2027-01-10", "max_roster_size": 12},
+            ),
+            (
+                reverse("teams:edit_season", args=[self.season.pk]),
+                {"name": "Renamed", "start_date": "2026-09-01", "max_roster_size": 12},
+            ),
+            (
+                reverse("teams:change_season_state", args=[self.season.pk]),
+                {"state": SeasonState.ACTIVE},
+            ),
         ]
 
     def assert_nothing_created(self):
         self.assertEqual(list(Sport.objects.values_list("name", flat=True)), ["Soccer"])
         self.assertFalse(EventType.objects.exists())
         self.assertFalse(Division.objects.exists())
+        self.assertEqual(
+            list(Season.objects.values_list("name", "state")),
+            [("Fall", SeasonState.OPEN)],
+        )
 
     def test_player_post_is_forbidden_and_creates_nothing(self):
         self.client.force_login(make_user("player"))
@@ -136,6 +155,7 @@ class LeagueSetupHubTests(TestCase):
 
         self.assertContains(response, "<h1>League setup</h1>", html=True)
         for name in (
+            "manage_seasons",
             "manage_sports",
             "manage_event_types",
             "manage_divisions",
@@ -144,8 +164,28 @@ class LeagueSetupHubTests(TestCase):
             self.assertContains(response, f'href="{reverse(f"teams:{name}")}"')
         self.assertEqual(
             response.context["counts"],
-            {"sports": 2, "event_types": 1, "divisions": 1, "waiting_requests": 1},
+            {
+                "seasons": 1,
+                "sports": 2,
+                "event_types": 1,
+                "divisions": 1,
+                "waiting_requests": 1,
+            },
         )
+
+    def test_waiting_requests_only_count_seasons_that_can_be_matched(self):
+        soccer = Sport.objects.create(name="Soccer")
+        for state in SeasonState.values:
+            season = make_season(name=state.title(), state=state)
+            FreeAgentRequest.objects.create(
+                player=make_user(f"fa_{state}"), season=season, sport=soccer
+            )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(self.url)
+
+        # Open and active seasons can be matched; draft and closed can't.
+        self.assertEqual(response.context["counts"]["waiting_requests"], 2)
 
     def test_nav_link_is_shown_to_admins_only(self):
         link = f'href="{self.url}"'
@@ -294,3 +334,74 @@ class ManageDivisionsFlowTests(TestCase):
     def test_unknown_season_is_not_found(self):
         url = reverse("teams:manage_season_divisions", args=[self.season.pk + 1])
         self.assertEqual(self.client.get(url).status_code, 404)
+
+
+class SeasonTransitionViewTests(TestCase):
+    """Invalid state changes through the seasons page: error shown, state unchanged."""
+
+    def setUp(self):
+        self.client.force_login(make_admin())
+
+    def post_state(self, season, target):
+        return self.client.post(
+            reverse("teams:change_season_state", args=[season.pk]),
+            {"state": target},
+        )
+
+    def test_invalid_transitions_are_rejected(self):
+        cases = [
+            (SeasonState.CLOSED, SeasonState.OPEN, "Closed to Open"),
+            (SeasonState.CLOSED, SeasonState.DRAFT, "Closed to Draft"),
+            (SeasonState.CLOSED, SeasonState.ACTIVE, "Closed to Active"),
+            (SeasonState.DRAFT, SeasonState.ACTIVE, "Draft to Active"),
+            (SeasonState.DRAFT, SeasonState.CLOSED, "Draft to Closed"),
+            (SeasonState.OPEN, SeasonState.CLOSED, "Open to Closed"),
+            (SeasonState.ACTIVE, SeasonState.OPEN, "Active to Open"),
+            (SeasonState.ACTIVE, SeasonState.DRAFT, "Active to Draft"),
+        ]
+        for current, target, label in cases:
+            with self.subTest(current=current, target=target):
+                season = make_season(name=f"{current}-{target}", state=current)
+                response = self.post_state(season, target)
+                self.assertRedirects(response, reverse("teams:manage_seasons"))
+                self.assertIn(
+                    f"A season can't move from {label}.", message_texts(response)
+                )
+                season.refresh_from_db()
+                self.assertEqual(season.state, current)
+
+    def test_moving_to_the_same_state_is_rejected(self):
+        for state in SeasonState.values:
+            with self.subTest(state=state):
+                season = make_season(name=f"Same {state}", state=state)
+                label = SeasonState(state).label
+                response = self.post_state(season, state)
+                self.assertIn(
+                    f"A season can't move from {label} to {label}.",
+                    message_texts(response),
+                )
+                season.refresh_from_db()
+                self.assertEqual(season.state, state)
+
+    def test_unknown_or_missing_state_is_rejected(self):
+        season = make_season(state=SeasonState.DRAFT)
+        for target in ("archived", ""):
+            with self.subTest(target=target):
+                response = self.post_state(season, target)
+                self.assertTrue(
+                    any(
+                        text.startswith("A season can't move from Draft to")
+                        for text in message_texts(response)
+                    )
+                )
+        season.refresh_from_db()
+        self.assertEqual(season.state, SeasonState.DRAFT)
+
+    def test_open_season_can_be_pulled_back_to_draft(self):
+        season = make_season(state=SeasonState.OPEN)
+
+        response = self.post_state(season, SeasonState.DRAFT)
+
+        self.assertIn("Fall is now draft.", message_texts(response))
+        season.refresh_from_db()
+        self.assertEqual(season.state, SeasonState.DRAFT)
