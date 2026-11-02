@@ -1,43 +1,58 @@
 {% extends "base.html" %}
-
+{% load ui %}
+{% block title %}Sports · PlayNYU{% endblock %}
 {% block content %}
-<div class="container py-4">
-  <h1>Manage Sports</h1>
-  <p class="text-muted">Sports available for PlayNYU events.</p>
-
-<form method="post" class="mb-4">
-  {% csrf_token %}
-
-  <div class="mb-3">
-      <label for="sport-name" class="form-label">
-          Sport Name
-      </label>
-
-      <input
-          type="text"
-          id="sport-name"
-          name="name"
-          class="form-control"
-          maxlength="50"
-          placeholder="e.g. Basketball"
-          required
-      >
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>Sports</h1>
+      <div class="page-meta">Sports that teams and free agents can choose.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'teams:league_setup' %}">League setup</a>
   </div>
 
-  <button type="submit" class="btn btn-primary">
-      Add Sport
-  </button>
-</form>
+  <div class="row row-cards">
+    <div class="col-lg-7">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">All sports</h2>
+          <div class="card-actions"><span class="text-secondary small pn-num">{{ sports|length }}</span></div>
+        </div>
+        {% if sports %}
+          <div class="list-group list-group-flush">
+            {% for sport in sports %}
+              <div class="list-group-item d-flex align-items-center gap-3">
+                <span class="avatar rounded bg-primary-lt"><i aria-hidden="true" class="ti {{ sport|sport_icon }}"></i></span>
+                <div class="min-w-0">
+                  <div class="fw-medium">{{ sport.name }}</div>
+                  <div class="small text-secondary"><span class="pn-num">{{ sport.event_type_count }}</span> event type{{ sport.event_type_count|pluralize }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+              <p class="empty-title">No sports yet</p>
+              <p class="empty-subtitle text-secondary">Add a sport so teams and free agents can choose it.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
 
-
-  {% if sports %}
-  <ul class="list-group">
-    {% for sport in sports %}
-    <li class="list-group-item">{{ sport.name }}</li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p>No sports have been added yet.</p>
-  {% endif %}
-</div>
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">Add a sport</h2></div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% include "components/form_fields.html" %}
+            <button class="btn btn-primary" type="submit">Add sport</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
