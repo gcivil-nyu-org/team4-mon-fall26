@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from .catalog_rules import name_key, validate_catalog_name
 from .models import (
     Division,
+    EventType,
     FreeAgentRequest,
     Roster,
     Season,
@@ -13,6 +14,30 @@ from .models import (
 )
 
 NYU_DOMAIN = "@nyu.edu"
+
+
+class SportForm(forms.ModelForm):
+    """Name rules and uniqueness live in Sport.clean (catalog_rules)."""
+
+    class Meta:
+        model = Sport
+        fields = ["name"]
+        labels = {"name": "Sport name"}
+
+
+class EventTypeForm(forms.ModelForm):
+    """Name rules and per-sport uniqueness live in EventType.clean (catalog_rules)."""
+
+    sport = forms.ModelChoiceField(
+        queryset=Sport.objects.order_by("name"),
+        label="Sport",
+        empty_label="Choose a sport",
+    )
+
+    class Meta:
+        model = EventType
+        fields = ["sport", "name"]
+        labels = {"name": "Event type name"}
 
 
 class TeamCreateForm(forms.ModelForm):
