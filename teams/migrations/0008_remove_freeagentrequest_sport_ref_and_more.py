@@ -1,4 +1,3 @@
-
 import django.db.models.deletion
 from django.db import migrations, models
 
@@ -21,7 +20,6 @@ class Migration(migrations.Migration):
             old_name="sport",
             new_name="sport_legacy",
         ),
-
         # Promote the populated foreign keys to the final field names.
         migrations.RenameField(
             model_name="team",
@@ -33,7 +31,6 @@ class Migration(migrations.Migration):
             old_name="sport_ref",
             new_name="sport",
         ),
-
         # Make the new Sport relationships mandatory.
         migrations.AlterField(
             model_name="team",
@@ -53,7 +50,6 @@ class Migration(migrations.Migration):
                 to="teams.sport",
             ),
         ),
-
         # Remove the old text columns only after preserving the relationships.
         migrations.RemoveField(
             model_name="team",

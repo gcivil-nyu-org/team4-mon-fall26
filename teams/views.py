@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.http import Http404
@@ -14,6 +14,7 @@ from .forms import (
     DivisionCreateForm,
     EventTypeForm,
     FreeAgentRequestForm,
+    SeasonForm,
     SportForm,
     TeamCreateForm,
 )
@@ -27,7 +28,20 @@ from .models import (
     Team,
     season_team_for,
 )
-from .season_rules import division_matches
+from .season_rules import (
+    ALLOWED_TRANSITIONS,
+    SeasonAction,
+    SeasonState,
+    division_matches,
+)
+
+# Button labels for each allowed state change on the League Admin seasons page.
+TRANSITION_LABELS = {
+    (SeasonState.DRAFT, SeasonState.OPEN): "Open registration",
+    (SeasonState.OPEN, SeasonState.DRAFT): "Move back to draft",
+    (SeasonState.OPEN, SeasonState.ACTIVE): "Start season",
+    (SeasonState.ACTIVE, SeasonState.CLOSED): "Close season",
+}
 
 
 @login_required
@@ -48,7 +62,11 @@ def create_team(request):
             if season is not None:
                 season = Season.objects.select_for_update().get(pk=season.pk)
                 current = season_team_for(request.user, season)
-                if current is not None:
+                if not season.allows(SeasonAction.CREATE_TEAM):
+                    form.add_error(
+                        "season", "That season isn't accepting new teams right now."
+                    )
+                elif current is not None:
                     form.add_error(
                         "season",
                         "You're already on a team this season. Players can be on "
@@ -89,6 +107,9 @@ def team_detail(request, pk):
             "roster": roster,
             "is_captain": team.captain_id == request.user.pk,
             "is_full": len(roster) >= team.max_roster_size,
+            "can_add": team.allows(SeasonAction.ADD_PLAYER),
+            "can_remove": team.allows(SeasonAction.REMOVE_PLAYER),
+            "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
         },
     )
 
@@ -98,6 +119,9 @@ def add_player(request, pk):
     team = get_object_or_404(Team, pk=pk)
     if team.captain_id != request.user.pk:
         raise PermissionDenied("Only the captain can add players.")
+    if not team.allows(SeasonAction.ADD_PLAYER):
+        messages.error(request, "This season isn't accepting new players.")
+        return redirect("teams:detail", pk=team.pk)
     if request.method == "GET" and team.is_full():
         messages.info(request, f"The roster is full ({team.max_roster_size} players).")
         return redirect("teams:detail", pk=team.pk)
@@ -105,11 +129,15 @@ def add_player(request, pk):
     form = AddPlayerForm(request.POST or None, team=team)
     if request.method == "POST":
         with transaction.atomic():
+            season = None
             if team.season_id:
-                Season.objects.select_for_update().get(pk=team.season_id)
+                season = Season.objects.select_for_update().get(pk=team.season_id)
             # Lock the team so two adds can't both pass the roster-size check.
             Team.objects.select_for_update().get(pk=team.pk)
             added = form.is_valid()
+            if added and season and not season.allows(SeasonAction.ADD_PLAYER):
+                form.add_error(None, "This season isn't accepting new players.")
+                added = False
             if added:
                 # TODO: players are added without consent; replace with an invite/accept flow later.
                 if team.season_id:
@@ -131,6 +159,12 @@ def remove_player(request, pk, entry_pk):
     team = get_object_or_404(Team, pk=pk)
     if team.captain_id != request.user.pk:
         raise PermissionDenied("Only the captain can remove players.")
+    if not team.allows(SeasonAction.REMOVE_PLAYER):
+        messages.error(
+            request,
+            "Rosters are locked once the season starts, so players can't be removed.",
+        )
+        return redirect("teams:detail", pk=team.pk)
     entry = get_object_or_404(
         team.roster.select_related("player"), pk=entry_pk, role=Roster.Role.PLAYER
     )
@@ -147,6 +181,12 @@ def leave_team(request, pk):
     # Nobody else can manage the team yet, so the captain has to stay.
     if entry.role == Roster.Role.CAPTAIN:
         messages.error(request, "Captains can't leave their own team.")
+        return redirect("teams:detail", pk=team.pk)
+    if not team.allows(SeasonAction.LEAVE_TEAM):
+        messages.error(
+            request,
+            "Rosters are locked once the season starts, so you can't leave this team.",
+        )
         return redirect("teams:detail", pk=team.pk)
     entry.delete()
     messages.success(request, f"You left {team.name}.")
@@ -167,8 +207,10 @@ def free_agent_pool(request):
         created = False
         with transaction.atomic():
             try:
-                season = Season.objects.select_for_update().get(
-                    pk=selected_season.pk, is_active=True
+                season = (
+                    Season.objects.allowing(SeasonAction.REQUEST_FREE_AGENT)
+                    .select_for_update()
+                    .get(pk=selected_season.pk)
                 )
             except Season.DoesNotExist:
                 form.add_error("season", "That season is no longer accepting requests.")
@@ -217,7 +259,12 @@ def cancel_free_agent_request(request, pk):
         raise Http404
 
     with transaction.atomic():
-        Season.objects.select_for_update().get(pk=season_id)
+        season = Season.objects.select_for_update().get(pk=season_id)
+        if not season.allows(SeasonAction.REQUEST_FREE_AGENT):
+            messages.error(
+                request, f"{season.name} is closed, so requests can't be changed."
+            )
+            return redirect("teams:free_agent_pool")
         request_to_cancel = FreeAgentRequest.objects.filter(
             pk=pk, player=request.user
         ).first()
@@ -237,7 +284,7 @@ def _require_league_admin(user):
 @login_required
 def manage_free_agents(request):
     _require_league_admin(request.user)
-    seasons = Season.objects.filter(is_active=True).annotate(
+    seasons = Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS).annotate(
         request_count=Count("free_agent_requests")
     )
     return render(request, "teams/manage_free_agents.html", {"seasons": seasons})
@@ -252,7 +299,7 @@ def league_setup(request):
         "event_types": EventType.objects.count(),
         "divisions": Division.objects.count(),
         "waiting_requests": FreeAgentRequest.objects.filter(
-            season__is_active=True
+            season__in=Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS)
         ).count(),
     }
     return render(
@@ -276,7 +323,9 @@ def manage_divisions(request):
 @login_required
 def manage_season_free_agents(request, season_pk):
     _require_league_admin(request.user)
-    season = get_object_or_404(Season, pk=season_pk, is_active=True)
+    season = get_object_or_404(
+        Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS), pk=season_pk
+    )
     free_agents = (
         FreeAgentRequest.objects.filter(season=season)
         .select_related("player", "division")
@@ -341,7 +390,8 @@ def match_free_agents(request, season_pk):
 
     with transaction.atomic():
         season = get_object_or_404(
-            Season.objects.select_for_update(), pk=season_pk, is_active=True
+            Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS).select_for_update(),
+            pk=season_pk,
         )
         free_agents = list(
             FreeAgentRequest.objects.filter(season=season)
@@ -446,3 +496,69 @@ def manage_event_types(request):
             "nav_section": "league_setup",
         },
     )
+
+
+def _season_transitions(season):
+    return [
+        {"state": target, "label": TRANSITION_LABELS[(season.state, target)]}
+        for target in SeasonState.values
+        if target in ALLOWED_TRANSITIONS.get(season.state, ())
+    ]
+
+
+@login_required
+def manage_seasons(request):
+    _require_league_admin(request.user)
+    seasons = Season.objects.annotate(team_count=Count("teams")).order_by(
+        "-start_date", "name"
+    )
+    rows = [
+        {"season": season, "transitions": _season_transitions(season)}
+        for season in seasons
+    ]
+    return render(
+        request, "teams/manage_seasons.html", {"rows": rows, "nav_section": "seasons"}
+    )
+
+
+@login_required
+def season_form(request, pk=None):
+    _require_league_admin(request.user)
+    season = get_object_or_404(Season, pk=pk) if pk else None
+    if season and season.state == SeasonState.CLOSED:
+        messages.error(request, f"{season.name} is closed and can't be edited.")
+        return redirect("teams:manage_seasons")
+    form = SeasonForm(request.POST or None, instance=season)
+    if request.method == "POST" and form.is_valid():
+        saved = form.save()
+        if season:
+            messages.success(request, f"Saved {saved.name}.")
+        else:
+            messages.success(
+                request,
+                f"Created {saved.name} as a draft. Players see it once you open registration.",
+            )
+        return redirect("teams:manage_seasons")
+    return render(
+        request,
+        "teams/season_form.html",
+        {"form": form, "season": season, "nav_section": "seasons"},
+    )
+
+
+@login_required
+@require_POST
+def change_season_state(request, pk):
+    _require_league_admin(request.user)
+    target = request.POST.get("state", "")
+    with transaction.atomic():
+        season = get_object_or_404(Season.objects.select_for_update(), pk=pk)
+        try:
+            season.move_to(target)
+        except ValidationError as error:
+            messages.error(request, " ".join(error.messages))
+        else:
+            messages.success(
+                request, f"{season.name} is now {season.get_state_display().lower()}."
+            )
+    return redirect("teams:manage_seasons")

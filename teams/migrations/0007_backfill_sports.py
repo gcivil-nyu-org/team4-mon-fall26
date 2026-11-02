@@ -1,4 +1,3 @@
-
 from django.db import migrations
 
 from teams.catalog_rules import group_legacy_sports, name_key
@@ -11,9 +10,7 @@ def forwards(apps, schema_editor):
 
     db = schema_editor.connection.alias
     teams = list(Team.objects.using(db).only("id", "sport"))
-    requests = list(
-        FreeAgentRequest.objects.using(db).only("id", "sport")
-    )
+    requests = list(FreeAgentRequest.objects.using(db).only("id", "sport"))
 
     # Gather the original text values from both models.
     values = [team.sport for team in teams]
@@ -38,16 +35,14 @@ def forwards(apps, schema_editor):
     for team in teams:
         sport = sports_by_key.get(name_key(team.sport or ""))
         if sport is not None:
-            Team.objects.using(db).filter(pk=team.pk).update(
-                sport_ref_id=sport.pk
-            )
+            Team.objects.using(db).filter(pk=team.pk).update(sport_ref_id=sport.pk)
 
     for request in requests:
         sport = sports_by_key.get(name_key(request.sport or ""))
         if sport is not None:
-            FreeAgentRequest.objects.using(db).filter(
-                pk=request.pk
-            ).update(sport_ref_id=sport.pk)
+            FreeAgentRequest.objects.using(db).filter(pk=request.pk).update(
+                sport_ref_id=sport.pk
+            )
 
 
 def backwards(apps, schema_editor):
@@ -55,22 +50,24 @@ def backwards(apps, schema_editor):
     FreeAgentRequest = apps.get_model("teams", "FreeAgentRequest")
 
     db = schema_editor.connection.alias
-        # Restore text from the catalog before dropping references.
-    for team in Team.objects.using(db).select_related(
-        "sport_ref"
-    ).only("id", "sport_ref", "sport_ref__name"):
+    # Restore text from the catalog before dropping references.
+    for team in (
+        Team.objects.using(db)
+        .select_related("sport_ref")
+        .only("id", "sport_ref", "sport_ref__name")
+    ):
         if team.sport_ref_id:
-            Team.objects.using(db).filter(pk=team.pk).update(
-                sport=team.sport_ref.name
-            )
+            Team.objects.using(db).filter(pk=team.pk).update(sport=team.sport_ref.name)
 
-    for request in FreeAgentRequest.objects.using(db).select_related(
-        "sport_ref"
-    ).only("id", "sport_ref", "sport_ref__name"):
+    for request in (
+        FreeAgentRequest.objects.using(db)
+        .select_related("sport_ref")
+        .only("id", "sport_ref", "sport_ref__name")
+    ):
         if request.sport_ref_id:
-            FreeAgentRequest.objects.using(db).filter(
-                pk=request.pk
-            ).update(sport=request.sport_ref.name)
+            FreeAgentRequest.objects.using(db).filter(pk=request.pk).update(
+                sport=request.sport_ref.name
+            )
 
 
 class Migration(migrations.Migration):

@@ -7,16 +7,31 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('teams', '0004_sport'),
+        ("teams", "0004_sport"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EventType',
+            name="EventType",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50)),
-                ('sport', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='event_types', to='teams.sport')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=50)),
+                (
+                    "sport",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="event_types",
+                        to="teams.sport",
+                    ),
+                ),
             ],
         ),
     ]
