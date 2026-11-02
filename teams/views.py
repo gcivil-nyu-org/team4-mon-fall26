@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Count
 from django.http import Http404
@@ -10,7 +10,15 @@ from django.views.decorators.http import require_POST
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 
 from .forms import AddPlayerForm, FreeAgentRequestForm, TeamCreateForm
-from .models import FreeAgentRequest, Roster, Season, Team, Sport,season_team_for
+from .models import (
+    EventType,
+    FreeAgentRequest,
+    Roster,
+    Season,
+    Sport,
+    Team,
+    season_team_for,
+)
 
 
 @login_required
@@ -38,6 +46,8 @@ def create_team(request):
 
             if not form.errors:
                 team = form.save(commit=False)
+                selected_sport = form.cleaned_data["sport"]
+                team.sport = selected_sport
                 team.season = season
                 team.captain = request.user
                 team.save()
@@ -156,7 +166,9 @@ def free_agent_pool(request):
                     _, created = FreeAgentRequest.objects.get_or_create(
                         player=request.user,
                         season=season,
-                        defaults={"sport": form.cleaned_data["sport"]},
+                        defaults={
+                            "sport": form.cleaned_data["sport"],
+                        },
                     )
 
         if created:
@@ -280,7 +292,7 @@ def match_free_agents(request, season_pk):
             available = [
                 team
                 for team in teams
-                if team.sport.casefold() == free_agent.sport.casefold()
+                if team.sport_id == free_agent.sport_id
                 and roster_counts[team.pk] < team.max_roster_size
             ]
             if not available:
@@ -311,9 +323,23 @@ def match_free_agents(request, season_pk):
         messages.success(request, f"Placed {matched} player(s) in {season.name}.")
     return redirect("teams:manage_season_free_agents", season_pk=season.pk)
 @login_required
+
 def manage_sports(request):
-    """Display the sports catalog to League Admins."""
+    """Display and manage sports for League Admins."""
     _require_league_admin(request.user)
+
+    if request.method == "POST":
+        name = request.POST.get("name", "")
+
+        sport = Sport(name=name)
+
+        try:
+            sport.save()
+        except ValidationError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Sport added successfully.")
+            return redirect("teams:manage_sports")
 
     sports = Sport.objects.order_by("name")
 
@@ -321,4 +347,38 @@ def manage_sports(request):
         request,
         "teams/manage_sports.html",
         {"sports": sports},
+    )
+
+@login_required
+def manage_event_types(request):
+    """Display and manage event types for League Admins."""
+    _require_league_admin(request.user)
+
+    if request.method == "POST":
+        sport_id = request.POST.get("sport")
+        name = request.POST.get("name", "")
+
+        sport = get_object_or_404(Sport, pk=sport_id)
+        event_type = EventType(sport=sport, name=name)
+
+        try:
+            event_type.save()
+        except ValidationError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "Event type added successfully.")
+            return redirect("teams:manage_event_types")
+
+    sports = Sport.objects.order_by("name")
+    event_types = EventType.objects.select_related("sport").order_by(
+        "sport__name", "name"
+    )
+
+    return render(
+        request,
+        "teams/manage_event_types.html",
+        {
+            "sports": sports,
+            "event_types": event_types,
+        },
     )
