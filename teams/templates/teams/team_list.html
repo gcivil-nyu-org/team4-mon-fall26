@@ -17,7 +17,7 @@
               {% include "components/team_logo.html" with team=team size="lg" %}
               <div class="min-w-0">
                 <a class="stretched-link text-reset fw-semibold d-block text-truncate" href="{% url 'teams:detail' team.pk %}">{{ team.name }}</a>
-                <div class="small text-secondary">{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}</div>
+                <div class="small text-secondary">{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}{% if team.division %} · {{ team.division.name }}{% endif %}</div>
               </div>
             </div>
           </div>

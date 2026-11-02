@@ -10,9 +10,10 @@ def forwards(apps, schema_editor):
     FreeAgentRequest = apps.get_model("teams", "FreeAgentRequest")
 
     db = schema_editor.connection.alias
-
-    teams = list(Team.objects.using(db).all())
-    requests = list(FreeAgentRequest.objects.using(db).all())
+    teams = list(Team.objects.using(db).only("id", "sport"))
+    requests = list(
+        FreeAgentRequest.objects.using(db).only("id", "sport")
+    )
 
     # Gather the original text values from both models.
     values = [team.sport for team in teams]
@@ -54,9 +55,10 @@ def backwards(apps, schema_editor):
     FreeAgentRequest = apps.get_model("teams", "FreeAgentRequest")
 
     db = schema_editor.connection.alias
-
-    # Restore text from the catalog before dropping references.
-    for team in Team.objects.using(db).select_related("sport_ref"):
+        # Restore text from the catalog before dropping references.
+    for team in Team.objects.using(db).select_related(
+        "sport_ref"
+    ).only("id", "sport_ref", "sport_ref__name"):
         if team.sport_ref_id:
             Team.objects.using(db).filter(pk=team.pk).update(
                 sport=team.sport_ref.name
@@ -64,7 +66,7 @@ def backwards(apps, schema_editor):
 
     for request in FreeAgentRequest.objects.using(db).select_related(
         "sport_ref"
-    ):
+    ).only("id", "sport_ref", "sport_ref__name"):
         if request.sport_ref_id:
             FreeAgentRequest.objects.using(db).filter(
                 pk=request.pk

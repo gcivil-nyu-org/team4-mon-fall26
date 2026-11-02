@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -9,8 +9,14 @@ from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 
-from .forms import AddPlayerForm, FreeAgentRequestForm, TeamCreateForm
+from .forms import (
+    AddPlayerForm,
+    DivisionCreateForm,
+    FreeAgentRequestForm,
+    TeamCreateForm,
+)
 from .models import (
+    Division,
     EventType,
     FreeAgentRequest,
     Roster,
@@ -19,11 +25,13 @@ from .models import (
     Team,
     season_team_for,
 )
-
+from .season_rules import division_matches
 
 @login_required
 def team_list(request):
-    teams = Team.objects.filter(roster__player=request.user).select_related("season")
+    teams = Team.objects.filter(roster__player=request.user).select_related(
+        "season", "division"
+    )
     return render(request, "teams/team_list.html", {"teams": teams})
 
 
@@ -62,7 +70,9 @@ def create_team(request):
 
 @login_required
 def team_detail(request, pk):
-    team = get_object_or_404(Team.objects.select_related("captain", "season"), pk=pk)
+    team = get_object_or_404(
+        Team.objects.select_related("captain", "season", "division"), pk=pk
+    )
     # Rosters show members' emails, so only teammates can see them.
     if not team.roster.filter(player=request.user).exists():
         raise Http404
@@ -144,7 +154,7 @@ def leave_team(request, pk):
 def free_agent_pool(request):
     current_requests = (
         FreeAgentRequest.objects.filter(player=request.user)
-        .select_related("season")
+        .select_related("season", "division")
         .order_by("season__start_date", "season__name")
     )
     form = FreeAgentRequestForm(request.POST or None, user=request.user)
@@ -168,6 +178,7 @@ def free_agent_pool(request):
                         season=season,
                         defaults={
                             "sport": form.cleaned_data["sport"],
+                            "division": form.cleaned_data["division"],
                         },
                     )
 
@@ -230,17 +241,25 @@ def manage_free_agents(request):
 
 
 @login_required
+def manage_divisions(request):
+    _require_league_admin(request.user)
+    seasons = Season.objects.order_by("-start_date", "name")
+    return render(request, "teams/manage_divisions.html", {"seasons": seasons})
+
+
+@login_required
 def manage_season_free_agents(request, season_pk):
     _require_league_admin(request.user)
     season = get_object_or_404(Season, pk=season_pk, is_active=True)
     free_agents = (
         FreeAgentRequest.objects.filter(season=season)
-        .select_related("player")
+        .select_related("player", "division")
         .order_by("requested_at", "pk")
     )
     teams = list(
         Team.objects.filter(season=season)
         .annotate(roster_count=Count("roster"))
+        .select_related("division")
         .order_by("pk")
     )
     available_spots = sum(
@@ -259,6 +278,30 @@ def manage_season_free_agents(request, season_pk):
 
 
 @login_required
+def manage_season_divisions(request, season_pk):
+    _require_league_admin(request.user)
+    season = get_object_or_404(Season, pk=season_pk)
+    form = DivisionCreateForm(request.POST or None, season=season)
+    if request.method == "POST" and form.is_valid():
+        try:
+            with transaction.atomic():
+                division = form.save()
+        except IntegrityError:
+            form.add_error(
+                "name", "A division with this name already exists in this season."
+            )
+        else:
+            messages.success(request, f"Added {division.name} to {season.name}.")
+            return redirect("teams:manage_season_divisions", season_pk=season.pk)
+    divisions = Division.objects.filter(season=season).order_by("name", "pk")
+    return render(
+        request,
+        "teams/manage_divisions.html",
+        {"season": season, "form": form, "divisions": divisions},
+    )
+
+
+@login_required
 @require_POST
 def match_free_agents(request, season_pk):
     _require_league_admin(request.user)
@@ -272,13 +315,13 @@ def match_free_agents(request, season_pk):
         free_agents = list(
             FreeAgentRequest.objects.filter(season=season)
             .select_for_update()
-            .select_related("player")
+            .select_related("player", "division")
             .order_by("requested_at", "pk")
         )
         teams = list(
             Team.objects.filter(season=season)
             .select_for_update()
-            .select_related("season")
+            .select_related("season", "division")
             .order_by("pk")
         )
         roster_counts = {team.pk: team.roster.count() for team in teams}
@@ -293,6 +336,7 @@ def match_free_agents(request, season_pk):
                 team
                 for team in teams
                 if team.sport_id == free_agent.sport_id
+                and division_matches(team.division_id, free_agent.division_id)
                 and roster_counts[team.pk] < team.max_roster_size
             ]
             if not available:
@@ -317,7 +361,7 @@ def match_free_agents(request, season_pk):
         messages.info(
             request,
             f"Placed {matched} player(s). {remaining} remain in the pool because "
-            "no team for their requested sport has an open spot.",
+            "no eligible team with an open spot matched their sport and division.",
         )
     else:
         messages.success(request, f"Placed {matched} player(s) in {season.name}.")

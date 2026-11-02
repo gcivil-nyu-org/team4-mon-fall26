@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('teams', '0003_freeagentrequest'),
+        ("teams", "0003_freeagentrequest"),
     ]
 
     operations = [
