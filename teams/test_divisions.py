@@ -8,7 +8,7 @@ from django.urls import reverse
 from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 
 from .forms import FreeAgentRequestForm, TeamCreateForm
-from .models import Division, FreeAgentRequest, Roster, Season, Team
+from .models import Division, FreeAgentRequest, Roster, Season, Sport, Team
 
 
 def make_user(username):
@@ -21,10 +21,15 @@ def make_season(name):
     return Season.objects.create(name=name, start_date=datetime.date(2026, 9, 1))
 
 
+def make_sport():
+    sport, _ = Sport.objects.get_or_create(name="Soccer")
+    return sport
+
+
 def make_team(captain, season, division=None, name="Violets"):
     team = Team.objects.create(
         name=name,
-        sport="Soccer",
+        sport=make_sport(),
         season=season,
         division=division,
         captain=captain,
@@ -37,6 +42,7 @@ class DivisionModelTests(TestCase):
     def setUp(self):
         self.season = make_season("Fall")
         self.other_season = make_season("Spring")
+        self.sport = make_sport()
         self.division = Division.objects.create(
             season=self.season, name="  west\tdivision  "
         )
@@ -54,7 +60,7 @@ class DivisionModelTests(TestCase):
     def test_team_model_rejects_a_division_from_another_season(self):
         team = Team(
             name="Cross season",
-            sport="Soccer",
+            sport=self.sport,
             season=self.other_season,
             division=self.division,
             captain=make_user("captain"),
@@ -69,7 +75,7 @@ class DivisionModelTests(TestCase):
             player=make_user("freeagent"),
             season=self.other_season,
             division=self.division,
-            sport="Soccer",
+            sport=self.sport,
         )
         with self.assertRaisesMessage(
             ValidationError, "Choose a division from the requested season."
@@ -81,6 +87,7 @@ class DivisionSelectionFormTests(TestCase):
     def setUp(self):
         self.season = make_season("Fall")
         self.other_season = make_season("Spring")
+        self.sport = make_sport()
         self.division = Division.objects.create(season=self.season, name="West")
         self.other_division = Division.objects.create(
             season=self.other_season, name="West"
@@ -91,7 +98,7 @@ class DivisionSelectionFormTests(TestCase):
         form = TeamCreateForm(
             {
                 "name": "Violets",
-                "sport": "Soccer",
+                "sport": self.sport.pk,
                 "season": self.season.pk,
                 "division": self.division.pk,
             },
@@ -105,7 +112,7 @@ class DivisionSelectionFormTests(TestCase):
             reverse("teams:create"),
             {
                 "name": "Violets",
-                "sport": "Soccer",
+                "sport": self.sport.pk,
                 "season": self.season.pk,
                 "division": self.division.pk,
             },
@@ -118,7 +125,7 @@ class DivisionSelectionFormTests(TestCase):
         form = TeamCreateForm(
             {
                 "name": "Violets",
-                "sport": "Soccer",
+                "sport": self.sport.pk,
                 "season": self.season.pk,
                 "division": self.other_division.pk,
             },
@@ -133,7 +140,7 @@ class DivisionSelectionFormTests(TestCase):
         form = FreeAgentRequestForm(
             {
                 "season": self.season.pk,
-                "sport": "Soccer",
+                "sport": self.sport.pk,
                 "division": self.division.pk,
             },
             user=self.player,
@@ -146,7 +153,7 @@ class DivisionSelectionFormTests(TestCase):
             reverse("teams:free_agent_pool"),
             {
                 "season": self.season.pk,
-                "sport": "Soccer",
+                "sport": self.sport.pk,
                 "division": self.division.pk,
             },
         )
@@ -158,7 +165,7 @@ class DivisionSelectionFormTests(TestCase):
         form = FreeAgentRequestForm(
             {
                 "season": self.season.pk,
-                "sport": "Soccer",
+                "sport": self.sport.pk,
                 "division": self.other_division.pk,
             },
             user=self.player,
@@ -170,7 +177,7 @@ class DivisionSelectionFormTests(TestCase):
 
     def test_team_without_division_remains_valid(self):
         form = TeamCreateForm(
-            {"name": "Unassigned", "sport": "Soccer", "season": self.season.pk},
+            {"name": "Unassigned", "sport": self.sport.pk, "season": self.season.pk},
             user=self.player,
         )
         self.assertTrue(form.is_valid(), form.errors)
@@ -188,7 +195,6 @@ class DivisionManagementTests(TestCase):
         self.assertEqual(
             self.client.get(reverse("teams:manage_divisions")).status_code, 403
         )
-
         admin = make_user("leagueadmin")
         assign_role(admin, LEAGUE_ADMIN_ROLE)
         self.client.force_login(admin)
@@ -230,6 +236,7 @@ class DivisionManagementTests(TestCase):
 class DivisionAwareMatchingTests(TestCase):
     def setUp(self):
         self.season = make_season("Fall")
+        self.sport = make_sport()
         self.west = Division.objects.create(season=self.season, name="West")
         self.east = Division.objects.create(season=self.season, name="East")
         self.unmatched = Division.objects.create(season=self.season, name="North")
@@ -246,22 +253,22 @@ class DivisionAwareMatchingTests(TestCase):
         FreeAgentRequest.objects.create(
             player=self.west_player,
             season=self.season,
-            sport="Soccer",
+            sport=self.sport,
             division=self.west,
         )
         FreeAgentRequest.objects.create(
             player=self.east_player,
             season=self.season,
-            sport="Soccer",
+            sport=self.sport,
             division=self.east,
         )
         FreeAgentRequest.objects.create(
-            player=self.any_player, season=self.season, sport="Soccer"
+            player=self.any_player, season=self.season, sport=self.sport
         )
         self.north_request = FreeAgentRequest.objects.create(
             player=self.north_player,
             season=self.season,
-            sport="Soccer",
+            sport=self.sport,
             division=self.unmatched,
         )
         admin = make_user("leagueadmin")
@@ -286,7 +293,8 @@ class DivisionAwareMatchingTests(TestCase):
         )
         self.assertTrue(
             Roster.objects.filter(
-                player=self.any_player, team__in=[self.west_team, self.east_team]
+                player=self.any_player,
+                team__in=[self.west_team, self.east_team],
             ).exists()
         )
         self.assertTrue(

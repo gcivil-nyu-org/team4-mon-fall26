@@ -1,6 +1,7 @@
+
 from django.contrib import admin
 
-from .models import FreeAgentRequest, Roster, Season, Team
+from .models import EventType, FreeAgentRequest, Roster, Season, Sport, Team
 
 
 class RosterInline(admin.TabularInline):
@@ -12,6 +13,19 @@ class RosterInline(admin.TabularInline):
 class TeamAdmin(admin.ModelAdmin):
     list_display = ("name", "sport", "season", "division", "captain", "created_at")
     inlines = [RosterInline]
+
+
+@admin.register(Sport)
+class SportAdmin(admin.ModelAdmin):
+    list_display = ("name",)
+    search_fields = ("name",)
+
+
+@admin.register(EventType)
+class EventTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "sport")
+    list_filter = ("sport",)
+    search_fields = ("name", "sport__name")
 
 
 admin.site.register(Season)

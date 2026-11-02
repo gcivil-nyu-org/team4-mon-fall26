@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+  <h1>Manage Sports</h1>
+  <p class="text-muted">Sports available for PlayNYU events.</p>
+
+<form method="post" class="mb-4">
+  {% csrf_token %}
+
+  <div class="mb-3">
+      <label for="sport-name" class="form-label">
+          Sport Name
+      </label>
+
+      <input
+          type="text"
+          id="sport-name"
+          name="name"
+          class="form-control"
+          maxlength="50"
+          placeholder="e.g. Basketball"
+          required
+      >
+  </div>
+
+  <button type="submit" class="btn btn-primary">
+      Add Sport
+  </button>
+</form>
+
+
+  {% if sports %}
+  <ul class="list-group">
+    {% for sport in sports %}
+    <li class="list-group-item">{{ sport.name }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No sports have been added yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

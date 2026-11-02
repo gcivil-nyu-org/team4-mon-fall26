@@ -2,12 +2,26 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 from .catalog_rules import name_key, validate_catalog_name
-from .models import Division, FreeAgentRequest, Roster, Season, Team, season_team_for
+from .models import (
+    Division,
+    FreeAgentRequest,
+    Roster,
+    Season,
+    Sport,
+    Team,
+    season_team_for,
+)
 
 NYU_DOMAIN = "@nyu.edu"
 
 
 class TeamCreateForm(forms.ModelForm):
+    sport = forms.ModelChoiceField(
+        queryset=Sport.objects.all().order_by("name"),
+        label="Sport",
+        empty_label="Choose a sport",
+    )
+
     class Meta:
         model = Team
         fields = ["name", "sport", "season", "division"]
@@ -114,7 +128,12 @@ class FreeAgentRequestForm(forms.Form):
         label="Season",
         empty_label="Choose a season",
     )
-    sport = forms.CharField(max_length=50, label="Sport")
+    sport = forms.ModelChoiceField(
+        queryset=Sport.objects.all().order_by("name"),
+        label="Sport",
+        empty_label="Choose a sport",
+    )
+
     division = forms.ModelChoiceField(
         queryset=Division.objects.none(),
         label="Division",
@@ -149,7 +168,7 @@ class FreeAgentRequestForm(forms.Form):
         return season
 
     def clean_sport(self):
-        return self.cleaned_data["sport"].strip()
+        return self.cleaned_data["sport"]
 
     def clean_division(self):
         division = self.cleaned_data.get("division")

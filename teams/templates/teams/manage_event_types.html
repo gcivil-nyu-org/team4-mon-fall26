@@ -1,0 +1,71 @@
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>Manage Event Types</h1>
+
+    <p class="text-muted">
+        Add and view event types for PlayNYU sports.
+    </p>
+
+    <form method="post" class="mb-4">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label for="sport" class="form-label">
+                Sport
+            </label>
+
+            <select
+                id="sport"
+                name="sport"
+                class="form-select"
+                required
+            >
+                <option value="">Select a sport</option>
+                {% for sport in sports %}
+                    <option value="{{ sport.id }}">
+                        {{ sport.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label for="event-name" class="form-label">
+                Event Type Name
+            </label>
+
+            <input
+                type="text"
+                id="event-name"
+                name="name"
+                class="form-control"
+                maxlength="50"
+                placeholder="e.g. 3v3"
+                required
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Add Event Type
+        </button>
+    </form>
+
+    <h2>Existing Event Types</h2>
+
+    {% if event_types %}
+        <ul class="list-group">
+            {% for event_type in event_types %}
+                <li class="list-group-item">
+                    {{ event_type.sport.name }}
+                    — {{ event_type.name }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No event types have been added yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
