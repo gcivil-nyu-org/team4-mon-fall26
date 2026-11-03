@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "teams",
     "profiles",
     "accounts",
+    "facilities",
 ]
 
 MIDDLEWARE = [
