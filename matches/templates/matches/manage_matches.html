@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Matches · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>Matches</h1>
+      <div class="page-meta">Schedule matches while a season is open or active. Times are New York time.</div>
+    </div>
+    {% if can_schedule %}
+      <a class="btn btn-primary" href="{% url 'matches:create' %}{% if season %}?season={{ season.pk }}{% endif %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Schedule a match</a>
+    {% endif %}
+  </div>
+
+  {% if seasons %}
+    <form class="d-flex flex-wrap align-items-end gap-2 mb-3" method="get">
+      <div>
+        <label class="form-label" for="season-filter">Season</label>
+        <select class="form-select" id="season-filter" name="season">
+          <option value="">All seasons</option>
+          {% for option in seasons %}
+            <option value="{{ option.pk }}"{% if season and option.pk == season.pk %} selected{% endif %}>{{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-secondary" type="submit">Filter</button>
+    </form>
+  {% endif %}
+
+  <div class="card">
+    {% if matches %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Match</th>
+              <th>When</th>
+              <th>Facility</th>
+              <th>Status</th>
+              <th class="w-1"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for match in matches %}
+              <tr>
+                <td>
+                  <div class="fw-medium">{{ match.home_team.name }} vs {{ match.away_team.name }}</div>
+                  <div class="small text-secondary">{{ match.season.name }}</div>
+                </td>
+                <td class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</td>
+                <td>{{ match.facility.name }}</td>
+                <td>
+                  {% if match.is_cancelled %}
+                    <span class="badge bg-secondary-lt">Cancelled</span>
+                  {% else %}
+                    <span class="badge bg-green-lt">Scheduled</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if not match.is_cancelled %}
+                    <div class="d-flex flex-wrap justify-content-end gap-2">
+                      <a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:edit' match.pk %}">Edit</a>
+                      <form method="post" action="{% url 'matches:cancel' match.pk %}" onsubmit="return confirm('Cancel {{ match|escapejs }}?');">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Cancel</button>
+                      </form>
+                    </div>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-off"></i></div>
+        <p class="empty-title">No matches yet</p>
+        <p class="empty-subtitle text-secondary">{% if can_schedule %}Schedule a match between two teams of an open or active season.{% else %}Open a season first, then schedule its matches here.{% endif %}</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

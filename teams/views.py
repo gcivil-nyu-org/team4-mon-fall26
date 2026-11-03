@@ -5,9 +5,11 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
+from matches.models import Match
 
 from .forms import (
     AddPlayerForm,
@@ -302,6 +304,9 @@ def league_setup(request):
         "waiting_requests": FreeAgentRequest.objects.filter(
             season__in=Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS)
         ).count(),
+        "upcoming_matches": Match.objects.scheduled()
+        .filter(starts_at__gte=timezone.now())
+        .count(),
     }
     return render(
         request,
