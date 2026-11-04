@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
+from facilities.models import Facility
 from matches.models import Match
 
 from .forms import (
@@ -310,6 +311,7 @@ def league_setup(request):
             season__in=Season.objects.allowing(SeasonAction.SCHEDULE_MATCH),
         )
         .count(),
+        "facilities": Facility.objects.count(),
     }
     return render(
         request,
