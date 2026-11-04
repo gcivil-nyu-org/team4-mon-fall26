@@ -1,0 +1,12 @@
+from django.urls import path
+
+from . import views
+
+app_name = "matches"
+
+urlpatterns = [
+    path("manage/", views.manage_matches, name="manage"),
+    path("manage/new/", views.match_form, name="create"),
+    path("manage/<int:pk>/edit/", views.match_form, name="edit"),
+    path("manage/<int:pk>/cancel/", views.cancel_match, name="cancel"),
+]

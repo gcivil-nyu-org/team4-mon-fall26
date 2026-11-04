@@ -56,6 +56,7 @@ Nothing else. `closed` is final. Moving a season to the state it is already in i
 | `add_player` | no | yes | yes | no |
 | `remove_player` | no | yes | no | no |
 | `leave_team` | no | yes | no | no |
+| `schedule_match` (E4, #131) | no | yes | yes | no |
 
 Rosters are locked once a season is `active`: players can still be added (by the captain or by free-agent matching), but nobody can leave or be removed, so no one switches teams mid-season. The existing one-team-per-season rule already stops a player joining a second team.
 

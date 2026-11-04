@@ -41,6 +41,7 @@ class SeasonAction(models.TextChoices):
     ADD_PLAYER = "add_player", "Add player"
     REMOVE_PLAYER = "remove_player", "Remove player"
     LEAVE_TEAM = "leave_team", "Leave team"
+    SCHEDULE_MATCH = "schedule_match", "Schedule match"
 
 
 ALLOWED_ACTIONS = {
@@ -53,6 +54,7 @@ ALLOWED_ACTIONS = {
             SeasonAction.REQUEST_FREE_AGENT,
             SeasonAction.MATCH_FREE_AGENTS,
             SeasonAction.ADD_PLAYER,
+            SeasonAction.SCHEDULE_MATCH,
         }
     ),
     SeasonState.CLOSED: frozenset(),

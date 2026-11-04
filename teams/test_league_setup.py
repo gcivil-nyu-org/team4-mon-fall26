@@ -162,6 +162,7 @@ class LeagueSetupHubTests(TestCase):
             "manage_free_agents",
         ):
             self.assertContains(response, f'href="{reverse(f"teams:{name}")}"')
+        self.assertContains(response, f'href="{reverse("matches:manage")}"')
         self.assertEqual(
             response.context["counts"],
             {
@@ -170,6 +171,7 @@ class LeagueSetupHubTests(TestCase):
                 "event_types": 1,
                 "divisions": 1,
                 "waiting_requests": 1,
+                "upcoming_matches": 0,
             },
         )
 

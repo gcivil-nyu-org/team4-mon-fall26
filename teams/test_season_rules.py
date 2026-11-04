@@ -86,6 +86,12 @@ class SeasonAllowsTests(SimpleTestCase):
                 "active": False,
                 "closed": False,
             },
+            "schedule_match": {
+                "draft": False,
+                "open": True,
+                "active": True,
+                "closed": False,
+            },
         }
         for action, by_state in expected.items():
             for state, allowed in by_state.items():

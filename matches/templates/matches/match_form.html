@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{% if match %}Edit match{% else %}Schedule a match{% endif %} · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <div class="subheader">League Admin · {{ season.name }}</div>
+          <h1>{% if match %}Edit {{ match }}{% else %}Schedule a match{% endif %}</h1>
+          <div class="page-meta">Both teams must be in {{ season.name }} and play the same sport.</div>
+        </div>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">{% if match %}Save match{% else %}Schedule match{% endif %}</button>
+            <a class="btn btn-ghost-secondary" href="{% url 'matches:manage' %}?season={{ season.pk }}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
