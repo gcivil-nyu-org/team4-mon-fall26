@@ -100,6 +100,11 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+        # Start write transactions with the write lock held. SQLite ignores
+        # select_for_update, so without this two requests can read the same
+        # roster and the loser fails with "database is locked" instead of seeing
+        # the normal validation message.
+        "OPTIONS": {"transaction_mode": "IMMEDIATE"},
     }
 }
 
