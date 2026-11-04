@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ facility.name }} · PlayNYU{% endblock %}
+{% block head %}{% include "components/map_styles.html" %}{% endblock %}
+{% block content %}
+  <div class="page-header mb-4">
+    <div class="subheader">{{ facility.get_source_display }}</div>
+    <h1>{{ facility.name }}</h1>
+    {% if facility.address %}<div class="page-meta">{{ facility.address }}{% if facility.borough %}, {{ facility.get_borough_display }}{% endif %}</div>{% endif %}
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card">
+        {% if markers %}
+          <div class="pn-map" id="pn-map" role="region" aria-label="Map showing {{ facility.name }}"></div>
+        {% else %}
+          <div class="empty">
+            <div class="empty-icon"><i aria-hidden="true" class="ti ti-map-off"></i></div>
+            <p class="empty-title">No map location yet</p>
+            <p class="empty-subtitle text-secondary">This facility doesn't have coordinates.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Sports</h3></div>
+        <div class="card-body">
+          {% for sport in facility.sports.all %}
+            <span class="badge bg-primary-lt">{{ sport.name }}</span>
+          {% empty %}
+            <p class="text-secondary mb-0">No sports listed yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <a class="btn btn-ghost-secondary mt-3" href="{% url 'facilities:map' %}">All facilities</a>
+{% endblock %}
+{% block scripts %}
+  {% if markers %}
+    {{ markers|json_script:"pn-map-markers" }}
+    {% include "components/map_assets.html" %}
+  {% endif %}
+{% endblock %}

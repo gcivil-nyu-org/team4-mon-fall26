@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Facilities · PlayNYU{% endblock %}
+{% block head %}{% include "components/map_styles.html" %}{% endblock %}
+{% block content %}
+  <div class="page-header mb-4">
+    <h1>Facilities</h1>
+    <div class="page-meta">Where league matches are played. Select a pin to see the facility.</div>
+  </div>
+
+  {% if markers %}
+    <div class="card mb-3">
+      <div class="pn-map" id="pn-map" role="region" aria-label="Map of facilities"></div>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    {% if facilities %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Facility</th>
+              <th>Borough</th>
+              <th>Sports</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for facility in facilities %}
+              <tr>
+                <td>
+                  <a class="fw-medium" href="{% url 'facilities:detail' facility.pk %}">{{ facility.name }}</a>
+                  {% if facility.address %}<div class="small text-secondary">{{ facility.address }}</div>{% endif %}
+                </td>
+                <td>{{ facility.get_borough_display|default:"—" }}</td>
+                <td>{% for sport in facility.sports.all %}{{ sport.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-map-off"></i></div>
+        <p class="empty-title">No facilities yet</p>
+        <p class="empty-subtitle text-secondary">Facilities show up here once they've been added.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% if markers %}
+    {{ markers|json_script:"pn-map-markers" }}
+    {% include "components/map_assets.html" %}
+  {% endif %}
+{% endblock %}
