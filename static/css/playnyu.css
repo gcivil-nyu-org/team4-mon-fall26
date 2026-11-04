@@ -102,3 +102,9 @@
 
 /* Lets text-truncate work inside flex rows. */
 .min-w-0 { min-width: 0; }
+
+/* Leaflet map container. */
+.pn-map {
+  height: 420px;
+  border-radius: inherit;
+}
