@@ -146,6 +146,8 @@ class FacilityPageTests(TestCase):
         self.assertContains(response, "No facilities yet")
         self.assertNotContains(response, 'id="pn-map"')
         self.assertNotContains(response, "leaflet.js")
+        self.assertNotContains(response, "leaflet.css")
+        self.assertNotContains(response, "Select a pin")
 
     def test_facility_names_are_escaped_in_map_data(self):
         Facility.objects.create(
@@ -166,6 +168,15 @@ class FacilityPageTests(TestCase):
         )
         self.assertContains(response, "No map location yet")
         self.assertNotContains(response, 'id="pn-map"')
+
+    def test_detail_shows_borough_without_an_address(self):
+        facility = Facility.objects.create(
+            name="Riverside Field",
+            borough=Facility.Borough.BRONX,
+            source=Facility.Source.NYU,
+        )
+        response = self.client.get(reverse("facilities:detail", args=[facility.pk]))
+        self.assertContains(response, '<div class="page-meta">Bronx</div>')
 
     def test_inactive_facility_detail_is_404(self):
         response = self.client.get(reverse("facilities:detail", args=[self.hidden.pk]))

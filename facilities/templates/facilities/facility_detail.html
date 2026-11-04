@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}{{ facility.name }} · PlayNYU{% endblock %}
-{% block head %}{% include "components/map_styles.html" %}{% endblock %}
+{% block head %}{% if markers %}{% include "components/map_styles.html" %}{% endif %}{% endblock %}
 {% block content %}
   <div class="page-header mb-4">
     <div class="subheader">{{ facility.get_source_display }}</div>
     <h1>{{ facility.name }}</h1>
-    {% if facility.address %}<div class="page-meta">{{ facility.address }}{% if facility.borough %}, {{ facility.get_borough_display }}{% endif %}</div>{% endif %}
+    {% if facility.address or facility.borough %}<div class="page-meta">{{ facility.address }}{% if facility.address and facility.borough %}, {% endif %}{{ facility.get_borough_display }}</div>{% endif %}
   </div>
 
   <div class="row row-cards">

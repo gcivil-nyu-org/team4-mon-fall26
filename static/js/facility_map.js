@@ -6,12 +6,14 @@
     return;
   }
 
-  var NYU = [40.7295, -73.9965];
   var markers = JSON.parse(data.textContent);
-  var map = L.map(element).setView(NYU, 13);
+  var map = L.map(element);
 
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
+    // OSM blocks tile requests with no Referer, and Django's default
+    // Referrer-Policy (same-origin) strips it from cross-origin requests.
+    referrerPolicy: "strict-origin-when-cross-origin",
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
