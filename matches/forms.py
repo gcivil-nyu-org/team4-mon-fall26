@@ -1,6 +1,8 @@
 from django import forms
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
+from accounts.roles import SCOREKEEPER_ROLE, users_with_role
 from facilities.models import Facility
 from teams.models import Team
 
@@ -21,7 +23,14 @@ class MatchForm(forms.ModelForm):
 
     class Meta:
         model = Match
-        fields = ["home_team", "away_team", "facility", "starts_at", "ends_at"]
+        fields = [
+            "home_team",
+            "away_team",
+            "facility",
+            "starts_at",
+            "ends_at",
+            "scorekeeper",
+        ]
         labels = {"starts_at": "Starts", "ends_at": "Ends"}
         widgets = {"starts_at": DateTimeLocalInput(), "ends_at": DateTimeLocalInput()}
         help_texts = {"starts_at": "New York time."}
@@ -42,6 +51,19 @@ class MatchForm(forms.ModelForm):
                 pk=self.instance.facility_id
             )
         self.fields["facility"].queryset = facilities.distinct()
+        scorekeepers = users_with_role(SCOREKEEPER_ROLE)
+        if self.instance.scorekeeper_id:
+            # Keep the current scorekeeper selectable even if they lost the role.
+            scorekeepers = scorekeepers | get_user_model().objects.filter(
+                pk=self.instance.scorekeeper_id
+            )
+        self.fields["scorekeeper"].queryset = scorekeepers.distinct().order_by(
+            "first_name", "last_name", "email"
+        )
+        self.fields["scorekeeper"].label_from_instance = (
+            lambda user: user.get_full_name() or user.email
+        )
+        self.fields["scorekeeper"].empty_label = "No scorekeeper yet"
         for name in ("starts_at", "ends_at"):
             self.fields[name].input_formats = [DATETIME_FORMAT]
 

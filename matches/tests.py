@@ -2,14 +2,15 @@ import datetime
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.test import TestCase
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 
-from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
+from accounts.roles import LEAGUE_ADMIN_ROLE, SCOREKEEPER_ROLE, assign_role
 from facilities.models import Facility
 from teams.models import Season, Sport, Team
 from teams.season_rules import SeasonState
@@ -20,12 +21,14 @@ from .models import Match
 NY = ZoneInfo("America/New_York")
 
 
-def make_user(username, admin=False):
+def make_user(username, admin=False, scorekeeper=False):
     user = get_user_model().objects.create_user(
         username=username, email=f"{username}@nyu.edu", password="pass12345!"
     )
     if admin:
         assign_role(user, LEAGUE_ADMIN_ROLE)
+    if scorekeeper:
+        assign_role(user, SCOREKEEPER_ROLE)
     return user
 
 
@@ -394,3 +397,277 @@ class MatchViewTests(MatchFixtures):
         response = self.client.get(reverse("teams:league_setup"))
         self.assertEqual(response.context["counts"]["upcoming_matches"], 0)
         self.assertContains(response, reverse("matches:manage"))
+
+
+class ScorekeeperFixtures(MatchFixtures):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.keeper = make_user("keeper", scorekeeper=True)
+        cls.other_keeper = make_user("otherkeeper", scorekeeper=True)
+        cls.superuser = get_user_model().objects.create_superuser(
+            username="root", email="root@nyu.edu", password="pass12345!"
+        )
+
+    def assign(self, keeper=None, **overrides):
+        match = self.build(scorekeeper=keeper or self.keeper, **overrides)
+        match.save()
+        return match
+
+    def edit_url(self, match):
+        return reverse("matches:edit", args=[match.pk])
+
+    def remove_role(self, user):
+        user.groups.remove(Group.objects.get(name=SCOREKEEPER_ROLE))
+
+
+class ScorekeeperRoleTests(TestCase):
+    def test_migration_creates_the_role(self):
+        self.assertTrue(Group.objects.filter(name=SCOREKEEPER_ROLE).exists())
+
+
+class ScorekeeperModelTests(ScorekeeperFixtures):
+    def test_scorekeeper_is_optional(self):
+        match = self.build()
+        match.full_clean()
+        self.assertIsNone(match.scorekeeper)
+
+    def test_scorekeeper_role_can_be_assigned(self):
+        self.build(scorekeeper=self.keeper).full_clean()
+
+    def test_users_without_the_role_cannot_be_assigned(self):
+        for user in (self.player, self.admin, self.superuser):
+            with self.subTest(user=user.username):
+                with self.assertRaises(ValidationError) as caught:
+                    self.build(scorekeeper=user).full_clean()
+                self.assertIn("scorekeeper", caught.exception.message_dict)
+
+    def test_inactive_scorekeeper_cannot_be_assigned(self):
+        get_user_model().objects.filter(pk=self.keeper.pk).update(is_active=False)
+        with self.assertRaises(ValidationError) as caught:
+            self.build(scorekeeper=self.keeper).full_clean()
+        self.assertIn("scorekeeper", caught.exception.message_dict)
+
+    def test_losing_the_role_keeps_the_assignment_and_allows_other_edits(self):
+        match = self.assign()
+        self.remove_role(self.keeper)
+        match.refresh_from_db()
+        self.assertEqual(match.scorekeeper, self.keeper)
+        match.ends_at = at(10, 21)
+        match.full_clean()
+
+    def test_stale_scorekeeper_cannot_be_put_on_another_match(self):
+        match = self.assign()
+        self.remove_role(self.keeper)
+        match.scorekeeper = None
+        match.save()
+        match.scorekeeper = self.keeper
+        with self.assertRaises(ValidationError) as caught:
+            match.full_clean()
+        self.assertIn("scorekeeper", caught.exception.message_dict)
+
+    def test_deleting_the_scorekeeper_keeps_the_match(self):
+        match = self.assign()
+        self.keeper.delete()
+        match.refresh_from_db()
+        self.assertIsNone(match.scorekeeper)
+        self.assertFalse(match.is_cancelled)
+
+
+class ScorekeeperFormTests(ScorekeeperFixtures):
+    def choices(self, match=None):
+        form = MatchForm(instance=match, season=self.season)
+        return set(form.fields["scorekeeper"].queryset)
+
+    def test_only_active_scorekeepers_are_offered(self):
+        get_user_model().objects.filter(pk=self.other_keeper.pk).update(is_active=False)
+        self.assertEqual(self.choices(), {self.keeper})
+
+    def test_scorekeeper_with_extra_roles_is_listed_once(self):
+        # Offering the current scorekeeper joins every group they're in.
+        assign_role(self.keeper, LEAGUE_ADMIN_ROLE)
+        form = MatchForm(instance=self.assign(), season=self.season)
+        pks = [user.pk for user in form.fields["scorekeeper"].queryset]
+        self.assertEqual(pks.count(self.keeper.pk), 1)
+
+    def test_stale_scorekeeper_stays_selectable_on_their_own_match_only(self):
+        match = self.assign()
+        self.remove_role(self.keeper)
+        self.assertEqual(self.choices(match), {self.keeper, self.other_keeper})
+        self.assertEqual(self.choices(), {self.other_keeper})
+
+    def test_form_rejects_a_user_without_the_role(self):
+        form = MatchForm(self.post_data(scorekeeper=self.player.pk), season=self.season)
+        self.assertFalse(form.is_valid())
+        self.assertIn("scorekeeper", form.errors)
+
+
+class ScorekeeperAssignmentTests(ScorekeeperFixtures):
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def stored_scorekeeper(self, match):
+        match.refresh_from_db()
+        return match.scorekeeper
+
+    def test_assign_when_scheduling(self):
+        url = reverse("matches:create") + f"?season={self.season.pk}"
+        self.client.post(url, self.post_data(scorekeeper=self.keeper.pk))
+        self.assertEqual(Match.objects.get().scorekeeper, self.keeper)
+
+    def test_scheduling_without_a_scorekeeper_still_works(self):
+        url = reverse("matches:create") + f"?season={self.season.pk}"
+        self.client.post(url, self.post_data())
+        self.assertIsNone(Match.objects.get().scorekeeper)
+
+    def test_admin_can_assign_change_and_clear(self):
+        match = self.build()
+        match.save()
+        for value, expected in [
+            (self.keeper.pk, self.keeper),
+            (self.other_keeper.pk, self.other_keeper),
+            ("", None),
+        ]:
+            with self.subTest(value=value):
+                response = self.client.post(
+                    self.edit_url(match), self.post_data(scorekeeper=value)
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(self.stored_scorekeeper(match), expected)
+
+    def test_superuser_can_assign(self):
+        match = self.build()
+        match.save()
+        self.client.force_login(self.superuser)
+        self.client.post(
+            self.edit_url(match), self.post_data(scorekeeper=self.keeper.pk)
+        )
+        self.assertEqual(self.stored_scorekeeper(match), self.keeper)
+
+    def test_posting_a_user_without_the_role_changes_nothing(self):
+        match = self.assign()
+        response = self.client.post(
+            self.edit_url(match), self.post_data(scorekeeper=self.player.pk)
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("scorekeeper", response.context["form"].errors)
+        self.assertEqual(self.stored_scorekeeper(match), self.keeper)
+
+    def test_rescheduling_keeps_a_stale_scorekeeper(self):
+        match = self.assign()
+        self.remove_role(self.keeper)
+        response = self.client.post(
+            self.edit_url(match),
+            self.post_data(scorekeeper=self.keeper.pk, ends_at="2026-11-10T21:00"),
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.stored_scorekeeper(match), self.keeper)
+        self.assertEqual(match.ends_at, at(10, 21))
+
+    def test_cancelled_match_is_read_only(self):
+        match = self.assign()
+        match.cancel()
+        response = self.client.post(
+            self.edit_url(match), self.post_data(scorekeeper=self.other_keeper.pk)
+        )
+        self.assertRedirects(response, reverse("matches:manage"))
+        self.assertEqual(self.stored_scorekeeper(match), self.keeper)
+
+    def test_closed_season_is_read_only(self):
+        match = self.assign()
+        Season.objects.filter(pk=self.season.pk).update(state=SeasonState.CLOSED)
+        response = self.client.post(
+            self.edit_url(match), self.post_data(scorekeeper=self.other_keeper.pk)
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.stored_scorekeeper(match), self.keeper)
+
+    def test_non_admins_cannot_assign(self):
+        match = self.build()
+        match.save()
+        for user in (self.player, self.keeper):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                response = self.client.post(
+                    self.edit_url(match), self.post_data(scorekeeper=self.keeper.pk)
+                )
+                self.assertEqual(response.status_code, 403)
+                self.assertIsNone(self.stored_scorekeeper(match))
+
+    def test_anonymous_cannot_assign(self):
+        match = self.build()
+        match.save()
+        self.client.logout()
+        response = self.client.post(
+            self.edit_url(match), self.post_data(scorekeeper=self.keeper.pk)
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+        self.assertIsNone(self.stored_scorekeeper(match))
+
+    def test_manage_list_shows_the_scorekeeper_or_unassigned(self):
+        self.keeper.first_name, self.keeper.last_name = "Kim", "Park"
+        self.keeper.save()
+        self.assign()
+        self.build(starts_at=at(11, 18), ends_at=at(11, 20)).save()
+        response = self.client.get(reverse("matches:manage"))
+        self.assertContains(response, "Kim Park")
+        self.assertContains(response, "Unassigned")
+        self.assertNotContains(response, "Needs reassigning")
+
+    def test_manage_list_flags_a_stale_scorekeeper_on_live_matches_only(self):
+        match = self.assign()
+        self.remove_role(self.keeper)
+        response = self.client.get(reverse("matches:manage"))
+        self.assertContains(response, "Needs reassigning")
+        match.cancel()
+        response = self.client.get(reverse("matches:manage"))
+        self.assertNotContains(response, "Needs reassigning")
+
+
+class MyMatchesTests(ScorekeeperFixtures):
+    url = reverse_lazy("matches:mine")
+
+    def test_anonymous_redirected_to_login(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_everyone_without_the_role_gets_403(self):
+        for user in (self.player, self.admin, self.superuser):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_losing_the_role_removes_access(self):
+        self.assign()
+        self.remove_role(self.keeper)
+        self.client.force_login(self.keeper)
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+
+    def test_lists_only_the_scorekeepers_own_matches(self):
+        mine = self.assign()
+        self.assign(self.other_keeper, starts_at=at(11, 18), ends_at=at(11, 20))
+        self.build(starts_at=at(12, 18), ends_at=at(12, 20)).save()
+        self.client.force_login(self.keeper)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["matches"]), [mine])
+
+    def test_cancelled_match_stays_listed_and_is_labelled(self):
+        self.assign().cancel()
+        self.client.force_login(self.keeper)
+        self.assertContains(self.client.get(self.url), "Cancelled")
+
+    def test_empty_state(self):
+        self.client.force_login(self.keeper)
+        self.assertContains(self.client.get(self.url), "No matches assigned yet")
+
+    def test_nav_link_only_for_scorekeepers(self):
+        link = f'href="{self.url}"'
+        self.client.force_login(self.keeper)
+        self.assertContains(self.client.get(reverse("core:home")), link)
+        for user in (self.player, self.admin, self.superuser):
+            with self.subTest(user=user.username):
+                self.client.force_login(user)
+                self.assertNotContains(self.client.get(reverse("core:home")), link)

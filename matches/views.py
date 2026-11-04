@@ -1,9 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from accounts.roles import SCOREKEEPER_ROLE, has_role, users_with_role
 from teams.models import Season
 from teams.season_rules import SeasonAction
 from teams.views import _require_league_admin
@@ -27,7 +29,7 @@ def manage_matches(request):
     seasons = Season.objects.visible_to_players().order_by("name")
     season = None
     matches = Match.objects.select_related(
-        "season", "home_team", "away_team", "facility"
+        "season", "home_team", "away_team", "facility", "scorekeeper"
     )
     season_id = request.GET.get("season", "")
     if season_id.isdecimal():
@@ -38,6 +40,9 @@ def manage_matches(request):
         "matches/manage_matches.html",
         {
             "matches": matches,
+            "scorekeeper_ids": set(
+                users_with_role(SCOREKEEPER_ROLE).values_list("pk", flat=True)
+            ),
             "seasons": seasons,
             "season": season,
             "can_schedule": _schedulable_seasons().exists(),
@@ -45,6 +50,21 @@ def manage_matches(request):
             and season.allows(SeasonAction.SCHEDULE_MATCH),
             "nav_section": "league_setup",
         },
+    )
+
+
+@login_required
+def my_matches(request):
+    """The matches assigned to the signed-in scorekeeper."""
+    if not has_role(request.user, SCOREKEEPER_ROLE):
+        raise PermissionDenied("Scorekeeper access is required.")
+    matches = Match.objects.filter(scorekeeper=request.user).select_related(
+        "season", "home_team__sport", "away_team__sport", "facility"
+    )
+    return render(
+        request,
+        "matches/my_matches.html",
+        {"matches": matches, "nav_section": "my_matches"},
     )
 
 

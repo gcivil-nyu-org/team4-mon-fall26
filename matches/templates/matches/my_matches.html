@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}My matches · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header mb-4">
+    <div class="subheader">Scorekeeper</div>
+    <h1>My matches</h1>
+    <div class="page-meta">Matches a League Admin has assigned to you. Times are New York time.</div>
+  </div>
+
+  <div class="card">
+    {% if matches %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Match</th>
+              <th>When</th>
+              <th>Facility</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for match in matches %}
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="flex-shrink-0">{% include "components/team_logo.html" with team=match.home_team size="sm" %}</div>
+                    <div>
+                      <div class="fw-medium">{{ match.home_team.name }} vs {{ match.away_team.name }}</div>
+                      <div class="small text-secondary">{{ match.season.name }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="pn-num text-nowrap">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</td>
+                <td>{{ match.facility.name }}</td>
+                <td>
+                  {% if match.is_cancelled %}
+                    <span class="badge bg-secondary-lt">Cancelled</span>
+                  {% else %}
+                    <span class="badge bg-green-lt">Scheduled</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-clipboard-list"></i></div>
+        <p class="empty-title">No matches assigned yet</p>
+        <p class="empty-subtitle text-secondary">A League Admin will assign you to matches. They'll appear here.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
