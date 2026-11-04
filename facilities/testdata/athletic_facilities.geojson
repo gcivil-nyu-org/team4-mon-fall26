@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"system": "M100", "name": "Pier 40 Field", "location": "353 West St", "borough": "Manhattan", "primary_sport": "Soccer"},
+      "geometry": {"type": "Point", "coordinates": [-74.011, 40.7295]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"system": "B200", "name": "McCarren Courts", "borough": "Somewhere Else", "primary_sport": null},
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [[[[-73.96, 40.71], [-73.94, 40.71], [-73.94, 40.73], [-73.96, 40.71]]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"system": "Q300", "name": "No Geometry"},
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "No Dataset ID"},
+      "geometry": null
+    },
+    {"type": "Feature", "properties": null, "geometry": null},
+    "not a feature"
+  ]
+}

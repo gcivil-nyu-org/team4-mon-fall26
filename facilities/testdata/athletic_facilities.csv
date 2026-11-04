@@ -1,0 +1,10 @@
+SYSTEM,NAME,LOCATION,BOROUGH,PRIMARY_SPORT,LAT,LON,THE_GEOM
+M100,  Pier  40  Field ,353 West St,M,Soccer,40.729500,-74.011000,
+B200,McCarren Courts,776 Lorimer St,B,Basketball; Tennis; Pickleball,,,POINT (-73.951000 40.720000)
+Q300,Astoria Field,,Q,Cricket,,,
+,No Dataset ID,1 Main St,M,Soccer,,,
+X400,,2 Main St,X,Soccer,,,
+R500,Bad Latitude,3 Main St,R,Soccer,95.000000,-74.100000,
+M600,Half A Location,4 Main St,M,Soccer,40.700000,,
+M700,Not A Number,5 Main St,M,Soccer,north,west,
+M100,Pier 40 Repeat,353 West St,M,Tennis,,,
