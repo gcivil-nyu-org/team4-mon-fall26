@@ -18,6 +18,9 @@ Read [docs/DESIGN.md](docs/DESIGN.md) before creating or changing any template, 
 3. **Don't commit or push directly to `testing` either.** Push your branch and open a pull request into `testing`. Someone other than the author reviews and merges it.
 4. **Only `testing` goes to `main`.** After a change is merged into `testing`, the Travis build on `testing` passes and the change has been checked on the testing site, a team member opens a pull request from `testing` into `main`. Don't open it yourself unless the person you're working for asks you to, and only after those checks.
 5. **If you find you're on `main`, or have commits on `main`, stop.** Move the work to a branch from `testing` (`git switch -c <yourname>/<topic>`, then rebase onto `origin/testing`), and tell the person you're working for. Never push it to `main`.
+6. **Delete your branch once its PR is merged into `testing`.** First check that the PR shows as merged (`gh pr view <N> --json state`, which should say `MERGED`). Then delete the branch on GitHub and locally:
+   `git push origin --delete <branch> && git switch --detach origin/testing && git branch -D <branch>`
+   Only delete branches that you or the person you're working for created. Never delete `main` or `testing`. If someone else's merged branch is still around, tell the person you're working for; don't delete it yourself.
 
 ## Issues and ZenHub tracking (required)
 

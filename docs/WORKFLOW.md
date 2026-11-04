@@ -16,7 +16,7 @@
 
 1. Branch from `testing`, build, and run the checks below locally.
 2. Open a PR into `testing`. It needs a review and a green Travis build, then merge.
-3. Travis deploys `testing` to the testing site. Check your change there.
+3. Delete your branch on GitHub and locally (`git push origin --delete <branch>`, then `git branch -D <branch>`). Travis deploys `testing` to the testing site. Check your change there.
 4. Once `testing` is good, a team member opens a PR from `testing` into `main`. It needs a review and a green build, then merge. Travis deploys `main` to production.
 5. If `main` ever gets a change that `testing` doesn't have, merge `main` back into `testing` through a PR before the next `testing` → `main` PR.
 - Keep PRs to one card where you can. If a PR depends on another open PR, say so at the top of the description.
