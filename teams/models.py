@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 
 from .catalog_rules import name_key, validate_catalog_name
 from .season_rules import (
@@ -195,6 +195,40 @@ class Team(models.Model):
             raise ValidationError(
                 {"division": "Choose a division from this team's season."}
             )
+        self._validate_season_change()
+
+    def _validate_season_change(self):
+        """A team takes its roster with it, so the new season's rules must hold."""
+        if self.pk is None:
+            return
+        stored = Team.objects.filter(pk=self.pk).values_list("season_id", flat=True)
+        if not stored or stored[0] == self.season_id:
+            return
+
+        roster = Roster.objects.filter(team_id=self.pk)
+        if roster.count() > self.max_roster_size:
+            raise ValidationError(
+                {
+                    "season": (
+                        f"This team has too many players for that season "
+                        f"({self.max_roster_size} at most)."
+                    )
+                }
+            )
+        if (
+            self.season_id is not None
+            and Roster.objects.filter(
+                team__season_id=self.season_id, player__in=roster.values("player")
+            ).exists()
+        ):
+            raise ValidationError(
+                {
+                    "season": (
+                        "A player on this team is already on another team "
+                        "in that season."
+                    )
+                }
+            )
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -252,6 +286,50 @@ class Roster(models.Model):
                 fields=["team", "player"], name="unique_player_per_team"
             )
         ]
+
+    def clean(self):
+        """Roster capacity and one team per season, for every way onto a team."""
+        if not (self.team_id and self.player_id):
+            return
+
+        stored = None
+        if self.pk:
+            stored = (
+                Roster.objects.filter(pk=self.pk).values("team_id", "player_id").first()
+            )
+        new_to_team = stored is None or stored["team_id"] != self.team_id
+        # Editing a row in place (its role, say) isn't joining, so rosters left
+        # over the limit by a lower cap can still be edited.
+        if not new_to_team and stored["player_id"] == self.player_id:
+            return
+
+        others = Roster.objects.exclude(pk=self.pk)
+        if (
+            new_to_team
+            and others.filter(team_id=self.team_id).count() >= self.team.max_roster_size
+        ):
+            raise ValidationError(
+                f"The roster is full ({self.team.max_roster_size} players)."
+            )
+        if (
+            self.team.season_id is not None
+            and others.filter(
+                player_id=self.player_id, team__season_id=self.team.season_id
+            )
+            .exclude(team_id=self.team_id)
+            .exists()
+        ):
+            # Don't name the other team: whoever is adding may not be allowed to see it.
+            raise ValidationError("That player is already on another team this season.")
+
+    def save(self, *args, **kwargs):
+        with transaction.atomic():
+            # Same lock order as the views: season, then team.
+            if self.team.season_id:
+                Season.objects.select_for_update().get(pk=self.team.season_id)
+            Team.objects.select_for_update().get(pk=self.team_id)
+            self.clean()
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.player} on {self.team} ({self.role})"

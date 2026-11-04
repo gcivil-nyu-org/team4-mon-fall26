@@ -74,6 +74,11 @@ def create_team(request):
                         "You're already on a team this season. Players can be on "
                         "one team per season.",
                     )
+                elif season.max_roster_size < 1:
+                    form.add_error(
+                        "season",
+                        "That season's rosters are full, so it can't take a new team.",
+                    )
 
             if not form.errors:
                 team = form.save(commit=False)
