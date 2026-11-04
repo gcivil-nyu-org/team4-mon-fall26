@@ -9,6 +9,16 @@ class MatchQuerySet(models.QuerySet):
     def scheduled(self):
         return self.filter(status=Match.Status.SCHEDULED)
 
+    def overlapping(self, facility, starts_at, ends_at):
+        """Scheduled matches at a facility that share time with a window.
+
+        A match ending exactly when the window starts, or starting exactly when
+        it ends, doesn't overlap it.
+        """
+        return self.scheduled().filter(
+            facility=facility, starts_at__lt=ends_at, ends_at__gt=starts_at
+        )
+
 
 class Match(models.Model):
     """A game between two teams of one season, at a facility."""
