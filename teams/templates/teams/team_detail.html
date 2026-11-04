@@ -33,7 +33,7 @@
 
   <div class="row row-cards">
     <div class="col-lg-8">
-      <div class="card">
+      <div class="card mb-3">
         <div class="card-header">
           <h3 class="card-title">Roster</h3>
           <div class="card-actions"><span class="text-secondary pn-num">{{ roster|length }} / {{ team.max_roster_size }}</span></div>
@@ -57,6 +57,29 @@
           {% endfor %}
         </div>
       </div>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Upcoming matches</h3>
+          {% if can_view_schedule %}
+            <div class="card-actions"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_schedule' team.season_id %}">View season schedule</a></div>
+          {% endif %}
+        </div>
+        {% if upcoming_matches %}
+          <div class="list-group list-group-flush">
+            {% for match in upcoming_matches %}
+              {% include "components/match_row.html" %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-off"></i></div>
+              <p class="empty-title">No upcoming matches</p>
+              <p class="empty-subtitle text-secondary">Matches show up here once a League Admin schedules them.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </div>
 
     <div class="col-lg-4">
@@ -79,14 +102,22 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-header"><h3 class="card-title">Results</h3></div>
-        <div class="card-body">
-          <div class="empty py-3">
-            <div class="empty-icon"><i aria-hidden="true" class="ti ti-scoreboard"></i></div>
-            <p class="empty-title">No games yet</p>
-            <p class="empty-subtitle text-secondary">Scores and form appear here once the season starts.</p>
+        <div class="card-header"><h3 class="card-title">Past matches</h3></div>
+        {% if past_matches %}
+          <div class="list-group list-group-flush">
+            {% for match in past_matches %}
+              {% include "components/match_row.html" %}
+            {% endfor %}
           </div>
-        </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-scoreboard"></i></div>
+              <p class="empty-title">No past matches</p>
+              <p class="empty-subtitle text-secondary">Matches move here after they've been played.</p>
+            </div>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>

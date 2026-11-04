@@ -157,6 +157,10 @@ A clickable card (a team in a grid): add `card-link card-link-pop` and a single 
 
 `list-group list-group-flush` inside a card. Each row: avatar `sm` · name (500) with secondary text below · trailing badge or action. Row height around 48px. Destructive row actions are `btn btn-sm btn-ghost-danger` and the label says what they do ("Remove").
 
+### Match rows (schedules)
+
+`{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
+
 ### Stat card (dashboards)
 
 ```html
@@ -253,7 +257,8 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Page | Structure |
 |---|---|
 | **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards → `col-lg-8`: my teams card grid, upcoming games list → `col-lg-4`: leaderboard snippet (top 5), free agents avatar group |
-| **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card → `col-lg-4`: team stats card, recent results |
+| **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
+| **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
 | **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
@@ -277,7 +282,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
-| Shared partials (avatar, team logo, form fields, map assets) | `templates/components/` |
+| Shared partials (avatar, team logo, match row, form fields, map assets) | `templates/components/` |
 | Template filters (`initials`, `sport_icon`, `control`) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)
