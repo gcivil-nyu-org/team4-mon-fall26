@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from matches.models import Match
+from matches.schedule import seasons_visible_to, team_schedule
 
 from .forms import (
     AddPlayerForm,
@@ -101,6 +102,7 @@ def team_detail(request, pk):
         raise Http404
     # Captain first, then players in the order they joined.
     roster = team.roster.select_related("player").order_by("role", "joined_at")
+    upcoming_matches, past_matches = team_schedule(team, request.user)
     return render(
         request,
         "teams/team_detail.html",
@@ -112,6 +114,11 @@ def team_detail(request, pk):
             "can_add": team.allows(SeasonAction.ADD_PLAYER),
             "can_remove": team.allows(SeasonAction.REMOVE_PLAYER),
             "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
+            "upcoming_matches": upcoming_matches,
+            "past_matches": past_matches,
+            "can_view_schedule": seasons_visible_to(request.user)
+            .filter(pk=team.season_id)
+            .exists(),
         },
     )
 
