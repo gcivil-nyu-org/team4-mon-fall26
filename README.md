@@ -63,7 +63,6 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 |---|---|
 | `AWS_ACCESS_KEY_ID_PROD`, `AWS_SECRET_ACCESS_KEY_PROD` | Deploy to production |
 | `AWS_ACCESS_KEY_ID_TESTING`, `AWS_SECRET_ACCESS_KEY_TESTING` | Deploy to testing |
-| `EB_REGION_TESTING`, `EB_APP_TESTING`, `EB_ENV_TESTING`, `EB_BUCKET_TESTING` | Testing environment details |
 
 ## Configuration (environment variables)
 
