@@ -305,7 +305,10 @@ def league_setup(request):
             season__in=Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS)
         ).count(),
         "upcoming_matches": Match.objects.scheduled()
-        .filter(starts_at__gte=timezone.now())
+        .filter(
+            starts_at__gte=timezone.now(),
+            season__in=Season.objects.allowing(SeasonAction.SCHEDULE_MATCH),
+        )
         .count(),
     }
     return render(

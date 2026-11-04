@@ -51,9 +51,13 @@ class MatchForm(forms.ModelForm):
             return cleaned
         if self.instance.is_cancelled:
             raise ValidationError("Cancelled matches can't be changed.")
-        facility_changed = self.instance.pk is None or "facility" in self.changed_data
+        # Instance fields aren't updated until _post_clean, so read the submitted
+        # values from `cleaned` here, not from self.instance.
         try:
-            self.instance.validate_schedulable(check_facility=facility_changed)
+            self.instance.validate_schedulable()
         except ValidationError as error:
             self.add_error(None, error)
+        facility_changed = self.instance.pk is None or "facility" in self.changed_data
+        if facility_changed and not cleaned["facility"].is_active:
+            self.add_error("facility", "This facility isn't available.")
         return cleaned

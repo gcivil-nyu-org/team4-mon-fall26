@@ -21,10 +21,10 @@ class Match(models.Model):
         "teams.Season", on_delete=models.CASCADE, related_name="matches"
     )
     home_team = models.ForeignKey(
-        "teams.Team", on_delete=models.CASCADE, related_name="home_matches"
+        "teams.Team", on_delete=models.PROTECT, related_name="home_matches"
     )
     away_team = models.ForeignKey(
-        "teams.Team", on_delete=models.CASCADE, related_name="away_matches"
+        "teams.Team", on_delete=models.PROTECT, related_name="away_matches"
     )
     facility = models.ForeignKey(
         "facilities.Facility", on_delete=models.PROTECT, related_name="matches"
@@ -81,14 +81,17 @@ class Match(models.Model):
         if errors:
             raise ValidationError(errors)
 
-    def validate_schedulable(self, check_facility=True):
-        """Checks for creating or changing a scheduled match (not for old rows)."""
+    def validate_schedulable(self):
+        """The season must allow scheduling for a match to be created or changed."""
         if self.season_id and not self.season.allows(SeasonAction.SCHEDULE_MATCH):
             raise ValidationError(
                 "Matches can only be scheduled while a season is open or active."
             )
-        if check_facility and self.facility_id and not self.facility.is_active:
-            raise ValidationError({"facility": "This facility isn't available."})
+
+    @property
+    def can_change(self):
+        """Closed seasons are history, so only live seasons' matches can change."""
+        return not self.is_cancelled and self.season.allows(SeasonAction.SCHEDULE_MATCH)
 
     def cancel(self):
         self.status = self.Status.CANCELLED

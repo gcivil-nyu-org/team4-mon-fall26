@@ -30,7 +30,7 @@ def manage_matches(request):
         "season", "home_team", "away_team", "facility"
     )
     season_id = request.GET.get("season", "")
-    if season_id.isdigit():
+    if season_id.isdecimal():
         season = get_object_or_404(Season, pk=season_id)
         matches = matches.filter(season=season)
     return render(
@@ -41,6 +41,8 @@ def manage_matches(request):
             "seasons": seasons,
             "season": season,
             "can_schedule": _schedulable_seasons().exists(),
+            "season_is_schedulable": season is not None
+            and season.allows(SeasonAction.SCHEDULE_MATCH),
             "nav_section": "league_setup",
         },
     )
@@ -62,7 +64,7 @@ def match_form(request, pk=None):
         season_id = request.GET.get("season", "")
         season = (
             get_object_or_404(_schedulable_seasons(), pk=season_id)
-            if season_id.isdigit()
+            if season_id.isdecimal()
             else None
         )
         if season is None:
@@ -101,6 +103,8 @@ def cancel_match(request, pk):
     match = get_object_or_404(Match, pk=pk)
     if match.is_cancelled:
         messages.info(request, f"{match} was already cancelled.")
+    elif not match.can_change:
+        messages.error(request, f"{match.season} isn't open or active.")
     else:
         match.cancel()
         messages.success(request, f"Cancelled {match}.")

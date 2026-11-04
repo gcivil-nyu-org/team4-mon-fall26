@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -13,6 +14,7 @@ from facilities.models import Facility
 from teams.models import Season, Sport, Team
 from teams.season_rules import SeasonState
 
+from .forms import MatchForm
 from .models import Match
 
 NY = ZoneInfo("America/New_York")
@@ -133,13 +135,6 @@ class MatchModelTests(MatchFixtures):
                     with self.assertRaises(ValidationError):
                         match.validate_schedulable()
 
-    def test_inactive_facility(self):
-        self.field.is_active = False
-        self.field.save()
-        with self.assertRaises(ValidationError):
-            self.build().validate_schedulable()
-        self.build().validate_schedulable(check_facility=False)
-
     def test_cancel(self):
         match = self.build()
         match.save()
@@ -148,12 +143,12 @@ class MatchModelTests(MatchFixtures):
         self.assertTrue(match.is_cancelled)
         self.assertNotIn(match, Match.objects.scheduled())
 
-    def test_facility_with_matches_cannot_be_deleted(self):
+    def test_facility_and_teams_with_matches_cannot_be_deleted(self):
         self.build().save()
-        from django.db.models import ProtectedError
-
-        with self.assertRaises(ProtectedError):
-            self.field.delete()
+        for protected in (self.field, self.home, self.away):
+            with self.subTest(protected=protected):
+                with self.assertRaises(ProtectedError):
+                    protected.delete()
 
 
 class MatchPermissionTests(MatchFixtures):
@@ -286,21 +281,80 @@ class MatchViewTests(MatchFixtures):
         self.assertEqual(match.starts_at, at(12, 9))
         self.assertIsNone(match.created_by)
 
-    def test_edit_keeps_deactivated_facility_but_blocks_switching_to_one(self):
+    def test_edit_can_keep_a_deactivated_facility(self):
         match = self.build()
         match.save()
-        self.field.is_active = False
-        self.field.save()
-        url = reverse("matches:edit", args=[match.pk])
-        response = self.client.post(url, self.post_data(ends_at="2026-11-10T21:00"))
+        Facility.objects.filter(pk=self.field.pk).update(is_active=False)
+        response = self.client.post(
+            reverse("matches:edit", args=[match.pk]),
+            self.post_data(ends_at="2026-11-10T21:00"),
+        )
         self.assertEqual(response.status_code, 302)
 
+    def test_edit_can_move_off_a_deactivated_facility(self):
+        match = self.build()
+        match.save()
+        Facility.objects.filter(pk=self.field.pk).update(is_active=False)
+        other = Facility.objects.create(name="Coles", source=Facility.Source.NYU)
+        response = self.client.post(
+            reverse("matches:edit", args=[match.pk]),
+            self.post_data(facility=other.pk),
+        )
+        self.assertEqual(response.status_code, 302)
+        match.refresh_from_db()
+        self.assertEqual(match.facility, other)
+
+    def test_cannot_switch_to_an_inactive_facility(self):
+        match = self.build()
+        match.save()
         other = Facility.objects.create(
             name="Old gym", source=Facility.Source.NYU, is_active=False
         )
-        response = self.client.post(url, self.post_data(facility=other.pk))
+        response = self.client.post(
+            reverse("matches:edit", args=[match.pk]),
+            self.post_data(facility=other.pk),
+        )
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context["form"].errors)
+        self.assertIn("valid choice", response.context["form"].errors["facility"][0])
+        match.refresh_from_db()
+        self.assertEqual(match.facility, self.field)
+
+    def test_form_rejects_inactive_facility_even_if_offered(self):
+        """Guards the form's own check, separately from the choices it offers."""
+        other = Facility.objects.create(
+            name="Old gym", source=Facility.Source.NYU, is_active=False
+        )
+        form = MatchForm(self.post_data(facility=other.pk), season=self.season)
+        form.fields["facility"].queryset = Facility.objects.all()
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors["facility"], ["This facility isn't available."])
+
+    def test_closed_season_matches_are_read_only(self):
+        match = self.build()
+        match.save()
+        Season.objects.filter(pk=self.season.pk).update(state=SeasonState.CLOSED)
+        response = self.client.get(reverse("matches:manage"))
+        self.assertNotContains(response, reverse("matches:cancel", args=[match.pk]))
+        self.assertNotContains(response, reverse("matches:edit", args=[match.pk]))
+        self.client.post(reverse("matches:cancel", args=[match.pk]))
+        match.refresh_from_db()
+        self.assertFalse(match.is_cancelled)
+
+    def test_schedule_link_ignores_a_closed_season_filter(self):
+        Season.objects.filter(pk=self.season.pk).update(state=SeasonState.CLOSED)
+        response = self.client.get(
+            reverse("matches:manage") + f"?season={self.season.pk}"
+        )
+        self.assertContains(response, f'href="{reverse("matches:create")}"')
+        self.assertNotContains(
+            response, f'{reverse("matches:create")}?season={self.season.pk}'
+        )
+
+    def test_non_ascii_digit_in_season_filter_is_ignored(self):
+        for url in (reverse("matches:manage"), reverse("matches:create")):
+            with self.subTest(url=url):
+                response = self.client.get(url, {"season": "²"})
+                self.assertEqual(response.status_code, 200)
 
     def test_edit_blocked_once_season_closed(self):
         match = self.build()
@@ -336,4 +390,7 @@ class MatchViewTests(MatchFixtures):
         self.build(starts_at=at(1, 9), ends_at=at(1, 10)).save()
         response = self.client.get(reverse("teams:league_setup"))
         self.assertEqual(response.context["counts"]["upcoming_matches"], 1)
+        Season.objects.filter(pk=self.season.pk).update(state=SeasonState.CLOSED)
+        response = self.client.get(reverse("teams:league_setup"))
+        self.assertEqual(response.context["counts"]["upcoming_matches"], 0)
         self.assertContains(response, reverse("matches:manage"))
