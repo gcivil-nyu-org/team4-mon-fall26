@@ -5,6 +5,7 @@ from . import views
 app_name = "matches"
 
 urlpatterns = [
+    path("mine/", views.my_matches, name="mine"),
     path("manage/", views.manage_matches, name="manage"),
     path("manage/new/", views.match_form, name="create"),
     path("manage/<int:pk>/edit/", views.match_form, name="edit"),

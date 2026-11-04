@@ -29,13 +29,15 @@
 
   <div class="card">
     {% if matches %}
-      <div class="table-responsive">
+      {# position-relative keeps the visually-hidden header inside the scroller at phone width. #}
+      <div class="table-responsive position-relative">
         <table class="table table-vcenter card-table">
           <thead>
             <tr>
               <th>Match</th>
               <th>When</th>
               <th>Facility</th>
+              <th>Scorekeeper</th>
               <th>Status</th>
               <th class="w-1"><span class="visually-hidden">Actions</span></th>
             </tr>
@@ -49,6 +51,21 @@
                 </td>
                 <td class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</td>
                 <td>{{ match.facility.name }}</td>
+                <td>
+                  {% if match.scorekeeper %}
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="flex-shrink-0">{% include "components/avatar.html" with person=match.scorekeeper size="sm" %}</div>
+                      <div>
+                        <div class="fw-medium">{{ match.scorekeeper.get_full_name|default:match.scorekeeper.email }}</div>
+                        {% if match.can_change and match.scorekeeper_id not in scorekeeper_ids %}
+                          <span class="badge bg-yellow-lt" title="This person is no longer an active scorekeeper. Edit the match to choose someone else.">Needs reassigning</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                  {% else %}
+                    <span class="text-secondary">Unassigned</span>
+                  {% endif %}
+                </td>
                 <td>
                   {% if match.is_cancelled %}
                     <span class="badge bg-secondary-lt">Cancelled</span>
