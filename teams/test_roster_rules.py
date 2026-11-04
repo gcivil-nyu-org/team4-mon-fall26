@@ -5,7 +5,7 @@ import datetime
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.test import TestCase
 from django.urls import reverse
 
@@ -438,3 +438,11 @@ class AdminPathTests(TestCase):
         self.assertContains(response, "already on another team in that season")
         self.team.refresh_from_db()
         self.assertEqual(self.team.season, self.season)
+
+
+class ConcurrencySettingsTests(TestCase):
+    def test_sqlite_transactions_take_the_write_lock_up_front(self):
+        """Roster checks rely on this: SQLite ignores select_for_update."""
+        self.assertEqual(
+            connection.settings_dict["OPTIONS"]["transaction_mode"], "IMMEDIATE"
+        )
