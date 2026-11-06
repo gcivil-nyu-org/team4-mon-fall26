@@ -23,7 +23,7 @@ deploy:
     region: us-east-2
     app: playnyu
     env: playnyu-test
-    bucket_name: elasticbeanstalk-us-east-2-505435643700
+    bucket_name: elasticbeanstalk-us-east-2-537751920541
     on:
       branch: testing
 
