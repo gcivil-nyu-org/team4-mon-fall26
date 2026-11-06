@@ -1,0 +1,2 @@
+{# Season state badge. Usage: {% include "components/season_state_badge.html" with season=season %} #}
+{% if season.state == "open" %}<span class="badge bg-green-lt">Open</span>{% elif season.state == "active" %}<span class="badge bg-yellow-lt">Active</span>{% elif season.state == "closed" %}<span class="badge bg-secondary-lt">Closed</span>{% else %}<span class="badge bg-secondary-lt">Draft</span>{% endif %}

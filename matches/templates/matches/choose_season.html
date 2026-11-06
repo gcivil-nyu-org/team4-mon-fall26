@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Schedule a match · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <div class="subheader">League Admin</div>
+          <h1>Schedule a match</h1>
+          <div class="page-meta">Pick the season first. Only open and active seasons can have matches scheduled.</div>
+        </div>
+        {% if seasons %}
+          <form method="get">
+            <div class="mb-3">
+              <label class="form-label required" for="season">Season</label>
+              <select class="form-select" id="season" name="season" required>
+                {% for season in seasons %}
+                  <option value="{{ season.pk }}">{{ season.name }} ({{ season.get_state_display }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" type="submit">Continue</button>
+              <a class="btn btn-ghost-secondary" href="{% url 'matches:manage' %}">Cancel</a>
+            </div>
+          </form>
+        {% else %}
+          <p class="text-secondary">No season is open or active right now.</p>
+          <a class="btn btn-outline-secondary" href="{% url 'teams:manage_seasons' %}">Go to seasons</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

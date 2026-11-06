@@ -210,9 +210,13 @@ Labels start with a verb ("Add player", "Leave team"). An icon goes before the l
 
 Labels above inputs (`form-label`), inputs `form-control` / `form-select`, help text `form-hint`, errors `invalid-feedback d-block` under the field, and the submit button at the bottom left (on auth cards it is full width, `w-100`). Render a whole form with `{% include "components/form_fields.html" %}` (it adds the right classes and error states through the `control` filter). Don't use `{{ form.as_p }}`, and don't add CSS classes in Python form code.
 
+A warning the user can override (a booking overlap, say) is an `alert alert-warning text-body` with `role="alert"` at the top of the form, not a red error. Keep `text-body`: Tabler's amber alert text is only about 2:1 on its background. Don't use `text-secondary` inside it either, because that sits right at the 4.5:1 limit. It says what's wrong and what to do, and the submit button's label changes to match ("Schedule anyway").
+
 ### Badges
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.
+
+Season states use `{% include "components/season_state_badge.html" with season=season %}`: Draft and Closed are `bg-secondary-lt`, Open (registration) is `bg-green-lt`, Active (under way, rosters locked) is `bg-yellow-lt`.
 
 ### Empty states
 
@@ -234,6 +238,17 @@ Django messages render once in `base.html` as Tabler alerts (`alert alert-succes
 ### Charts (Chart.js)
 
 Series 1 is `#57068c`, series 2 is `#a78bce`, then the neutral gray `#adb5bd`. No 3D, no pie charts with more than 4 slices, gridlines light gray, Inter 12px labels. Always put a text version of the key number next to the chart.
+
+### Maps (Leaflet)
+
+A page with a map puts `{% include "components/map_styles.html" %}` in `{% block head %}`, a `<div class="pn-map" id="pn-map" role="region" aria-label="...">` inside a card, and these in `{% block scripts %}`:
+
+```html
+{{ markers|json_script:"pn-map-markers" }}
+{% include "components/map_assets.html" %}
+```
+
+`markers` is a list of `{name, lat, lng, url}`. `static/js/facility_map.js` draws the pins and keeps OpenStreetMap's attribution visible, which its license requires. Leaflet 1.9.4 is pinned in those two partials. Always list the same places as text next to the map, because a map alone isn't accessible.
 
 ## 6. Page recipes
 
@@ -263,8 +278,8 @@ Series 1 is `#57068c`, series 2 is `#a78bce`, then the neutral gray `#adb5bd`. N
 | What | Where |
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
-| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`) | `static/css/playnyu.css` |
-| Shared partials (avatar, team logo, form fields) | `templates/components/` |
+| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
+| Shared partials (avatar, team logo, form fields, map assets) | `templates/components/` |
 | Template filters (`initials`, `sport_icon`, `control`) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)

@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     "teams",
     "profiles",
     "accounts",
+    "facilities",
+    "matches",
 ]
 
 MIDDLEWARE = [
@@ -98,6 +100,11 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
+        # Start write transactions with the write lock held. SQLite ignores
+        # select_for_update, so without this two requests can read the same
+        # roster and the loser fails with "database is locked" instead of seeing
+        # the normal validation message.
+        "OPTIONS": {"transaction_mode": "IMMEDIATE"},
     }
 }
 
@@ -126,7 +133,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/New_York"
 
 USE_I18N = True
 
@@ -173,9 +180,31 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 # Email confirmation links expire after 24 hours.
 EMAIL_VERIFICATION_TIMEOUT = 60 * 60 * 24
 
+# Authentication throttles use the configured database. With SQLite, counters
+# are shared by processes on the same instance; a multi-instance deployment
+# needs a shared database backend. Tune the limits with environment variables.
+LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS = int(
+    os.environ.get("LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS", "5")
+)
+LOGIN_RATE_LIMIT_IP_ATTEMPTS = int(
+    os.environ.get("LOGIN_RATE_LIMIT_IP_ATTEMPTS", "20")
+)
+LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(
+    os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "900")
+)
+VERIFICATION_EMAIL_RATE_LIMIT_EMAIL_ATTEMPTS = int(
+    os.environ.get("VERIFICATION_EMAIL_RATE_LIMIT_EMAIL_ATTEMPTS", "3")
+)
+VERIFICATION_EMAIL_RATE_LIMIT_IP_ATTEMPTS = int(
+    os.environ.get("VERIFICATION_EMAIL_RATE_LIMIT_IP_ATTEMPTS", "10")
+)
+VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS = int(
+    os.environ.get("VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS", "3600")
+)
+
 
 # Auth redirects
-# Temporary: uses Django's built-in login views until T9 (accounts) lands.
+# Login is customized; logout and password reset use Django's built-in views.
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "teams:list"
 LOGOUT_REDIRECT_URL = "core:home"
