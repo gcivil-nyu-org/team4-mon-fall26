@@ -411,13 +411,13 @@ def match_free_agents(request, season_pk):
         )
         free_agents = list(
             FreeAgentRequest.objects.filter(season=season)
-            .select_for_update()
+            .select_for_update(of=("self",))
             .select_related("player", "division")
             .order_by("requested_at", "pk")
         )
         teams = list(
             Team.objects.filter(season=season)
-            .select_for_update()
+            .select_for_update(of=("self",))
             .select_related("season", "division")
             .order_by("pk")
         )

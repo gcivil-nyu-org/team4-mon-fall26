@@ -1,9 +1,9 @@
 """Create or reset a verified player account from environment variables.
 
-The testing site's SQLite database resets on every deploy, and it has no email
-backend for sign-up verification, so .ebextensions/django.config runs this after
-migrate. Reads TEST_PLAYER_EMAIL and TEST_PLAYER_PASSWORD (set with `eb setenv`)
-and does nothing when either is missing.
+The testing site has no email backend for sign-up verification, so
+.ebextensions/django.config runs this after migrate on every deploy. Reads
+TEST_PLAYER_EMAIL and TEST_PLAYER_PASSWORD (set with `eb setenv`) and does nothing
+when either is missing.
 """
 
 import os
