@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ season.name }} schedule · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header mb-4">
+    <div class="subheader">{{ season.name }}</div>
+    <h1>Season schedule</h1>
+    <div class="page-meta">{% include "components/season_state_badge.html" %} Times are New York time.</div>
+  </div>
+
+  {% if divisions %}
+    <form class="d-flex flex-wrap align-items-end gap-2 mb-3" method="get">
+      <div>
+        <label class="form-label" for="division-filter">Division</label>
+        <select class="form-select" id="division-filter" name="division">
+          <option value="">All divisions</option>
+          {% for option in divisions %}
+            <option value="{{ option.pk }}"{% if division and option.pk == division.pk %} selected{% endif %}>{{ option.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-outline-secondary" type="submit">Filter</button>
+    </form>
+  {% endif %}
+
+  <div class="card">
+    {% if matches %}
+      <div class="card-header">
+        <h3 class="card-title">{% if division %}{{ division.name }} matches{% else %}Matches{% endif %}</h3>
+        <div class="card-actions"><span class="text-secondary small pn-num">{{ matches|length }}</span></div>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for match in matches %}
+          {% include "components/match_row.html" %}
+        {% endfor %}
+      </div>
+    {% elif division %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-off"></i></div>
+        <p class="empty-title">No matches in {{ division.name }}</p>
+        <p class="empty-subtitle text-secondary">Check the other divisions, or come back once more matches are scheduled.</p>
+        <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'matches:season_schedule' season.pk %}">Show all divisions</a></div>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-off"></i></div>
+        <p class="empty-title">No matches yet</p>
+        <p class="empty-subtitle text-secondary">Matches show up here once a League Admin schedules them.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

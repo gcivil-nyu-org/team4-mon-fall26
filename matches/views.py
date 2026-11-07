@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -10,6 +11,7 @@ from teams.views import _require_league_admin
 
 from .forms import MatchForm
 from .models import Match
+from .schedule import schedule_matches, seasons_visible_to
 
 
 def _manage_url(season_id):
@@ -109,3 +111,44 @@ def cancel_match(request, pk):
         match.cancel()
         messages.success(request, f"Cancelled {match}.")
     return redirect(_manage_url(match.season_id))
+
+
+@login_required
+def schedule_seasons(request):
+    """Every season the player can see, linking to its schedule."""
+    seasons = seasons_visible_to(request.user).order_by("-start_date", "name")
+    return render(
+        request,
+        "matches/schedule_seasons.html",
+        {"seasons": seasons, "nav_section": "schedule"},
+    )
+
+
+@login_required
+def season_schedule(request, pk):
+    """All of a season's matches by time, optionally for one division."""
+    season = get_object_or_404(seasons_visible_to(request.user), pk=pk)
+    divisions = season.divisions.all()
+    matches = schedule_matches().filter(season=season)
+    division_id = request.GET.get("division", "")
+    # A value that isn't one of this season's divisions just shows every match.
+    division = (
+        divisions.filter(pk=division_id).first() if division_id.isdecimal() else None
+    )
+    if division:
+        # Matches have no division of their own, so it comes from their teams.
+        # A match between two divisions is on both divisions' schedules.
+        matches = matches.filter(
+            Q(home_team__division=division) | Q(away_team__division=division)
+        )
+    return render(
+        request,
+        "matches/season_schedule.html",
+        {
+            "season": season,
+            "divisions": divisions,
+            "division": division,
+            "matches": matches,
+            "nav_section": "schedule",
+        },
+    )
