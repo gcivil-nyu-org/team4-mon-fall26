@@ -1,0 +1,12 @@
+{# One match in a list-group. See docs/DESIGN.md, "Match rows". #}
+<div class="list-group-item d-flex align-items-center gap-3">
+  <div class="flex-fill min-w-0">
+    <div class="d-flex flex-wrap align-items-center gap-2 fw-medium">
+      <span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="d-inline-flex flex-shrink-0">{% include "components/team_logo.html" with team=match.home_team size="sm" %}</span><span class="text-break">{{ match.home_team.name }}</span></span>
+      <span class="text-secondary fw-normal">vs</span>
+      <span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="d-inline-flex flex-shrink-0">{% include "components/team_logo.html" with team=match.away_team size="sm" %}</span><span class="text-break">{{ match.away_team.name }}</span></span>
+    </div>
+    <div class="small text-secondary"><span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span> · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
+  </div>
+  {% if match.is_cancelled %}<span class="badge bg-secondary-lt flex-shrink-0">Cancelled</span>{% endif %}
+</div>
