@@ -1,5 +1,6 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.crypto import salted_hmac
 
 from facilities.models import Facility
 from teams.models import Team
@@ -7,6 +8,7 @@ from teams.models import Team
 from .models import Match
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M"
+OVERLAP_CONFIRMATION_FIELD = "overlap_confirmation"
 
 
 class DateTimeLocalInput(forms.DateTimeInput):
@@ -28,6 +30,8 @@ class MatchForm(forms.ModelForm):
 
     def __init__(self, *args, season, **kwargs):
         super().__init__(*args, **kwargs)
+        self.overlaps = []
+        self.overlap_token = ""
         self.instance.season = season
         teams = Team.objects.filter(season=season).select_related("sport")
         for name in ("home_team", "away_team"):
@@ -60,4 +64,43 @@ class MatchForm(forms.ModelForm):
         facility_changed = self.instance.pk is None or "facility" in self.changed_data
         if facility_changed and not cleaned["facility"].is_active:
             self.add_error("facility", "This facility isn't available.")
+        if not self.errors and cleaned["ends_at"] > cleaned["starts_at"]:
+            self._find_overlaps(cleaned)
         return cleaned
+
+    def is_valid(self):
+        # An overlap is a warning, not an error, but it holds the save back until
+        # the admin confirms it.
+        return super().is_valid() and not self._overlaps_unconfirmed()
+
+    def _find_overlaps(self, cleaned):
+        self.overlaps = list(
+            Match.objects.overlapping(
+                cleaned["facility"], cleaned["starts_at"], cleaned["ends_at"]
+            )
+            .exclude(pk=self.instance.pk)
+            .select_related("facility", "home_team__sport", "away_team__sport")
+        )
+        if self.overlaps:
+            self.overlap_token = self._overlap_token(cleaned)
+
+    def _overlap_token(self, cleaned):
+        """Identifies exactly what the admin was warned about.
+
+        Confirming only counts for the same facility, times and conflicts, so a
+        confirmation from an earlier warning can't accept a different conflict.
+        """
+        warned_about = (
+            cleaned["facility"].pk,
+            cleaned["starts_at"].timestamp(),
+            cleaned["ends_at"].timestamp(),
+            [
+                (match.pk, match.starts_at.timestamp(), match.ends_at.timestamp())
+                for match in self.overlaps
+            ],
+        )
+        return salted_hmac("matches.overlap", repr(warned_about)).hexdigest()
+
+    def _overlaps_unconfirmed(self):
+        submitted = self.data.get(OVERLAP_CONFIRMATION_FIELD)
+        return bool(self.overlaps) and submitted != self.overlap_token
