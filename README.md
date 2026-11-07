@@ -4,6 +4,7 @@ Django project for Team 4.
 
 ## Links
 - Prod: http://playnyu-prod.eba-ax4phmwp.us-east-2.elasticbeanstalk.com/
+- Testing: http://playnyu-test.eba-t3ythqtj.us-east-2.elasticbeanstalk.com/ (deploys from `testing`; the database resets on every deploy)
 
 ## Docs
 
@@ -13,6 +14,7 @@ Team docs live in [`docs/`](docs/). Link to them instead of copying their conten
 |---|---|---|
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | Branches, pull requests, definition of done, working agreements | Before your first PR, and whenever you're unsure where code goes |
 | [docs/DESIGN.md](docs/DESIGN.md) | The UI design system: stack, tokens, components, page recipes, UI PR checklist | Before touching any template, CSS or page |
+| [docs/E2_CONTRACT.md](docs/E2_CONTRACT.md) | E2 rules: sports, event types, season lifecycle, divisions, data migration | Before working on #106, #107, #108 or #109 |
 
 Coding agents start from [AGENTS.md](AGENTS.md), which points to these docs. To add a doc: one topic per file in `docs/`, named in caps like the ones above, with a row added to this table in the same PR.
 
@@ -61,7 +63,6 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 |---|---|
 | `AWS_ACCESS_KEY_ID_PROD`, `AWS_SECRET_ACCESS_KEY_PROD` | Deploy to production |
 | `AWS_ACCESS_KEY_ID_TESTING`, `AWS_SECRET_ACCESS_KEY_TESTING` | Deploy to testing |
-| `EB_REGION_TESTING`, `EB_APP_TESTING`, `EB_ENV_TESTING`, `EB_BUCKET_TESTING` | Testing environment details |
 
 ## Configuration (environment variables)
 
@@ -72,6 +73,8 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated; add the AWS hostname |
 | `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | unset (emails print to the console) | Set to send real verification emails over SMTP |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL`, `DJANGO_SUPERUSER_PASSWORD` | unset | Admin user created on each deploy |
+| `TEST_PLAYER_EMAIL`, `TEST_PLAYER_PASSWORD` | unset | Regular player account created on each deploy (testing site only) |
+| `DEMO_USERS_PASSWORD` | unset | Password for the demo players created on each deploy (`demo.captain1@nyu.edu`, `demo.captain2@nyu.edu`, `demo.player1@nyu.edu` to `demo.player4@nyu.edu`; testing site only). Locally: `DEMO_USERS_PASSWORD=... python manage.py seed_demo_users` |
 
 ## Project layout
 

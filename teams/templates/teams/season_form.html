@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{% if season %}Edit {{ season.name }}{% else %}Create a season{% endif %} · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <div class="subheader">League Admin</div>
+          <h1>{% if season %}Edit {{ season.name }}{% else %}Create a season{% endif %}</h1>
+          <div class="page-meta">{% if season %}Change the state from the seasons page.{% else %}New seasons start as drafts that players can't see.{% endif %}</div>
+        </div>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">{% if season %}Save season{% else %}Create season{% endif %}</button>
+            <a class="btn btn-ghost-secondary" href="{% url 'teams:manage_seasons' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

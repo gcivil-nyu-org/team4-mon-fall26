@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}League setup · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header mb-4">
+    <div class="subheader">League Admin</div>
+    <h1>League setup</h1>
+    <div class="page-meta">Configure seasons, sports, event types, divisions, free-agent placement, matches and facilities.</div>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-link card-link-pop h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-calendar-event"></i></div>
+          <div class="min-w-0">
+            <a class="stretched-link text-reset fw-semibold d-block" href="{% url 'teams:manage_seasons' %}">Seasons</a>
+            <div class="small text-secondary"><span class="pn-num">{{ counts.seasons }}</span> season{{ counts.seasons|pluralize }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-link card-link-pop h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+          <div class="min-w-0">
+            <a class="stretched-link text-reset fw-semibold d-block" href="{% url 'teams:manage_sports' %}">Sports</a>
+            <div class="small text-secondary"><span class="pn-num">{{ counts.sports }}</span> sport{{ counts.sports|pluralize }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-link card-link-pop h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-tags"></i></div>
+          <div class="min-w-0">
+            <a class="stretched-link text-reset fw-semibold d-block" href="{% url 'teams:manage_event_types' %}">Event types</a>
+            <div class="small text-secondary"><span class="pn-num">{{ counts.event_types }}</span> event type{{ counts.event_types|pluralize }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-link card-link-pop h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-category"></i></div>
+          <div class="min-w-0">
+            <a class="stretched-link text-reset fw-semibold d-block" href="{% url 'teams:manage_divisions' %}">Divisions</a>
+            <div class="small text-secondary"><span class="pn-num">{{ counts.divisions }}</span> division{{ counts.divisions|pluralize }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-link card-link-pop h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-arrows-shuffle"></i></div>
+          <div class="min-w-0">
+            <a class="stretched-link text-reset fw-semibold d-block" href="{% url 'teams:manage_free_agents' %}">Placement</a>
+            <div class="small text-secondary"><span class="pn-num">{{ counts.waiting_requests }}</span> request{{ counts.waiting_requests|pluralize }} waiting</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-link card-link-pop h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-ball-football"></i></div>
+          <div class="min-w-0">
+            <a class="stretched-link text-reset fw-semibold d-block" href="{% url 'matches:manage' %}">Matches</a>
+            <div class="small text-secondary"><span class="pn-num">{{ counts.upcoming_matches }}</span> upcoming match{{ counts.upcoming_matches|pluralize:"es" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-4">
+      <div class="card card-link card-link-pop h-100">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="avatar avatar-md rounded bg-primary-lt"><i aria-hidden="true" class="ti ti-map-pin"></i></div>
+          <div class="min-w-0">
+            <a class="stretched-link text-reset fw-semibold d-block" href="{% url 'facilities:manage' %}">Facilities</a>
+            <div class="small text-secondary"><span class="pn-num">{{ counts.facilities }}</span> facilit{{ counts.facilities|pluralize:"y,ies" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

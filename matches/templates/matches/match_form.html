@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{% if match %}Edit match{% else %}Schedule a match{% endif %} · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <div class="subheader">League Admin · {{ season.name }}</div>
+          <h1>{% if match %}Edit {{ match }}{% else %}Schedule a match{% endif %}</h1>
+          <div class="page-meta">Both teams must be in {{ season.name }} and play the same sport.</div>
+        </div>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.overlaps %}
+            <div class="alert alert-warning text-body" role="alert">
+              <div class="fw-medium"><i aria-hidden="true" class="ti ti-alert-triangle me-1"></i>{{ form.overlaps.0.facility.name }} already has {{ form.overlaps|length }} match{{ form.overlaps|length|pluralize:"es" }} at this time</div>
+              <div class="mt-2">
+                {% for overlap in form.overlaps %}
+                  <div class="d-flex align-items-center gap-2 mb-2">
+                    {% include "components/team_logo.html" with team=overlap.home_team %}
+                    <div class="min-w-0">
+                      <div class="fw-medium">{{ overlap.home_team.name }} vs {{ overlap.away_team.name }}</div>
+                      <div class="small pn-num">{{ overlap.starts_at|date:"D M j, g:i A" }} – {{ overlap.ends_at|date:"g:i A" }}</div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="small">Change the time or facility, or confirm to keep this booking anyway.</div>
+            </div>
+          {% endif %}
+          {% include "components/form_fields.html" %}
+          <div class="d-flex gap-2">
+            {% if form.overlaps %}
+              <button class="btn btn-primary" name="overlap_confirmation" type="submit" value="{{ form.overlap_token }}">{% if match %}Save anyway{% else %}Schedule anyway{% endif %}</button>
+            {% else %}
+              <button class="btn btn-primary" type="submit">{% if match %}Save match{% else %}Schedule match{% endif %}</button>
+            {% endif %}
+            <a class="btn btn-ghost-secondary" href="{% url 'matches:manage' %}?season={{ season.pk }}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

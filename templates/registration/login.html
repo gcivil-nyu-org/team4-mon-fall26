@@ -8,13 +8,20 @@
           <h1>Log in</h1>
           <div class="page-meta">Log in with your NYU email.</div>
         </div>
+        {% if rate_limited %}
+          <div class="alert alert-danger" role="alert">Too many login attempts. Please wait before trying again.</div>
+        {% endif %}
         <form method="post" novalidate>
           {% csrf_token %}
           {% include "components/form_fields.html" %}
           <input type="hidden" name="next" value="{{ next }}">
           <button class="btn btn-primary w-100" type="submit">Log in</button>
         </form>
-        <div class="text-center small mt-3"><a href="{% url 'accounts:resend' %}">Didn't get your confirmation email?</a></div>
+        <div class="text-center small mt-3">
+          <a href="{% url 'password_reset' %}">Forgot your password?</a>
+          <span class="text-secondary mx-1">·</span>
+          <a href="{% url 'accounts:resend' %}">Didn't get your confirmation email?</a>
+        </div>
       </div>
     </div>
     <div class="text-center text-secondary mt-3">New here? <a href="{% url 'accounts:signup' %}">Sign up</a></div>

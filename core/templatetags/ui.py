@@ -26,7 +26,16 @@ def initials(user):
 
 @register.filter
 def sport_icon(sport):
-    return SPORT_ICONS.get((sport or "").strip().lower(), DEFAULT_SPORT_ICON)
+    if sport is None:
+        return DEFAULT_SPORT_ICON
+
+    # Support both Sport model objects and legacy strings.
+    sport_name = getattr(sport, "name", sport)
+
+    return SPORT_ICONS.get(
+        str(sport_name).strip().lower(),
+        DEFAULT_SPORT_ICON,
+    )
 
 
 @register.filter

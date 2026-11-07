@@ -9,9 +9,12 @@
           <h1>Check your email</h1>
         </div>
         <p class="text-secondary">
-          We sent a confirmation link to {% if email %}<strong class="text-body">{{ email }}</strong>{% else %}your NYU email{% endif %}.
+          If an eligible account uses {% if email %}<strong class="text-body">{{ email }}</strong>{% else %}your NYU email{% endif %}, we'll send a confirmation link.
           Open it to activate your account. The link works once and expires in 24 hours.
         </p>
+        {% if rate_limited %}
+          <div class="alert alert-info" role="status">Too many confirmation requests. Please wait before requesting another link.</div>
+        {% endif %}
         <p class="text-secondary small">Didn't get it? Check your spam folder, or request a new link.</p>
         {% if email %}
           <form method="post" action="{% url 'accounts:resend' %}">

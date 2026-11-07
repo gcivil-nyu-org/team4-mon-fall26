@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Seasons · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>Seasons</h1>
+      <div class="page-meta">Draft → Open for registration → Active → Closed. Players don't see draft seasons.</div>
+    </div>
+    <a class="btn btn-primary" href="{% url 'teams:create_season' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Create a season</a>
+  </div>
+
+  <div class="card">
+    {% if rows %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Season</th>
+              <th>State</th>
+              <th class="text-end">Teams</th>
+              <th class="text-end">Roster cap</th>
+              <th class="w-1"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              {% with season=row.season %}
+                <tr>
+                  <td>
+                    <div class="fw-medium">{{ season.name }}</div>
+                    <div class="small text-secondary">{{ season.start_date|date:"M j, Y" }}{% if season.end_date %} – {{ season.end_date|date:"M j, Y" }}{% endif %}</div>
+                  </td>
+                  <td>{% include "components/season_state_badge.html" with season=season %}</td>
+                  <td class="text-end pn-num">{{ season.team_count }}</td>
+                  <td class="text-end pn-num">{{ season.max_roster_size }}</td>
+                  <td>
+                    <div class="d-flex flex-wrap justify-content-end gap-2">
+                      {% for transition in row.transitions %}
+                        <form method="post" action="{% url 'teams:change_season_state' season.pk %}" onsubmit="return confirm('{{ transition.label|escapejs }}: {{ season.name|escapejs }}?');">
+                          {% csrf_token %}
+                          <input type="hidden" name="state" value="{{ transition.state }}">
+                          <button class="btn btn-sm {% if transition.state == 'closed' %}btn-outline-danger{% else %}btn-outline-secondary{% endif %}" type="submit">{{ transition.label }}</button>
+                        </form>
+                      {% endfor %}
+                      {% if season.state != "closed" %}
+                        <a class="btn btn-sm btn-ghost-secondary" href="{% url 'teams:edit_season' season.pk %}">Edit</a>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endwith %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-off"></i></div>
+        <p class="empty-title">No seasons yet</p>
+        <p class="empty-subtitle text-secondary">Create a season as a draft, then open it for registration when it's ready.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
