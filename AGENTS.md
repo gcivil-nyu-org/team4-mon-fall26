@@ -74,6 +74,12 @@ Every change needs a GitHub issue and a ZenHub card. The board shows who does ea
 
    Find the card with `issueByInfo`. Move the card with the `moveIssue` mutation.
 
+   Sprints are weekly and run Monday to Monday:
+   - Plan one sprint for each week.
+   - Read the current and next sprint from `activeSprint` and `upcomingSprint`.
+   - ZenHub shows each sprint as Monday to Sunday. A sprint closes at 23:59 Sunday, America/Toronto time.
+   - Finish work for a Monday deadline by Sunday night.
+
    Each person keeps a personal token in their environment. Do not put a token in the repo, a PR, an issue, or a chat.
 
    If `ZENHUB_TOKEN` is not set, do not guess. Tell your user which card to move and to which pipeline.
