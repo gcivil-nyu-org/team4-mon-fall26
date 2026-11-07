@@ -15,10 +15,12 @@ from facilities.models import Facility
 from teams.models import Season, Sport, Team
 from teams.season_rules import SeasonState
 
+from .forms import OVERLAP_CONFIRMATION_FIELD as CONFIRM
 from .forms import MatchForm
 from .models import Match
 
 NY = ZoneInfo("America/New_York")
+HALF_HOUR = datetime.timedelta(minutes=30)
 
 
 def make_user(username, admin=False, scorekeeper=False):
@@ -671,3 +673,234 @@ class MyMatchesTests(ScorekeeperFixtures):
             with self.subTest(user=user.username):
                 self.client.force_login(user)
                 self.assertNotContains(self.client.get(reverse("core:home")), link)
+
+
+class OverlappingHelperTests(MatchFixtures):
+    def setUp(self):
+        self.existing = self.build()
+        self.existing.save()
+
+    def overlapping(self, starts_at, ends_at, facility=None):
+        return list(
+            Match.objects.overlapping(facility or self.field, starts_at, ends_at)
+        )
+
+    def test_windows_against_a_six_to_eight_match(self):
+        for name, starts_at, ends_at, overlaps in [
+            ("ends when it starts", at(10, 16), at(10, 18), False),
+            ("starts when it ends", at(10, 20), at(10, 22), False),
+            ("well before", at(10, 9), at(10, 10), False),
+            ("well after", at(10, 21), at(10, 22), False),
+            ("another day", at(11, 18), at(11, 20), False),
+            ("same window", at(10, 18), at(10, 20), True),
+            ("runs into it", at(10, 17), at(10, 19), True),
+            ("runs past its end", at(10, 19), at(10, 21), True),
+            ("inside it", at(10, 18) + HALF_HOUR, at(10, 19), True),
+            ("around it", at(10, 17), at(10, 21), True),
+        ]:
+            with self.subTest(name):
+                self.assertEqual(
+                    self.overlapping(starts_at, ends_at),
+                    [self.existing] if overlaps else [],
+                )
+
+    def test_ignores_other_facilities(self):
+        other = Facility.objects.create(name="Paulson", source=Facility.Source.NYU)
+        self.assertEqual(self.overlapping(at(10, 18), at(10, 20), other), [])
+
+    def test_ignores_cancelled_matches(self):
+        self.existing.cancel()
+        self.assertEqual(self.overlapping(at(10, 18), at(10, 20)), [])
+
+    def test_counts_matches_from_other_seasons(self):
+        self.existing.delete()
+        other_season = self.build(
+            season=self.other_season,
+            home_team=self.outsider,
+            away_team=self.make_team("Ravens", self.soccer, self.other_season),
+        )
+        other_season.save()
+        self.assertEqual(self.overlapping(at(10, 18), at(10, 20)), [other_season])
+
+
+class OverlapWarningTests(MatchFixtures):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.hawks = cls.make_team("Hawks", cls.soccer, cls.season)
+        cls.owls = cls.make_team("Owls", cls.soccer, cls.season)
+        cls.second_field = Facility.objects.create(
+            name="Paulson", source=Facility.Source.NYU
+        )
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+        self.url = reverse("matches:create") + f"?season={self.season.pk}"
+        self.conflict = self.build(home_team=self.hawks, away_team=self.owls)
+        self.conflict.save()
+
+    def warn(self, url=None, **overrides):
+        """Submit without confirming, check nothing was saved, return the token."""
+        before = Match.objects.count()
+        response = self.client.post(url or self.url, self.post_data(**overrides))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].overlaps)
+        self.assertEqual(Match.objects.count(), before)
+        return response.context["form"].overlap_token
+
+    def confirm(self, token, url=None, **overrides):
+        data = self.post_data(**overrides)
+        return self.client.post(url or self.url, {**data, CONFIRM: token})
+
+    def test_warning_lists_the_conflict_and_asks_for_confirmation(self):
+        response = self.client.post(self.url, self.post_data())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Match.objects.count(), 1)
+        form = response.context["form"]
+        self.assertEqual(form.overlaps, [self.conflict])
+        self.assertFalse(form.errors)
+        self.assertContains(response, "Pier 40 already has 1 match at this time")
+        self.assertContains(response, "Hawks vs Owls")
+        self.assertContains(response, "Tue Nov 10, 6:00 PM – 8:00 PM")
+        self.assertContains(response, "Schedule anyway")
+        self.assertContains(response, f'name="{CONFIRM}"')
+        self.assertContains(response, f'value="{form.overlap_token}"')
+        self.assertNotContains(response, "alert-danger")
+
+    def test_warning_lists_every_conflict(self):
+        later = self.build(
+            home_team=self.hawks,
+            away_team=self.owls,
+            starts_at=at(10, 19),
+            ends_at=at(10, 21),
+        )
+        later.save()
+        response = self.client.post(
+            self.url, self.post_data(ends_at="2026-11-10T21:00")
+        )
+        self.assertEqual(response.context["form"].overlaps, [self.conflict, later])
+        self.assertContains(response, "Pier 40 already has 2 matches at this time")
+
+    def test_confirming_saves_the_match(self):
+        response = self.confirm(self.warn())
+        self.assertEqual(response.status_code, 302)
+        saved = Match.objects.exclude(pk=self.conflict.pk).get()
+        self.assertEqual(saved.home_team, self.home)
+        self.assertEqual(saved.created_by, self.admin)
+        self.assertEqual(saved.starts_at, at(10, 18))
+
+    def test_no_warning_when_matches_only_touch(self):
+        for start, end in [
+            ("2026-11-10T20:00", "2026-11-10T21:00"),
+            ("2026-11-10T17:00", "2026-11-10T18:00"),
+        ]:
+            with self.subTest(start=start):
+                response = self.client.post(
+                    self.url, self.post_data(starts_at=start, ends_at=end)
+                )
+                self.assertEqual(response.status_code, 302)
+
+    def test_blank_page_has_no_confirm_button(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, CONFIRM)
+        self.assertContains(response, "Schedule match")
+
+    def test_cancelled_match_does_not_warn(self):
+        self.conflict.cancel()
+        response = self.client.post(self.url, self.post_data())
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Match.objects.count(), 2)
+
+    def test_made_up_confirmation_only_warns_again(self):
+        self.assertEqual(self.confirm("yes").status_code, 200)
+        self.assertEqual(self.confirm("").status_code, 200)
+        self.assertEqual(Match.objects.count(), 1)
+
+    def test_stale_confirm_after_changing_the_time_warns_again(self):
+        moved = {"starts_at": "2026-11-10T19:00", "ends_at": "2026-11-10T21:00"}
+        token = self.warn()
+        response = self.confirm(token, **moved)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Match.objects.count(), 1)
+        form = response.context["form"]
+        self.assertEqual(form.overlaps, [self.conflict])
+        self.assertNotEqual(form.overlap_token, token)
+        # The new warning can be confirmed in turn.
+        self.assertEqual(self.confirm(form.overlap_token, **moved).status_code, 302)
+        self.assertEqual(Match.objects.count(), 2)
+
+    def test_stale_confirm_after_changing_the_facility_warns_again(self):
+        other = self.build(
+            home_team=self.hawks, away_team=self.owls, facility=self.second_field
+        )
+        other.save()
+        response = self.confirm(self.warn(), facility=self.second_field.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["form"].overlaps, [other])
+        self.assertContains(response, "Paulson already has 1 match")
+        self.assertEqual(Match.objects.count(), 2)
+
+    def test_stale_confirm_is_harmless_once_there_is_no_conflict(self):
+        response = self.confirm(
+            self.warn(), starts_at="2026-11-10T20:00", ends_at="2026-11-10T21:00"
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Match.objects.count(), 2)
+
+    def test_confirm_does_not_cover_a_conflict_added_after_the_warning(self):
+        token = self.warn()
+        self.build(home_team=self.hawks, away_team=self.owls).save()
+        self.assertEqual(self.confirm(token).status_code, 200)
+        self.assertEqual(Match.objects.count(), 2)
+
+    def test_confirm_does_not_cover_a_conflict_moved_after_the_warning(self):
+        token = self.warn()
+        Match.objects.filter(pk=self.conflict.pk).update(ends_at=at(10, 22))
+        self.assertEqual(self.confirm(token).status_code, 200)
+        self.assertEqual(Match.objects.count(), 1)
+
+    def test_editing_a_match_does_not_conflict_with_itself(self):
+        response = self.client.post(
+            reverse("matches:edit", args=[self.conflict.pk]),
+            self.post_data(
+                home_team=self.hawks.pk,
+                away_team=self.owls.pk,
+                ends_at="2026-11-10T19:00",
+            ),
+        )
+        self.assertEqual(response.status_code, 302)
+        self.conflict.refresh_from_db()
+        self.assertEqual(self.conflict.ends_at, at(10, 19))
+
+    def test_rescheduling_into_a_conflict_warns_then_saves(self):
+        match = self.build(starts_at=at(12, 18), ends_at=at(12, 20))
+        match.save()
+        url = reverse("matches:edit", args=[match.pk])
+        response = self.client.post(url, self.post_data())
+        self.assertContains(response, "Save anyway")
+        match.refresh_from_db()
+        self.assertEqual(match.starts_at, at(12, 18))
+        token = response.context["form"].overlap_token
+        self.assertEqual(self.confirm(token, url).status_code, 302)
+        match.refresh_from_db()
+        self.assertEqual(match.starts_at, at(10, 18))
+
+    def test_invalid_form_does_not_warn(self):
+        for data in [
+            # Backwards, and inside the existing match, so only the end-after-start
+            # check keeps it out of the overlap query.
+            self.post_data(starts_at="2026-11-10T19:00", ends_at="2026-11-10T18:30"),
+            self.post_data(starts_at="not a date"),
+            self.post_data(facility=""),
+        ]:
+            with self.subTest(data=data):
+                response = self.client.post(self.url, data)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["form"].overlaps, [])
+                self.assertTrue(response.context["form"].errors)
+
+    def test_confirming_does_not_bypass_other_errors(self):
+        response = self.confirm(self.warn(), away_team=self.home.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].errors.get("away_team"))
+        self.assertEqual(Match.objects.count(), 1)

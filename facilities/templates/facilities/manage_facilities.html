@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Facilities · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>Facilities</h1>
+      <div class="page-meta">Add and edit NYU facilities. City facilities come from NYC Open Data and can't be changed here.</div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-secondary" href="{% url 'teams:league_setup' %}">League setup</a>
+      <a class="btn btn-primary" href="{% url 'facilities:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Add a facility</a>
+    </div>
+  </div>
+
+  <div class="card">
+    {% if facilities %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Facility</th>
+              <th>Source</th>
+              <th>Status</th>
+              <th class="w-1"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for facility in facilities %}
+              <tr>
+                <td>
+                  <div class="fw-medium">{{ facility.name }}</div>
+                  {% if facility.address or facility.borough %}<div class="small text-secondary">{{ facility.address }}{% if facility.address and facility.borough %}, {% endif %}{{ facility.get_borough_display }}</div>{% endif %}
+                </td>
+                <td>{{ facility.get_source_display }}</td>
+                <td>
+                  {% if facility.is_active %}
+                    <span class="badge bg-green-lt">Active</span>
+                  {% else %}
+                    <span class="badge bg-secondary-lt">Inactive</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if facility.source == "nyu" %}
+                    <a class="btn btn-sm btn-ghost-secondary" href="{% url 'facilities:edit' facility.pk %}" aria-label="Edit {{ facility.name }}">Edit</a>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-map-pin-off"></i></div>
+        <p class="empty-title">No facilities yet</p>
+        <p class="empty-subtitle text-secondary">Add an NYU facility so matches can be scheduled there.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

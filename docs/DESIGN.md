@@ -210,6 +210,8 @@ Labels start with a verb ("Add player", "Leave team"). An icon goes before the l
 
 Labels above inputs (`form-label`), inputs `form-control` / `form-select`, help text `form-hint`, errors `invalid-feedback d-block` under the field, and the submit button at the bottom left (on auth cards it is full width, `w-100`). Render a whole form with `{% include "components/form_fields.html" %}` (it adds the right classes and error states through the `control` filter). Don't use `{{ form.as_p }}`, and don't add CSS classes in Python form code.
 
+A warning the user can override (a booking overlap, say) is an `alert alert-warning text-body` with `role="alert"` at the top of the form, not a red error. Keep `text-body`: Tabler's amber alert text is only about 2:1 on its background. Don't use `text-secondary` inside it either, because that sits right at the 4.5:1 limit. It says what's wrong and what to do, and the submit button's label changes to match ("Schedule anyway").
+
 ### Badges
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.

@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
+from facilities.models import Facility
 from matches.models import Match
 
 from .forms import (
@@ -73,6 +74,11 @@ def create_team(request):
                         "season",
                         "You're already on a team this season. Players can be on "
                         "one team per season.",
+                    )
+                elif season.max_roster_size < 1:
+                    form.add_error(
+                        "season",
+                        "That season's rosters are full, so it can't take a new team.",
                     )
 
             if not form.errors:
@@ -310,6 +316,7 @@ def league_setup(request):
             season__in=Season.objects.allowing(SeasonAction.SCHEDULE_MATCH),
         )
         .count(),
+        "facilities": Facility.objects.count(),
     }
     return render(
         request,
