@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from accounts.roles import SCOREKEEPER_ROLE, users_with_role
 from teams.season_rules import SeasonAction
 
 
@@ -43,6 +44,16 @@ class Match(models.Model):
     ends_at = models.DateTimeField()
     status = models.CharField(
         max_length=10, choices=Status.choices, default=Status.SCHEDULED
+    )
+    # SET_NULL: deleting a user shouldn't delete or block the match; it just needs
+    # a new scorekeeper. Losing the role keeps the link so past matches stay
+    # accurate, so anything that acts for a scorekeeper must check the role too.
+    scorekeeper = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="scorekeeper_matches",
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -88,8 +99,27 @@ class Match(models.Model):
             and self.home_team.sport_id != self.away_team.sport_id
         ):
             errors["away_team"] = "Both teams have to play the same sport."
+        if (
+            self.scorekeeper_id
+            and self._scorekeeper_changed()
+            and not users_with_role(SCOREKEEPER_ROLE)
+            .filter(pk=self.scorekeeper_id)
+            .exists()
+        ):
+            errors["scorekeeper"] = (
+                "Only users with the Scorekeeper role can be assigned."
+            )
         if errors:
             raise ValidationError(errors)
+
+    def _scorekeeper_changed(self):
+        """A stale scorekeeper can't be newly assigned, but mustn't block other edits."""
+        stored = (
+            Match.objects.filter(pk=self.pk)
+            .values_list("scorekeeper_id", flat=True)
+            .first()
+        )
+        return self.scorekeeper_id != stored
 
     def validate_schedulable(self):
         """The season must allow scheduling for a match to be created or changed."""
