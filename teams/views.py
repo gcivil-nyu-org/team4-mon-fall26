@@ -95,7 +95,17 @@ def create_team(request):
         if team is not None:
             messages.success(request, f"Team {team.name} created. You are the captain.")
             return redirect("teams:detail", pk=team.pk)
-    return render(request, "teams/team_form.html", {"form": form})
+    return render(
+        request,
+        "teams/team_form.html",
+        {
+            "form": form,
+            "has_sports": form.fields["sport"].queryset.exists(),
+            "has_open_seasons": form.fields["season"].queryset.exists(),
+            "is_league_admin": request.user.is_superuser
+            or has_role(request.user, LEAGUE_ADMIN_ROLE),
+        },
+    )
 
 
 @login_required

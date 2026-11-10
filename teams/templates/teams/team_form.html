@@ -8,6 +8,17 @@
           <h1>Create a team</h1>
           <div class="page-meta">You'll be the captain.</div>
         </div>
+        {% if not has_sports %}
+          <div class="alert alert-warning" role="alert">
+            No sports have been added yet, so teams can't be created.
+            {% if is_league_admin %}<a href="{% url 'teams:manage_sports' %}">Add a sport</a>.{% else %}Ask a League Admin to add one.{% endif %}
+          </div>
+        {% elif not has_open_seasons %}
+          <div class="alert alert-info" role="alert">
+            No season is open for registration, so this team won't be in a season.
+            {% if is_league_admin %}<a href="{% url 'teams:manage_seasons' %}">Open a season</a>.{% endif %}
+          </div>
+        {% endif %}
         <form method="post" novalidate>
           {% csrf_token %}
           {% include "components/form_fields.html" %}

@@ -1,0 +1,155 @@
+external_id,name,address,borough,sports,latitude,longitude
+M116-BASKETBALL-1,ABC Playground – Half Court 1,164 ESSEX STREET,M,Basketball,40.721667,-73.986114
+M116-BASKETBALL-2,ABC Playground – Half Court 2,164 ESSEX STREET,M,Basketball,40.721625,-73.98598
+M194-BASKETBALL-4,Alfred E. Smith Playground – Full Court 1,86 CATHERINE STREET,M,Basketball,40.710371,-73.997864
+M194-VOLLEYBALL-1,Alfred E. Smith Playground – Volleyball 1,86 CATHERINE STREET,M,Volleyball,40.710419,-73.997557
+M164-SOCCER-1,Asser Levy Playground – 45-146ft W x 75-294ft L 1,384 ASSER LEVY PLACE,M,Soccer,40.736852,-73.975619
+M164-BASKETBALL-1,Asser Levy Playground – Full Court 1,384 ASSER LEVY PLACE,M,Basketball,40.736497,-73.975294
+M164-VOLLEYBALL-1,Asser Levy Playground – Volleyball 1,384 ASSER LEVY PLACE,M,Volleyball,40.736485,-73.975903
+M226-BASKETBALL-1,Augustus St. Gaudens Playground – Full Court 1,328 2 AVENUE,M,Basketball,40.735386,-73.982017
+M165-FOOTBALL-1,Baruch Playground – 45-146ft W x 75-294ft L 1,288 DELANCEY STREET,M,Soccer,40.717533,-73.976514
+M165-BASEBALL-1,"Baruch Playground – 60ft base path, 150-200ft fence 1",288 DELANCEY STREET,M,Softball,40.717667,-73.976505
+M165-BASEBALL-2,"Baruch Playground – 60ft base path, 150-200ft fence 2",288 DELANCEY STREET,M,Softball,40.71751,-73.976801
+M165-BASKETBALL-1,Baruch Playground – Full Court 1,288 DELANCEY STREET,M,Basketball,40.717084,-73.977241
+M263-BASKETBALL-1,Bellevue South Park – Full Court 1,315 EAST 26 STREET,M,Basketball; Volleyball,40.739634,-73.978382
+M263-BASKETBALL-2,Bellevue South Park – Half Court 2,315 EAST 26 STREET,M,Basketball,40.739653,-73.978429
+M263-BASKETBALL-3,Bellevue South Park – Half Court 3,315 EAST 26 STREET,M,Basketball,40.739614,-73.978336
+M011-SOCCER-1,Chelsea Park – 147-295ft W x 295-393ft L 1,294 10 Av,M,Soccer; Ultimate frisbee,40.750222,-74.001409
+M011-BASEBALL-1,"Chelsea Park – 60ft base path, 150-200ft fence 1",294 10 Av,M,Softball,40.750041,-74.001124
+M011-BASEBALL-2,"Chelsea Park – 60ft base path, 150-200ft fence 2",294 10 Av,M,Softball,40.750409,-74.001643
+M011-BASKETBALL-1,Chelsea Park – Full Court 1,294 10 Av,M,Basketball,40.749899,-74.000286
+M171-BASKETBALL-3,Cherry Clinton Playground – Full Court 1,Corner of Cherry St. and Clinton St.,M,Basketball,40.711305,-73.98634
+M171-BASKETBALL-1,Cherry Clinton Playground – Half Court 2,Corner of Cherry St. and Clinton St.,M,Basketball,40.711372,-73.986208
+M171-BASKETBALL-2,Cherry Clinton Playground – Half Court 3,Corner of Cherry St. and Clinton St.,M,Basketball,40.711264,-73.986189
+M019-BASEBALL-1,"Coleman Playground – 60ft base path, 150-200ft fence 1",166 MARKET STREET,M,Softball,40.711261,-73.993679
+M015-SOCCER-1,Columbus Park – 45-146ft W x 75-294ft L 1,55 MULBERRY STREET,M,Soccer,40.715298,-74.000115
+M015-BASKETBALL-1,Columbus Park – Full Court 4,55 MULBERRY STREET,M,Basketball,40.714366,-73.999806
+M015-BASKETBALL-2,Columbus Park – Half Court 1,55 MULBERRY STREET,M,Basketball,40.714966,-74.000248
+M015-BASKETBALL-3,Columbus Park – Half Court 2,55 MULBERRY STREET,M,Basketball,40.714975,-74.000069
+M015-BASKETBALL-4,Columbus Park – Half Court 3,55 MULBERRY STREET,M,Basketball,40.714984,-73.999898
+M015-BASKETBALL-5,Columbus Park – Half Court 5,55 MULBERRY STREET,M,Basketball,40.714417,-74.00004
+M015-VOLLEYBALL-2,Columbus Park – Volleyball 1,55 MULBERRY STREET,M,Volleyball,40.715027,-74.000251
+M015-VOLLEYBALL-3,Columbus Park – Volleyball 2,55 MULBERRY STREET,M,Volleyball,40.715037,-74.000076
+M015-VOLLEYBALL-6,Columbus Park – Volleyball 3,55 MULBERRY STREET,M,Volleyball,40.715047,-73.999902
+M017-SOCCER-1,Corlears Hook Park – 180 L x 100 W 1,397 FDR DRIVE W LANE,M,Soccer,40.711392,-73.980039
+M017-BASEBALL-1,"Corlears Hook Park – 60ft base path, 150-200ft fence 1",397 FDR DRIVE W LANE,M,Softball,40.711323,-73.980172
+M237-BASKETBALL-1,Corporal John A. Seravalli Playground – Full Court 1,638 HUDSON STREET,M,Basketball,40.739269,-74.004423
+M237-BASKETBALL-4,Corporal John A. Seravalli Playground – Half Court 2,638 HUDSON STREET,M,Basketball,40.739269,-74.004689
+M237-BASKETBALL-3,Corporal John A. Seravalli Playground – Half Court 3,638 HUDSON STREET,M,Basketball,40.739269,-74.004863
+M237-BASKETBALL-2,Corporal John A. Seravalli Playground – Half Court 4,638 HUDSON STREET,M,Basketball,40.738883,-74.005008
+M237-BASKETBALL-5,Corporal John A. Seravalli Playground – Half Court 5,638 HUDSON STREET,M,Basketball,40.738884,-74.00515
+M218-BASKETBALL-1,DeSalvio Playground – Half Court 1,44 SPRING STREET,M,Basketball,40.721496,-73.996071
+M066-BASKETBALL-1,Dr. Gertrude B. Kelly Playground – Full Court 1,317 WEST 16 STREET,M,Basketball,40.741823,-74.002033
+M270-BASKETBALL-1,Dry Dock Playground – Full Court 1,149 EAST 10 STREET,M,Basketball,40.725209,-73.975221
+M270-BASKETBALL-2,Dry Dock Playground – Full Court 2,149 EAST 10 STREET,M,Basketball,40.725414,-73.975074
+M222-BASKETBALL-1,Grand Canal Court – Full Court 1,"Thompson St., Canal St., Ave. of the Americas",M,Basketball,40.722312,-74.005012
+M033-BASKETBALL-2,Hamilton Fish Park – Full Court 1,128 PITT STREET,M,Basketball,40.719384,-73.980869
+M033-BASKETBALL-1,Hamilton Fish Park – Full Court 2,128 PITT STREET,M,Basketball,40.719327,-73.98068
+M228-BASKETBALL-3,Henry M. Jackson Playground – Full Court 1,1 JACKSON STREET,M,Basketball,40.713972,-73.981516
+M228-BASKETBALL-1,Henry M. Jackson Playground – Full Court 2,1 JACKSON STREET,M,Basketball,40.714014,-73.981321
+M228-BASKETBALL-2,Henry M. Jackson Playground – Full Court 3,1 JACKSON STREET,M,Basketball,40.714034,-73.981135
+M038-SOCCER-1,James J Walker Park – 147-295ft W x 295-393ft L 1,410 HUDSON STREET,M,Soccer,40.72982,-74.00642
+M038-SOCCER-2,James J Walker Park – 45-146ft W x 75-294ft L 1A,410 HUDSON STREET,M,Soccer,40.729903,-74.006508
+M038-SOCCER-3,James J Walker Park – 45-146ft W x 75-294ft L 1B,410 HUDSON STREET,M,Soccer,40.729728,-74.006325
+M038-BASEBALL-1,"James J Walker Park – 60ft base path, 150-200ft fence 1",410 HUDSON STREET,M,Softball,40.729781,-74.006468
+M038-PICKLEBALL-1,James J Walker Park – Unknown 1,410 HUDSON STREET,M,Pickleball,40.729776,-74.005923
+M144-ZN05-SOCCER-1,John V. Lindsay East River Park – 147-295ft W x 295-393ft L 1,Delancey Street AND Franklin D Roosevelt Drive,M,Soccer,40.721697,-73.973393
+M144-ZN04-SOCCER-1,John V. Lindsay East River Park – 147-295ft W x 295-393ft L 3,Delancey Street AND Franklin D Roosevelt Drive,M,Soccer,40.718993,-73.97398
+M144-ZN05-SOCCER-2,John V. Lindsay East River Park – 45-146ft W x 75-294ft L 1A,Delancey Street AND Franklin D Roosevelt Drive,M,Soccer,40.721938,-73.973337
+M144-ZN05-SOCCER-3,John V. Lindsay East River Park – 45-146ft W x 75-294ft L 1B,Delancey Street AND Franklin D Roosevelt Drive,M,Soccer,40.721442,-73.973456
+M144-ZN02-SOCCER-12,John V. Lindsay East River Park – 45-146ft W x 75-294ft L 3,Delancey Street AND Franklin D Roosevelt Drive,M,Soccer,40.713596,-73.976675
+M144-ZN02-BASEBALL-1,"John V. Lindsay East River Park – 60ft base path, 150-200ft fence 1",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.711946,-73.977223
+M144-ZN02-BASEBALL-2,"John V. Lindsay East River Park – 60ft base path, 150-200ft fence 2",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.712518,-73.976943
+M144-ZN04-BASEBALL-4,"John V. Lindsay East River Park – 60ft base path, 150-200ft fence 3",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.717633,-73.974439
+M144-ZN04-BASEBALL-3,"John V. Lindsay East River Park – 60ft base path, 150-200ft fence 4",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.718179,-73.974258
+M144-ZN04-BASEBALL-1,"John V. Lindsay East River Park – 60ft base path, 150-200ft fence 5",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.71889,-73.973917
+M144-ZN06-BASEBALL-2,"John V. Lindsay East River Park – 60ft base path, 150-200ft fence 7",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.72317,-73.973073
+M144-ZN06-BASEBALL-1,"John V. Lindsay East River Park – 60ft base path, 150-200ft fence 8",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.723542,-73.972872
+M144-ZN04-BASEBALL-2,"John V. Lindsay East River Park – 90ft base path, 200+ft fence 6",Delancey Street AND Franklin D Roosevelt Drive,M,Softball,40.719754,-73.973723
+M144-ZN02-BASKETBALL-1,John V. Lindsay East River Park – Full Court 1,Delancey Street AND Franklin D Roosevelt Drive,M,Basketball,40.714357,-73.976302
+M144-01-BASKETBALL-2,John V. Lindsay East River Park – Full Court 2,Delancey Street AND Franklin D Roosevelt Drive,M,Basketball,40.724835,-73.972348
+M144-01-BASKETBALL-1,John V. Lindsay East River Park – Half Court 3,Delancey Street AND Franklin D Roosevelt Drive,M,Basketball,40.725014,-73.972272
+M144-ZN02-SOCCER-1,John V. Lindsay East River Park – Unknown 2,Delancey Street AND Franklin D Roosevelt Drive,M,Soccer,40.712198,-73.976927
+M144-ZN02-VOLLEYBALL-1,John V. Lindsay East River Park – Volleyball 1,Delancey Street AND Franklin D Roosevelt Drive,M,Volleyball,40.714241,-73.976348
+M144-ZN02-VOLLEYBALL-2,John V. Lindsay East River Park – Volleyball 2,Delancey Street AND Franklin D Roosevelt Drive,M,Volleyball,40.714124,-73.97641
+M064-BASKETBALL-1,Lillian D Wald Playground – Full Court 1,356 CHERRY STREET,M,Basketball,40.711981,-73.9844
+M064-BASKETBALL-2,Lillian D Wald Playground – Full Court 2,356 CHERRY STREET,M,Basketball,40.712005,-73.984201
+M064-VOLLEYBALL-1,Lillian D Wald Playground – Volleyball 1,356 CHERRY STREET,M,Volleyball,40.712225,-73.98455
+M132-BASKETBALL-2,Little Flower Playground – Full Court 1,300 CHERRY STREET,M,Basketball,40.71228,-73.988454
+M132-BASKETBALL-1,Little Flower Playground – Full Court 2,300 CHERRY STREET,M,Basketball,40.712296,-73.988254
+M321-FOOTBALL-1,Lower East Side Playground – 45-146ft W x 75-294ft L 1,404 EAST 12 STREET,M,Soccer,40.72962,-73.983019
+M321-BASKETBALL-1,Lower East Side Playground – Full Court 2,404 EAST 12 STREET,M,Basketball; Volleyball,40.729178,-73.98294
+M321-BASKETBALL-2,Lower East Side Playground – Half Court 1,404 EAST 12 STREET,M,Basketball,40.729326,-73.9828
+M321-VOLLEYBALL-1,Lower East Side Playground – Volleyball 1,404 EAST 12 STREET,M,Volleyball,40.729447,-73.982719
+M259-BASKETBALL-1,McKinley Playground – Full Court 1,162 EAST 4 STREET,M,Basketball,40.724164,-73.985929
+M259-BASKETBALL-2,McKinley Playground – Full Court 2,162 EAST 4 STREET,M,Basketball,40.724093,-73.985759
+M059-SOCCER-1,Murphy Brothers Playground – 147-295ft W x 295-393ft L 1,292 AVENUE C,M,Soccer,40.730175,-73.973288
+M059-BASEBALL-1,"Murphy Brothers Playground – 45-60ft base path, less than 150ft fence 1",292 AVENUE C,M,Softball,40.730231,-73.973396
+M059-BASEBALL-2,"Murphy Brothers Playground – 45-60ft base path, less than 150ft fence 2",292 AVENUE C,M,Softball,40.730124,-73.973127
+M059-BASKETBALL-1,Murphy Brothers Playground – Full Court 1,292 AVENUE C,M,Basketball,40.730359,-73.973835
+M241-BASEBALL-1,"Nathan Straus Playground – 45-60ft base path, less than 150ft fence 1",178 RIVINGTON STREET,M,Softball,40.719221,-73.984107
+M241-BASKETBALL-1,Nathan Straus Playground – Full Court 1,178 RIVINGTON STREET,M,Basketball,40.719329,-73.984089
+M241-BASKETBALL-3,Nathan Straus Playground – Half Court 2,178 RIVINGTON STREET,M,Basketball,40.71935,-73.983663
+M241-BASKETBALL-2,Nathan Straus Playground – Half Court 3,178 RIVINGTON STREET,M,Basketball,40.71942,-73.983628
+M241-BASKETBALL-4,Nathan Straus Playground – Half Court 4,178 RIVINGTON STREET,M,Basketball,40.719494,-73.983591
+M249-BASKETBALL-1,Penn South Playground – Full Court 1,346 WEST 26 STREET,M,Basketball,40.747658,-73.998817
+M249-BASKETBALL-2,Penn South Playground – Full Court 2,346 WEST 26 STREET,M,Basketball,40.747722,-73.998969
+M249-VOLLEYBALL-1,Penn South Playground – Volleyball 1,346 WEST 26 STREET,M,Volleyball,40.747588,-73.99869
+M227-SOCCER-1,Peter's Field – 45-146ft W x 75-294ft L 1,344 2 AVENUE,M,Soccer,40.735992,-73.981597
+M227-BASEBALL-1,"Peter's Field – 60ft base path, 150-200ft fence 1",344 2 AVENUE,M,Softball,40.736025,-73.981486
+M227-BASKETBALL-1,Peter's Field – Half Court 1,344 2 AVENUE,M,Basketball,40.736086,-73.981921
+M227-BASKETBALL-2,Peter's Field – Half Court 2,344 2 AVENUE,M,Basketball,40.73617,-73.98186
+M227-BASKETBALL-3,Peter's Field – Half Court 3,344 2 AVENUE,M,Basketball,40.736256,-73.981798
+M227-BASKETBALL-4,Peter's Field – Half Court 4,344 2 AVENUE,M,Basketball,40.736339,-73.981739
+M227-BASKETBALL-5,Peter's Field – Half Court 5,344 2 AVENUE,M,Basketball,40.736384,-73.981677
+M369-SOCCER-1,Pier 42 – 147-295ft W x 295-393ft L 1,42 SOUTH STREET,M,Soccer,40.710018,-73.981886
+M369-BASKETBALL-01,Pier 42 – Half Court 1,42 SOUTH STREET,M,Basketball,40.709811,-73.982514
+M369-BASKETBALL-02,Pier 42 – Half Court 2,42 SOUTH STREET,M,Basketball,40.709792,-73.982723
+M369-BASKETBALL-03,Pier 42 – Half Court 3,42 SOUTH STREET,M,Basketball,40.709775,-73.982926
+M369-BASKETBALL-04,Pier 42 – Half Court 4,42 SOUTH STREET,M,Basketball,40.709757,-73.983129
+M196-BASKETBALL-1,Playground One – Full Court 1,Madison St. bet. Catherine St. and Oliver St.,M,Basketball,40.712268,-73.997388
+M196-BASKETBALL-2,Playground One – Full Court 2,Madison St. bet. Catherine St. and Oliver St.,M,Basketball,40.712285,-73.997208
+M105-SOCCER-2,Sara D. Roosevelt Park – 180 (L) x 110 (W) - 6 YD Box and Circle 2,106 CHRYSTIE STREET,M,Soccer; Ultimate frisbee,40.721765,-73.991526
+M105-SOCCER-1,Sara D. Roosevelt Park – 45-146ft W x 75-294ft L 1,106 CHRYSTIE STREET,M,Soccer,40.716277,-73.994312
+M105-01-BASKETBALL-1,Sara D. Roosevelt Park – Full Court 1,106 CHRYSTIE STREET,M,Basketball,40.72313,-73.990826
+M105-01-BASKETBALL-2,Sara D. Roosevelt Park – Full Court 2,106 CHRYSTIE STREET,M,Basketball,40.722992,-73.990896
+M105-02-BASKETBALL-1,Sara D. Roosevelt Park – Full Court 3,106 CHRYSTIE STREET,M,Basketball; Volleyball,40.722146,-73.991454
+M105-02-BASKETBALL-2,Sara D. Roosevelt Park – Full Court 4,106 CHRYSTIE STREET,M,Basketball; Volleyball,40.722093,-73.991274
+M105-08-BASKETBALL-1,Sara D. Roosevelt Park – Full Court 5,106 CHRYSTIE STREET,M,Basketball,40.717605,-73.993656
+M105-08-BASKETBALL-2,Sara D. Roosevelt Park – Full Court 6,106 CHRYSTIE STREET,M,Basketball,40.717447,-73.993737
+M105-SOCCER-3,Sara D. Roosevelt Park – Soccer 1,106 CHRYSTIE STREET,,Soccer,40.719237,-73.992832
+M105-VOLLEYBALL-1,Sara D. Roosevelt Park – Volleyball 1,106 CHRYSTIE STREET,M,Volleyball,40.716398,-73.99425
+M105-VOLLEYBALL-3,Sara D. Roosevelt Park – Volleyball 2,106 CHRYSTIE STREET,M,Volleyball,40.716276,-73.994312
+M105-VOLLEYBALL-2,Sara D. Roosevelt Park – Volleyball 3,106 CHRYSTIE STREET,M,Volleyball,40.716153,-73.994374
+M082-BASKETBALL-3,Seward Park – Basketball 2,57 ESSEX STREET,,Basketball; Volleyball,40.714935,-73.988615
+M082-BASKETBALL-2,Seward Park – Full Court 1,57 ESSEX STREET,M,Basketball,40.715006,-73.988785
+M082-VOLLEYBALL-1,Seward Park – Volleyball 1,57 ESSEX STREET,M,Volleyball,40.715271,-73.989393
+M082-VOLLEYBALL-2,Seward Park – Volleyball 2,57 ESSEX STREET,M,Volleyball,40.71519,-73.989119
+M195-BASKETBALL-1,Sidney Hillman Playground – Full Court 1,297 DELANCEY STREET,M,Basketball,40.71509,-73.979726
+M195-BASKETBALL-2,Sidney Hillman Playground – Full Court 2,297 DELANCEY STREET,M,Basketball,40.715203,-73.979668
+M235-BASEBALL-1,"Sol Lain Plgd – 60ft base path, 150-200ft fence 1",271 HENRY STREET,M,Softball,40.714204,-73.983707
+M235-BASKETBALL-1,Sol Lain Plgd – Full Court 1,271 HENRY STREET,M,Basketball,40.714408,-73.983788
+M235-BASKETBALL-5,Sol Lain Plgd – Half Court 2,271 HENRY STREET,M,Basketball,40.714213,-73.98394
+M235-BASKETBALL-4,Sol Lain Plgd – Half Court 3,271 HENRY STREET,M,Basketball,40.714123,-73.983929
+M076-SOCCER-1,St. Vartan Park – 45-146ft W x 75-294ft L 1,613 1 AVENUE,M,Soccer,40.745338,-73.974132
+M076-BASEBALL-1,"St. Vartan Park – 60ft base path, 150-200ft fence 1",613 1 AVENUE,M,Softball,40.745216,-73.974007
+M076-BASKETBALL-1,St. Vartan Park – Full Court 1,613 1 AVENUE,M,Basketball,40.74556,-73.974718
+M076-BASKETBALL-3,St. Vartan Park – Half Court 2,613 1 AVENUE,M,Basketball,40.745709,-73.974597
+M206-SOCCER-001,Tanahey Playground – 45-146ft W x 75-294ft L 1,312 WATER STREET,M,Soccer,40.710133,-73.99533
+M206-BASKETBALL-2,Tanahey Playground – Full Court 1,312 WATER STREET,M,Basketball,40.710231,-73.994684
+M206-BASKETBALL-3,Tanahey Playground – Full Court 2,312 WATER STREET,M,Basketball,40.710203,-73.994868
+M088-BASEBALL-1,"Tompkins Square Park – 60ft base path, 150-200ft fence 1",144 AVENUE A,M,Softball,40.727367,-73.982014
+M088-BASKETBALL-1,Tompkins Square Park – Full Court 2,144 AVENUE A,M,Basketball,40.726891,-73.980584
+M088-BASKETBALL-2,Tompkins Square Park – Full Court 3,144 AVENUE A,M,Basketball,40.726759,-73.980713
+M088-BASKETBALL-3,Tompkins Square Park – Half Court 1,144 AVENUE A,M,Basketball,40.727014,-73.980874
+M088-BASKETBALL-5,Tompkins Square Park – Half Court 4,144 AVENUE A,M,Basketball,40.726796,-73.980256
+M088-BASKETBALL-4,Tompkins Square Park – Half Court 5,144 AVENUE A,M,Basketball,40.726735,-73.980285
+M069-BASKETBALL-2,Vesuvio Playground – Half Court 1,85 THOMPSON STREET,M,Basketball,40.725114,-74.00272
+M201-BASEBALL-1,"Wald Playground – 45-60ft base path, less than 150ft fence 1",E. Houston St. and FDR Dr.,M,Softball,40.719882,-73.976834
+M201-BASKETBALL-1,Wald Playground – Half Court 1,E. Houston St. and FDR Dr.,M,Basketball,40.719814,-73.976705
+M308-BASKETBALL-2,Washington Market Park – Full Court 1,304 GREENWICH STREET,M,Basketball,40.717082,-74.011969
+M308-BASKETBALL-1,Washington Market Park – Half Court 2,304 GREENWICH STREET,M,Basketball,40.717019,-74.012165
+M125C-BASKETBALL-1,West 4th Street Courts – Full Court 1,320 6 AVENUE,M,Basketball,40.731196,-74.001006
+M125C-BASKETBALL-2,West 4th Street Courts – Half Court 2,320 6 AVENUE,M,Basketball,40.731065,-74.001104
+M120A-BASEBALL-1,"William F. Passannante Ballfield – 60ft base path, 150-200ft fence 1",244 6 AVENUE,M,Softball,40.728497,-74.002264
+M120A-BASKETBALL-1,William F. Passannante Ballfield – Full Court 1,244 6 AVENUE,M,Basketball,40.728783,-74.002256
