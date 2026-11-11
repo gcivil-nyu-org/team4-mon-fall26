@@ -15,7 +15,7 @@ Team docs live in [`docs/`](docs/). Link to them instead of copying their conten
 | [docs/WORKFLOW.md](docs/WORKFLOW.md) | Branches, pull requests, definition of done, working agreements | Before your first PR, and whenever you're unsure where code goes |
 | [docs/DESIGN.md](docs/DESIGN.md) | The UI design system: stack, tokens, components, page recipes, UI PR checklist | Before touching any template, CSS or page |
 | [docs/E2_CONTRACT.md](docs/E2_CONTRACT.md) | E2 rules: sports, event types, season lifecycle, divisions, data migration | Before working on #106, #107, #108 or #109 |
-| [docs/DATABASE.md](docs/DATABASE.md) | Database setup: `DATABASE_URL`, Postgres on RDS, migrations on deploy, testing on Postgres | Before setting up an environment, or when using `select_for_update` or raw SQL |
+| [docs/DATABASE.md](docs/DATABASE.md) | Database setup: `DATABASE_URL`, Postgres on Neon, migrations on deploy, testing on Postgres | Before setting up an environment, or when using `select_for_update` or raw SQL |
 
 Coding agents start from [AGENTS.md](AGENTS.md), which points to these docs. To add a doc: one topic per file in `docs/`, named in caps like the ones above, with a row added to this table in the same PR.
 
@@ -86,7 +86,7 @@ playnyu/    project settings and root URLs
 core/       starter app (home page and health check)
 ```
 
-Database: SQLite locally (`db.sqlite3`, not committed), Postgres on AWS ([docs/DATABASE.md](docs/DATABASE.md)).
+Database: SQLite locally (`db.sqlite3`, not committed), Postgres on Neon for the deployed sites ([docs/DATABASE.md](docs/DATABASE.md)).
 
 [![Build Status](https://app.travis-ci.com/gcivil-nyu-org/team4-mon-fall26.svg?branch=main)](https://app.travis-ci.com/gcivil-nyu-org/team4-mon-fall26)
 [![Coverage Status](https://coveralls.io/repos/github/gcivil-nyu-org/team4-mon-fall26/badge.svg?branch=main)](https://coveralls.io/github/gcivil-nyu-org/team4-mon-fall26?branch=main)

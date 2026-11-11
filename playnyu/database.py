@@ -13,6 +13,8 @@ def database_config(database_url, sqlite_path):
         return dj_database_url.parse(
             database_url,
             # Reuse connections between requests, and replace any that dropped.
+            # Keep this under Neon's 5-minute idle pause, and use Neon's direct
+            # (not pooled) connection string (docs/DATABASE.md).
             conn_max_age=60,
             conn_health_checks=True,
         )

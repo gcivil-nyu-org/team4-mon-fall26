@@ -1,7 +1,7 @@
 """Create the PlayNYU sports, and optionally an open demo season.
 
-The deployed SQLite database resets on every deploy, so .ebextensions/django.config
-runs this after migrate. Without sports nobody can create a team (Sport is required).
+.ebextensions/django.config runs this after migrate on every deploy, and it only
+adds what is missing. Without sports nobody can create a team (Sport is required).
 Sports come from the Facilities Phase 1 sport list (docs and #105).
 
 Locally: python manage.py seed_league_data [--demo-season]
