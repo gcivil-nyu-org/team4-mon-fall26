@@ -16,15 +16,19 @@ script:
   - coverage run manage.py test
   - coverage report --fail-under=80
 
-# The same tests on Postgres, because SQLite ignores select_for_update (docs/DATABASE.md).
-# The image comes from AWS's mirror of the official image, to avoid Docker Hub rate limits.
+# Two jobs: the checks above on SQLite, and the tests again on Postgres, because SQLite
+# ignores select_for_update (docs/DATABASE.md). With jobs.include, every job must be
+# listed here. The image comes from AWS's mirror of the official image, to avoid
+# Docker Hub rate limits. Port 5433, because the build image already runs a Postgres
+# on 5432.
 jobs:
   include:
+    - name: "Lint, tests and coverage (SQLite)"
     - name: "Tests on Postgres"
       services: docker
-      env: CI_DB=postgres DATABASE_URL=postgres://postgres:postgres@localhost:5432/playnyu
+      env: CI_DB=postgres DATABASE_URL=postgres://postgres:postgres@localhost:5433/playnyu
       before_script:
-        - docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=playnyu -p 5432:5432 public.ecr.aws/docker/library/postgres:17
+        - docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=playnyu -p 5433:5432 public.ecr.aws/docker/library/postgres:17
         - for i in $(seq 30); do docker exec postgres pg_isready -U postgres -h localhost && break; sleep 2; done
       script:
         - python manage.py test
