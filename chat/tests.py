@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
@@ -26,7 +26,6 @@ def add_player(team, user):
     return Roster.objects.create(team=team, player=user, role=Roster.Role.PLAYER)
 
 
-@override_settings(ROOT_URLCONF="chat.test_urls")
 class TeamThreadTests(TestCase):
     def setUp(self):
         self.captain = make_user("cap")
@@ -101,7 +100,6 @@ class TeamThreadTests(TestCase):
         self.assertContains(response, "No messages yet")
 
 
-@override_settings(ROOT_URLCONF="chat.test_urls")
 class FlagFlowTests(TestCase):
     def setUp(self):
         self.captain = make_user("cap")
@@ -139,7 +137,6 @@ class FlagFlowTests(TestCase):
         self.assertTrue(Message.objects.get(pk=self.message.pk).is_flagged)
 
 
-@override_settings(ROOT_URLCONF="chat.test_urls")
 class ModerationQueueTests(TestCase):
     def setUp(self):
         self.admin = make_user("leagueadmin")
