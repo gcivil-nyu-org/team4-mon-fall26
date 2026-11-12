@@ -15,6 +15,7 @@ script:
   - flake8 .
   - coverage run manage.py test
   - coverage report --fail-under=80
+  - python manage.py makemigrations --check --dry-run
 
 # Two jobs: the checks above on SQLite, and the tests again on Postgres, because SQLite
 # ignores select_for_update (docs/DATABASE.md). With jobs.include, every job must be
