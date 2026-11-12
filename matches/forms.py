@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.utils.crypto import salted_hmac
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
@@ -126,3 +127,31 @@ class MatchForm(forms.ModelForm):
     def _overlaps_unconfirmed(self):
         submitted = self.data.get(OVERLAP_CONFIRMATION_FIELD)
         return bool(self.overlaps) and submitted != self.overlap_token
+
+
+class ScoreForm(forms.ModelForm):
+    """Record or correct a match result. Corrections overwrite the scores."""
+
+    class Meta:
+        model = Match
+        fields = ["home_score", "away_score"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ("home_score", "away_score"):
+            self.fields[name].required = True
+            self.fields[name].validators.append(MinValueValidator(0))
+        match = self.instance
+        if match is not None and match.pk:
+            self.fields["home_score"].label = f"{match.home_team} score"
+            self.fields["away_score"].label = f"{match.away_team} score"
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors:
+            return cleaned
+        if self.instance.pk and not self.instance.can_change:
+            raise ValidationError(
+                "Scores can only be recorded while the season is open or active."
+            )
+        return cleaned

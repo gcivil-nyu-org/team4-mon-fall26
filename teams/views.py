@@ -12,6 +12,7 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
+from matches.standings import compute_standings
 
 from .forms import (
     AddPlayerForm,
@@ -119,6 +120,16 @@ def team_detail(request, pk):
     # Captain first, then players in the order they joined.
     roster = team.roster.select_related("player").order_by("role", "joined_at")
     upcoming_matches, past_matches = team_schedule(team, request.user)
+    record = None
+    if team.season_id:
+        record = next(
+            (
+                row
+                for row in compute_standings(team.season)
+                if row["team"].pk == team.pk
+            ),
+            None,
+        )
     return render(
         request,
         "teams/team_detail.html",
@@ -132,6 +143,7 @@ def team_detail(request, pk):
             "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
             "upcoming_matches": upcoming_matches,
             "past_matches": past_matches,
+            "record": record,
             "can_view_schedule": seasons_visible_to(request.user)
             .filter(pk=team.season_id)
             .exists(),

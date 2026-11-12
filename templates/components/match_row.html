@@ -8,5 +8,6 @@
     </div>
     <div class="small text-secondary"><span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span> · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
   </div>
+  {% if match.has_result %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% endif %}
   {% if match.is_cancelled %}<span class="badge bg-secondary-lt flex-shrink-0">Cancelled</span>{% endif %}
 </div>

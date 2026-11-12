@@ -45,6 +45,8 @@ class Match(models.Model):
     status = models.CharField(
         max_length=10, choices=Status.choices, default=Status.SCHEDULED
     )
+    home_score = models.PositiveIntegerField(null=True, blank=True)
+    away_score = models.PositiveIntegerField(null=True, blank=True)
     # SET_NULL: deleting a user shouldn't delete or block the match; it just needs
     # a new scorekeeper. Losing the role keeps the link so past matches stay
     # accurate, so anything that acts for a scorekeeper must check the role too.
@@ -109,6 +111,12 @@ class Match(models.Model):
             errors["scorekeeper"] = (
                 "Only users with the Scorekeeper role can be assigned."
             )
+        scored = [self.home_score is not None, self.away_score is not None]
+        if any(scored) and not all(scored):
+            errors["home_score"] = "Enter both scores, or leave both blank."
+            errors["away_score"] = "Enter both scores, or leave both blank."
+        if any(scored) and self.status == self.Status.CANCELLED:
+            errors["home_score"] = "Cancelled matches can't have a score."
         if errors:
             raise ValidationError(errors)
 
@@ -140,6 +148,11 @@ class Match(models.Model):
     @property
     def is_cancelled(self):
         return self.status == self.Status.CANCELLED
+
+    @property
+    def has_result(self):
+        """Both scores are recorded, so the match counts in the standings."""
+        return self.home_score is not None and self.away_score is not None
 
     def __str__(self):
         return f"{self.home_team} vs {self.away_team}"
