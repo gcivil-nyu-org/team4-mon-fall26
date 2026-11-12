@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}League overview · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>League overview</h1>
+      <div class="page-meta">League-wide numbers, upcoming matches and links to every admin page.</div>
+    </div>
+    <a class="btn btn-primary" href="{% url 'matches:create' %}"><i aria-hidden="true" class="ti ti-calendar-plus me-1"></i>Schedule a match</a>
+  </div>
+
+  <div class="subheader mb-2">Seasons by state</div>
+  <div class="row row-cards mb-4">
+    {% for item in season_counts %}
+      <div class="col-6 col-lg-3">
+        <div class="card card-sm h-100"><div class="card-body">
+          <div class="subheader">{{ item.label }}</div>
+          <div class="h1 mb-0 pn-num">{{ item.count }}</div>
+        </div></div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row row-cards mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Teams</div>
+        <div class="h1 mb-0 pn-num">{{ counts.teams }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Pending requests</div>
+        <div class="h1 mb-0 pn-num">{{ counts.pending_requests }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Upcoming matches</div>
+        <div class="h1 mb-0 pn-num">{{ counts.upcoming_matches }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card card-sm h-100"><div class="card-body">
+        <div class="subheader">Active facilities</div>
+        <div class="h1 mb-0 pn-num">{{ counts.active_facilities }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h3 class="card-title">Seasons</h3>
+          <div class="card-actions"><a href="{% url 'teams:manage_seasons' %}">Manage seasons</a></div>
+        </div>
+        {% if seasons %}
+          <div class="list-group list-group-flush">
+            {% for season in seasons %}
+              <div class="list-group-item d-flex align-items-center gap-3">
+                <div class="flex-fill min-w-0">
+                  <div class="fw-medium text-truncate">{{ season.name }}</div>
+                  <div class="small text-secondary">Starts <span class="pn-num">{{ season.start_date|date:"M j, Y" }}</span></div>
+                </div>
+                {% include "components/season_state_badge.html" with season=season %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-event"></i></div>
+              <p class="empty-title">No seasons yet</p>
+              <p class="empty-subtitle text-secondary">Create a season to start accepting teams.</p>
+              <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'teams:create_season' %}">Create a season</a></div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Upcoming matches</h3>
+          <div class="card-actions"><a href="{% url 'matches:manage' %}">Manage matches</a></div>
+        </div>
+        {% if upcoming_matches %}
+          <div class="list-group list-group-flush">
+            {% for match in upcoming_matches %}
+              {% include "components/match_row.html" with match=match %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar"></i></div>
+              <p class="empty-title">No upcoming matches</p>
+              <p class="empty-subtitle text-secondary">Schedule a match to fill the calendar.</p>
+              <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'matches:create' %}">Schedule a match</a></div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Quick links</h3></div>
+        <div class="list-group list-group-flush">
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:league_setup' %}"><i aria-hidden="true" class="ti ti-settings text-secondary"></i><span class="flex-fill">League setup</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_seasons' %}"><i aria-hidden="true" class="ti ti-calendar-event text-secondary"></i><span class="flex-fill">Seasons</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_free_agents' %}"><i aria-hidden="true" class="ti ti-arrows-shuffle text-secondary"></i><span class="flex-fill">Placement</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_divisions' %}"><i aria-hidden="true" class="ti ti-category text-secondary"></i><span class="flex-fill">Divisions</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'matches:manage' %}"><i aria-hidden="true" class="ti ti-clipboard-list text-secondary"></i><span class="flex-fill">Matches</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'facilities:manage' %}"><i aria-hidden="true" class="ti ti-map-pin text-secondary"></i><span class="flex-fill">Facilities</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_sports' %}"><i aria-hidden="true" class="ti ti-trophy text-secondary"></i><span class="flex-fill">Sports</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_event_types' %}"><i aria-hidden="true" class="ti ti-tags text-secondary"></i><span class="flex-fill">Event types</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

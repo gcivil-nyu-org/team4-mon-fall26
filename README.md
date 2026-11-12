@@ -17,6 +17,7 @@ Team docs live in [`docs/`](docs/). Link to them instead of copying their conten
 | [docs/E2_CONTRACT.md](docs/E2_CONTRACT.md) | E2 rules: sports, event types, season lifecycle, divisions, data migration | Before working on #106, #107, #108 or #109 |
 | [docs/DATA.md](docs/DATA.md) | Facility data: dataset choice, sport codes, dictionary, quality, permits | Before touching facility data, the import or the seed files |
 | [docs/DATABASE.md](docs/DATABASE.md) | Database setup: `DATABASE_URL`, Postgres on Neon, migrations on deploy, testing on Postgres | Before setting up an environment, or when using `select_for_update` or raw SQL |
+| [docs/PLAN.md](docs/PLAN.md) | Roadmap for E5/E6/E7/E9: what is on `testing`, the Nov 9–15 wave, and what remains | Before picking up results, notifications, chat, or secure/observe work |
 
 Coding agents start from [AGENTS.md](AGENTS.md), which points to these docs. To add a doc: one topic per file in `docs/`, named in caps like the ones above, with a row added to this table in the same PR.
 
