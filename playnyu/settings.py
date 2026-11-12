@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "accounts",
     "facilities",
     "matches",
+    "notifications",
 ]
 
 MIDDLEWARE = [
