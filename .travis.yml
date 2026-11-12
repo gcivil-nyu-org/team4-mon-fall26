@@ -16,6 +16,24 @@ script:
   - coverage run manage.py test
   - coverage report --fail-under=80
 
+# Two jobs: the checks above on SQLite, and the tests again on Postgres, because SQLite
+# ignores select_for_update (docs/DATABASE.md). With jobs.include, every job must be
+# listed here. The image comes from AWS's mirror of the official image, to avoid
+# Docker Hub rate limits. Port 5433, because the build image already runs a Postgres
+# on 5432.
+jobs:
+  include:
+    - name: "Lint, tests and coverage (SQLite)"
+    - name: "Tests on Postgres"
+      services: docker
+      env: CI_DB=postgres DATABASE_URL=postgres://postgres:postgres@localhost:5433/playnyu
+      before_script:
+        - docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=playnyu -p 5433:5432 public.ecr.aws/docker/library/postgres:17
+        - for i in $(seq 30); do docker exec postgres pg_isready -U postgres -h localhost && break; sleep 2; done
+      script:
+        - python manage.py test
+
+# Only the SQLite job deploys, so a build deploys once.
 deploy:
   - provider: elasticbeanstalk
     access_key_id: $AWS_ACCESS_KEY_ID_TESTING
@@ -26,6 +44,7 @@ deploy:
     bucket_name: elasticbeanstalk-us-east-2-537751920541
     on:
       branch: testing
+      condition: $CI_DB != postgres
 
   - provider: elasticbeanstalk
     access_key_id: $AWS_ACCESS_KEY_ID_PROD
@@ -36,3 +55,4 @@ deploy:
     bucket_name: elasticbeanstalk-us-east-2-505435643700
     on:
       branch: main
+      condition: $CI_DB != postgres

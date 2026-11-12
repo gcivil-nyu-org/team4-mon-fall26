@@ -1,7 +1,8 @@
 """Create or reset a fixed set of verified demo players.
 
-The testing site's SQLite database resets on every deploy, so
-.ebextensions/django.config runs this after migrate. Every demo player gets the
+.ebextensions/django.config runs this after migrate on every deploy, so the
+accounts exist on a new database and their passwords stay known on an existing
+one. Their teams and other data are kept. Every demo player gets the
 password in DEMO_USERS_PASSWORD (set with `eb setenv`); the command does nothing
 when it is missing. Locally: DEMO_USERS_PASSWORD=... python manage.py seed_demo_users
 """

@@ -54,4 +54,4 @@ A card is done when:
 
 ## Data
 
-The database is SQLite for now, so data resets on every deploy. Don't rely on data you entered on a deployed site still being there.
+Local development uses SQLite. Deployed sites use Postgres when `DATABASE_URL` is set, and their data survives a deploy. Without it they use SQLite, and data resets on every deploy. Because migrations now run on real data, test them against existing rows. See [DATABASE.md](DATABASE.md).
