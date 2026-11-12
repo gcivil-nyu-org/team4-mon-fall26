@@ -16,7 +16,9 @@
               <th>Match</th>
               <th>When</th>
               <th>Facility</th>
+              <th class="text-end">Score</th>
               <th>Status</th>
+              <th class="w-1"><span class="visually-hidden">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -33,11 +35,17 @@
                 </td>
                 <td class="pn-num text-nowrap">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</td>
                 <td>{{ match.facility.name }}</td>
+                <td class="text-end pn-num fw-medium">{% if match.has_result %}{{ match.home_score }} – {{ match.away_score }}{% else %}<span class="text-secondary">–</span>{% endif %}</td>
                 <td>
                   {% if match.is_cancelled %}
                     <span class="badge bg-secondary-lt">Cancelled</span>
                   {% else %}
                     <span class="badge bg-green-lt">Scheduled</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if match.can_change %}
+                    <a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:submit_score' match.pk %}">Submit score</a>
                   {% endif %}
                 </td>
               </tr>
