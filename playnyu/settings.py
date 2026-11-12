@@ -63,7 +63,6 @@ INSTALLED_APPS = [
     "accounts",
     "facilities",
     "matches",
-    "chat",
 ]
 
 MIDDLEWARE = [
