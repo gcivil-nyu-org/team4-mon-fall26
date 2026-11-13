@@ -5,82 +5,70 @@
     <div>
       <div class="subheader">League Admin</div>
       <h1>League overview</h1>
-      <div class="page-meta">League-wide numbers, upcoming matches and links to every admin page.</div>
+      <div class="page-meta">What needs your attention, and links to every admin page.</div>
     </div>
     <a class="btn btn-primary" href="{% url 'matches:create' %}"><i aria-hidden="true" class="ti ti-calendar-plus me-1"></i>Schedule a match</a>
   </div>
 
-  <div class="subheader mb-2">Seasons by state</div>
-  <div class="row row-cards mb-4">
-    {% for item in season_counts %}
-      <div class="col-6 col-lg-3">
-        <div class="card card-sm h-100"><div class="card-body">
-          <div class="subheader">{{ item.label }}</div>
-          <div class="h1 mb-0 pn-num">{{ item.count }}</div>
-        </div></div>
-      </div>
-    {% endfor %}
-  </div>
-
   <div class="row row-cards mb-4">
     <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
-        <div class="subheader">Teams</div>
-        <div class="h1 mb-0 pn-num">{{ counts.teams }}</div>
-      </div></div>
-    </div>
-    <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
+      <a class="card card-sm card-link card-link-pop h-100" href="{% url 'teams:manage_free_agents' %}"><div class="card-body">
         <div class="subheader">Pending requests</div>
         <div class="h1 mb-0 pn-num">{{ counts.pending_requests }}</div>
-      </div></div>
+        <div class="small text-secondary">Free agents to place</div>
+      </div></a>
     </div>
     <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
+      <a class="card card-sm card-link card-link-pop h-100" href="#needs-a-score"><div class="card-body">
+        <div class="subheader">Needs a score</div>
+        <div class="h1 mb-0 pn-num">{{ counts.needs_score }}</div>
+        <div class="small text-secondary">Ended matches with no result</div>
+      </div></a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a class="card card-sm card-link card-link-pop h-100" href="{% url 'chat:moderation_queue' %}"><div class="card-body">
+        <div class="subheader">Flagged content</div>
+        <div class="h1 mb-0 pn-num">{{ counts.flagged }}</div>
+        <div class="small text-secondary">Messages in the moderation queue</div>
+      </div></a>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a class="card card-sm card-link card-link-pop h-100" href="{% url 'matches:manage' %}"><div class="card-body">
         <div class="subheader">Upcoming matches</div>
         <div class="h1 mb-0 pn-num">{{ counts.upcoming_matches }}</div>
-      </div></div>
-    </div>
-    <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
-        <div class="subheader">Active facilities</div>
-        <div class="h1 mb-0 pn-num">{{ counts.active_facilities }}</div>
-      </div></div>
+        <div class="small text-secondary">Scheduled in open and active seasons</div>
+      </div></a>
     </div>
   </div>
 
   <div class="row row-cards">
     <div class="col-lg-8">
-      <div class="card mb-4">
+      <div class="card mb-4" id="needs-a-score">
         <div class="card-header">
-          <h3 class="card-title">Seasons</h3>
-          <div class="card-actions"><a href="{% url 'teams:manage_seasons' %}">Manage seasons</a></div>
+          <h3 class="card-title">Needs a score</h3>
+          <div class="card-actions"><a href="{% url 'matches:manage' %}">Manage matches</a></div>
         </div>
-        {% if seasons %}
+        {% if needs_score_rows %}
           <div class="list-group list-group-flush">
-            {% for season in seasons %}
-              <div class="list-group-item d-flex align-items-center gap-3">
-                <div class="flex-fill min-w-0">
-                  <div class="fw-medium text-truncate">{{ season.name }}</div>
-                  <div class="small text-secondary">Starts <span class="pn-num">{{ season.start_date|date:"M j, Y" }}</span></div>
-                </div>
-                {% include "components/season_state_badge.html" with season=season %}
-              </div>
+            {% for row in needs_score_rows %}
+              {% include "components/match_row.html" with match=row.match action_url=row.score_url action_label="Record score" %}
             {% endfor %}
           </div>
+          {% if counts.needs_score > needs_score_rows|length %}
+            <div class="card-footer small text-secondary">Showing the <span class="pn-num">{{ needs_score_rows|length }}</span> oldest of <span class="pn-num">{{ counts.needs_score }}</span>. <a href="{% url 'matches:manage' %}">See every match</a></div>
+          {% endif %}
         {% else %}
           <div class="card-body">
             <div class="empty">
-              <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-event"></i></div>
-              <p class="empty-title">No seasons yet</p>
-              <p class="empty-subtitle text-secondary">Create a season to start accepting teams.</p>
-              <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'teams:create_season' %}">Create a season</a></div>
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-circle-check"></i></div>
+              <p class="empty-title">Every finished match has a score</p>
+              <p class="empty-subtitle text-secondary">Matches show up here once they end without a result.</p>
             </div>
           </div>
         {% endif %}
       </div>
 
-      <div class="card">
+      <div class="card mb-4">
         <div class="card-header">
           <h3 class="card-title">Upcoming matches</h3>
           <div class="card-actions"><a href="{% url 'matches:manage' %}">Manage matches</a></div>
@@ -102,10 +90,39 @@
           </div>
         {% endif %}
       </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Seasons</h3>
+          <div class="card-actions"><a href="{% url 'teams:manage_seasons' %}">Manage seasons</a></div>
+        </div>
+        {% if seasons %}
+          <div class="list-group list-group-flush">
+            {% for season in seasons %}
+              <div class="list-group-item d-flex align-items-center gap-3">
+                <div class="flex-fill min-w-0">
+                  <div class="fw-medium text-truncate">{{ season.name }}</div>
+                  <div class="small text-secondary">Starts <span class="pn-num">{{ season.start_date|date:"M j, Y" }}</span></div>
+                </div>
+                {% include "components/season_state_badge.html" with season=season %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-event"></i></div>
+              <p class="empty-title">No current seasons</p>
+              <p class="empty-subtitle text-secondary">Create a season to start accepting teams. Closed seasons are on the seasons page.</p>
+              <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'teams:create_season' %}">Create a season</a></div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
     </div>
 
     <div class="col-lg-4">
-      <div class="card">
+      <div class="card mb-4">
         <div class="card-header"><h3 class="card-title">Quick links</h3></div>
         <div class="list-group list-group-flush">
           <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:league_setup' %}"><i aria-hidden="true" class="ti ti-settings text-secondary"></i><span class="flex-fill">League setup</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
@@ -113,10 +130,53 @@
           <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_free_agents' %}"><i aria-hidden="true" class="ti ti-arrows-shuffle text-secondary"></i><span class="flex-fill">Placement</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
           <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_divisions' %}"><i aria-hidden="true" class="ti ti-category text-secondary"></i><span class="flex-fill">Divisions</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
           <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'matches:manage' %}"><i aria-hidden="true" class="ti ti-clipboard-list text-secondary"></i><span class="flex-fill">Matches</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
-          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'facilities:manage' %}"><i aria-hidden="true" class="ti ti-map-pin text-secondary"></i><span class="flex-fill">Facilities</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'matches:standings' %}"><i aria-hidden="true" class="ti ti-list-numbers text-secondary"></i><span class="flex-fill">Standings</span><span class="small text-secondary pn-num">{{ counts.teams }} team{{ counts.teams|pluralize }}</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'chat:moderation_queue' %}"><i aria-hidden="true" class="ti ti-flag text-secondary"></i><span class="flex-fill">Moderation queue</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'facilities:manage' %}"><i aria-hidden="true" class="ti ti-map-pin text-secondary"></i><span class="flex-fill">Facilities</span><span class="small text-secondary pn-num">{{ counts.active_facilities }} active</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
           <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_sports' %}"><i aria-hidden="true" class="ti ti-trophy text-secondary"></i><span class="flex-fill">Sports</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
           <a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{% url 'teams:manage_event_types' %}"><i aria-hidden="true" class="ti ti-tags text-secondary"></i><span class="flex-fill">Event types</span><i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i></a>
         </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header"><h3 class="card-title">Seasons by state</h3></div>
+        <div class="list-group list-group-flush">
+          {% for item in season_counts %}
+            <div class="list-group-item d-flex align-items-center gap-2">
+              <span class="flex-fill">{{ item.label }}</span>
+              <span class="pn-num fw-medium">{{ item.count }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Recent changes</h3></div>
+        {% if recent_changes %}
+          <div class="list-group list-group-flush">
+            {% for change in recent_changes %}
+              <div class="list-group-item d-flex align-items-center gap-3">
+                {% if change.actor %}
+                  {% include "components/avatar.html" with person=change.actor size="sm" %}
+                {% else %}
+                  <span class="avatar avatar-sm bg-secondary-lt" aria-hidden="true"><i class="ti ti-terminal-2"></i></span>
+                {% endif %}
+                <div class="flex-fill min-w-0">
+                  <div class="text-truncate"><span class="fw-medium">{{ change.get_action_display }} {{ change.object_type|lower }}</span> {{ change.object_repr }}</div>
+                  <div class="small text-secondary text-truncate">{% if change.actor %}{{ change.actor.get_full_name|default:change.actor.email }}{% else %}System{% endif %} · <span class="pn-num">{{ change.timestamp|date:"M j, g:i A" }}</span></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-history"></i></div>
+              <p class="empty-title">No changes yet</p>
+              <p class="empty-subtitle text-secondary">Changes to teams, seasons, sports, matches and facilities show up here.</p>
+            </div>
+          </div>
+        {% endif %}
       </div>
     </div>
   </div>
