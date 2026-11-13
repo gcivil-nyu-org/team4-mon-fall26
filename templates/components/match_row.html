@@ -10,4 +10,5 @@
   </div>
   {% if match.has_result %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% endif %}
   {% if match.is_cancelled %}<span class="badge bg-secondary-lt flex-shrink-0">Cancelled</span>{% endif %}
+  {% if action_url %}<a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
 </div>

@@ -1,0 +1,3 @@
+{% load static %}{# Dependent season, sport and division selects. See docs/DESIGN.md, "Dependent selects". #}
+{{ form.season_rules|json_script:"pn-season-rules" }}
+<script src="{% static 'js/season_fields.js' %}"></script>

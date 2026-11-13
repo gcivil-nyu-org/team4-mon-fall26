@@ -162,6 +162,235 @@ class ScoreRecordedTests(NotificationFixtures):
         self.assertEqual(Notification.objects.count(), 0)
 
 
+class MatchCreatedWithScoresTests(NotificationFixtures):
+    def test_match_created_with_scores_sends_only_new_match(self):
+        """The seed path saves matches with scores on create."""
+        self.make_match(home_score=2, away_score=1)
+        for user in (self.alice, self.bob, self.home_captain, self.away_captain):
+            verbs = self.verbs_for(user)
+            self.assertEqual(len(verbs), 1)
+            self.assertIn("New match scheduled", verbs[0])
+
+    def test_match_created_cancelled_notifies_nobody(self):
+        self.make_match(status=Match.Status.CANCELLED)
+        self.assertEqual(Notification.objects.count(), 0)
+
+
+class MatchChangeFixtures(NotificationFixtures):
+    def setUp(self):
+        super().setUp()
+        self.match = self.make_match()
+        Notification.objects.all().delete()
+        self.members = (self.alice, self.bob, self.home_captain, self.away_captain)
+
+    def assert_one_each(self, text):
+        link = reverse("matches:season_schedule", args=[self.season.pk])
+        for user in self.members:
+            notes = Notification.objects.filter(recipient=user)
+            self.assertEqual(notes.count(), 1)
+            self.assertIn(text, notes[0].verb)
+            self.assertEqual(notes[0].link, link)
+        self.assertEqual(Notification.objects.count(), len(self.members))
+
+
+class MatchRescheduledTests(MatchChangeFixtures):
+    def test_time_change_notifies_both_rosters_once(self):
+        self.match.starts_at = datetime.datetime(2026, 11, 14, 18, 0, tzinfo=NY)
+        self.match.ends_at = datetime.datetime(2026, 11, 14, 20, 0, tzinfo=NY)
+        self.match.save()
+        self.assert_one_each(
+            "Match rescheduled: NViolets vs NBobcats, Sat Nov 14 6:00 PM at NPier 40"
+        )
+
+    def test_end_time_change_alone_notifies(self):
+        self.match.ends_at = datetime.datetime(2026, 11, 10, 21, 0, tzinfo=NY)
+        self.match.save()
+        self.assert_one_each("Match rescheduled")
+
+    def test_facility_change_notifies_both_rosters_once(self):
+        gym = Facility.objects.create(name="NPalladium", source=Facility.Source.NYU)
+        self.match.facility = gym
+        self.match.save()
+        self.assert_one_each("Tue Nov 10 6:00 PM at NPalladium")
+
+    def test_time_and_facility_change_in_one_save_notifies_once(self):
+        gym = Facility.objects.create(name="NPalladium", source=Facility.Source.NYU)
+        self.match.facility = gym
+        self.match.starts_at = datetime.datetime(2026, 11, 14, 18, 0, tzinfo=NY)
+        self.match.ends_at = datetime.datetime(2026, 11, 14, 20, 0, tzinfo=NY)
+        self.match.save()
+        self.assert_one_each("Match rescheduled")
+
+    def test_same_time_in_another_timezone_notifies_nobody(self):
+        self.match.starts_at = self.match.starts_at.astimezone(datetime.timezone.utc)
+        self.match.save()
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_unrelated_field_change_notifies_nobody(self):
+        self.match.scorekeeper = self.outsider
+        self.match.created_by = self.outsider
+        self.match.save()
+        self.match.save(update_fields=["scorekeeper"])
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_unsaved_time_change_notifies_nobody(self):
+        """update_fields leaves the new time out of the database."""
+        self.match.starts_at = datetime.datetime(2026, 11, 10, 17, 0, tzinfo=NY)
+        self.match.save(update_fields=["scorekeeper"])
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_second_save_does_not_renotify(self):
+        self.match.starts_at = datetime.datetime(2026, 11, 10, 17, 0, tzinfo=NY)
+        self.match.save()
+        self.match.save()
+        self.assertEqual(Notification.objects.count(), len(self.members))
+
+    def test_reschedule_with_first_score_sends_both(self):
+        self.match.starts_at = datetime.datetime(2026, 11, 10, 17, 0, tzinfo=NY)
+        self.match.home_score = 2
+        self.match.away_score = 1
+        self.match.save()
+        verbs = sorted(self.verbs_for(self.alice))
+        self.assertEqual(len(verbs), 2)
+        self.assertIn("Final score", verbs[0])
+        self.assertIn("Match rescheduled", verbs[1])
+
+    def test_changing_a_cancelled_match_notifies_nobody(self):
+        self.match.cancel()
+        Notification.objects.all().delete()
+        self.match.starts_at = datetime.datetime(2026, 11, 10, 17, 0, tzinfo=NY)
+        self.match.save()
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_long_names_fit_the_verb_column(self):
+        self.match.facility = Facility.objects.create(
+            name="N" + "x" * 199, source=Facility.Source.NYU
+        )
+        self.match.save()
+        verb = self.verbs_for(self.alice)[0]
+        self.assertEqual(len(verb), 255)
+
+
+class MatchCancelledTests(MatchChangeFixtures):
+    def test_cancel_notifies_both_rosters_once(self):
+        self.match.cancel()
+        self.assert_one_each("Match cancelled: NViolets vs NBobcats")
+
+    def test_cancel_through_full_save_notifies_once(self):
+        self.match.status = Match.Status.CANCELLED
+        self.match.save()
+        self.assert_one_each("Match cancelled")
+
+    def test_cancel_and_reschedule_in_one_save_sends_only_cancellation(self):
+        self.match.status = Match.Status.CANCELLED
+        self.match.starts_at = datetime.datetime(2026, 11, 14, 18, 0, tzinfo=NY)
+        self.match.ends_at = datetime.datetime(2026, 11, 14, 20, 0, tzinfo=NY)
+        self.match.save()
+        self.assert_one_each("Match cancelled")
+
+    def test_resaving_a_cancelled_match_does_not_renotify(self):
+        self.match.cancel()
+        self.match.cancel()
+        self.match.save()
+        self.assertEqual(Notification.objects.count(), len(self.members))
+
+
+class ScoreCorrectionTests(NotificationFixtures):
+    def test_first_score_then_correction_sends_one_score_notification(self):
+        match = self.make_match()
+        Notification.objects.all().delete()
+        match.home_score = 2
+        match.away_score = 1
+        match.save()
+        match.home_score = 3
+        match.save()
+        match.save(update_fields=["home_score", "away_score"])
+        verbs = self.verbs_for(self.alice)
+        self.assertEqual(len(verbs), 1)
+        self.assertIn("Final score", verbs[0])
+
+    def test_first_score_through_update_fields_notifies(self):
+        match = self.make_match()
+        Notification.objects.all().delete()
+        match.home_score = 2
+        match.away_score = 1
+        match.save(update_fields=["home_score", "away_score"])
+        self.assertEqual(len(self.verbs_for(self.bob)), 1)
+
+    def test_correction_on_a_fresh_instance_does_not_renotify(self):
+        match = self.make_match(home_score=1, away_score=1)
+        Notification.objects.all().delete()
+        fresh = Match.objects.get(pk=match.pk)
+        fresh.home_score = 4
+        fresh.save()
+        self.assertEqual(Notification.objects.count(), 0)
+
+
+class OpenNotificationTests(NotificationFixtures):
+    def open_url(self, note):
+        return reverse("notifications:open", args=[note.pk])
+
+    def test_view_marks_read_and_goes_to_the_link(self):
+        link = reverse("matches:season_schedule", args=[self.season.pk])
+        note = Notification.objects.create(recipient=self.alice, verb="One", link=link)
+        self.client.force_login(self.alice)
+        response = self.client.get(self.open_url(note))
+        self.assertRedirects(response, link, fetch_redirect_response=False)
+        note.refresh_from_db()
+        self.assertTrue(note.is_read)
+
+    def test_list_view_link_goes_through_open(self):
+        note = Notification.objects.create(
+            recipient=self.alice, verb="One", link="/teams/"
+        )
+        self.client.force_login(self.alice)
+        response = self.client.get(reverse("notifications:list"))
+        self.assertContains(response, f'href="{self.open_url(note)}"')
+        self.assertNotContains(response, 'href="/teams/">View')
+
+    def test_other_user_gets_404_and_row_stays_unread(self):
+        note = Notification.objects.create(
+            recipient=self.bob, verb="Bob note", link="/teams/"
+        )
+        self.client.force_login(self.alice)
+        response = self.client.get(self.open_url(note))
+        self.assertEqual(response.status_code, 404)
+        note.refresh_from_db()
+        self.assertFalse(note.is_read)
+
+    def test_login_required(self):
+        note = Notification.objects.create(
+            recipient=self.alice, verb="One", link="/teams/"
+        )
+        response = self.client.get(self.open_url(note))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("login", response.url)
+        note.refresh_from_db()
+        self.assertFalse(note.is_read)
+
+    def test_request_cannot_choose_the_target(self):
+        note = Notification.objects.create(
+            recipient=self.alice, verb="One", link="/teams/"
+        )
+        self.client.force_login(self.alice)
+        response = self.client.get(
+            self.open_url(note), {"next": "https://evil.example/"}
+        )
+        self.assertRedirects(response, "/teams/", fetch_redirect_response=False)
+
+    def test_off_site_or_empty_link_goes_to_the_list(self):
+        self.client.force_login(self.alice)
+        for link in ("", "https://evil.example/", "//evil.example/"):
+            with self.subTest(link=link):
+                note = Notification.objects.create(
+                    recipient=self.alice, verb="One", link=link
+                )
+                response = self.client.get(self.open_url(note))
+                self.assertRedirects(response, reverse("notifications:list"))
+                note.refresh_from_db()
+                self.assertTrue(note.is_read)
+
+
 class RosterChangeTests(NotificationFixtures):
     def test_player_added_notifies_the_team(self):
         Roster.objects.create(team=self.home, player=self.cara)

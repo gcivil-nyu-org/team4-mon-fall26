@@ -41,33 +41,99 @@ class EventTypeForm(forms.ModelForm):
         labels = {"name": "Event type name"}
 
 
-class TeamCreateForm(forms.ModelForm):
+SPORT_HELP = "The season sets the sport. Choose one only when the season has none."
+
+
+def season_label(season):
+    """The season name, with its sport when the name doesn't already say it."""
+    if season.sport is None:
+        return f"{season.name} (any sport)"
+    if season.sport.name.lower() in season.name.lower():
+        return season.name
+    return f"{season.name} ({season.sport.name})"
+
+
+class SeasonFieldsMixin:
+    """Season, sport and division fields that depend on each other.
+
+    The season comes first. A season with a sport sets the sport, and the
+    division must belong to the season. static/js/season_fields.js narrows the
+    selects in the browser; these rules hold without it.
+    """
+
+    def setup_season_fields(self, seasons):
+        seasons = list(
+            seasons.select_related("sport")
+            .prefetch_related("divisions")
+            .order_by("start_date", "name")
+        )
+        pks = [season.pk for season in seasons]
+        self.fields["season"].queryset = (
+            Season.objects.filter(pk__in=pks)
+            .select_related("sport")
+            .order_by("start_date", "name")
+        )
+        self.fields["season"].label_from_instance = season_label
+        division = self.fields["division"]
+        division.queryset = Division.objects.filter(season__in=pks)
+        # One optgroup for each season, so the list reads well with no JavaScript.
+        division.choices = [("", division.empty_label)] + [
+            (season_label(season), [(d.pk, d.name) for d in season.divisions.all()])
+            for season in seasons
+            if season.divisions.all()
+        ]
+        # Read by static/js/season_fields.js.
+        self.season_rules = {
+            str(season.pk): {
+                "sport": str(season.sport_id) if season.sport_id else "",
+                "divisions": [str(d.pk) for d in season.divisions.all()],
+            }
+            for season in seasons
+        }
+
+    def clean_sport(self):
+        sport = self.cleaned_data.get("sport")
+        if "season" not in self.cleaned_data:
+            # The season has its own error. Don't add a second one here.
+            return sport
+        season = self.cleaned_data["season"]
+        if season is not None and season.sport_id:
+            # A disabled select sends nothing, and a stale choice must not win.
+            return season.sport
+        if sport is None:
+            raise forms.ValidationError(
+                self.fields["sport"].error_messages["required"], code="required"
+            )
+        return sport
+
+    def clean_division(self):
+        division = self.cleaned_data.get("division")
+        season = self.cleaned_data.get("season")
+        if division and (season is None or division.season_id != season.pk):
+            raise forms.ValidationError("Choose a division from the selected season.")
+        return division
+
+
+class TeamCreateForm(SeasonFieldsMixin, forms.ModelForm):
     sport = forms.ModelChoiceField(
         queryset=Sport.objects.all().order_by("name"),
         label="Sport",
+        required=False,
         empty_label="Choose a sport",
+        help_text=SPORT_HELP,
     )
 
     class Meta:
         model = Team
-        fields = ["name", "sport", "season", "division"]
+        fields = ["name", "season", "sport", "division"]
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        seasons = Season.objects.allowing(SeasonAction.CREATE_TEAM)
-        self.fields["season"].queryset = seasons.order_by("start_date", "name")
         self.fields["season"].empty_label = "No season"
         self.fields["division"].required = False
         self.fields["division"].empty_label = "No division"
-        self.fields["division"].queryset = (
-            Division.objects.filter(season__in=seasons)
-            .select_related("season")
-            .order_by("season__name", "name")
-        )
-        self.fields["division"].label_from_instance = (
-            lambda division: f"{division.name} — {division.season.name}"
-        )
+        self.setup_season_fields(Season.objects.allowing(SeasonAction.CREATE_TEAM))
 
     def clean_season(self):
         season = self.cleaned_data["season"]
@@ -78,13 +144,6 @@ class TeamCreateForm(forms.ModelForm):
                 "Players can be on one team per season."
             )
         return season
-
-    def clean_division(self):
-        division = self.cleaned_data.get("division")
-        season = self.cleaned_data.get("season")
-        if division and (season is None or division.season_id != season.pk):
-            raise forms.ValidationError("Choose a division from the selected season.")
-        return division
 
 
 class DivisionCreateForm(forms.ModelForm):
@@ -153,7 +212,7 @@ class AddPlayerForm(forms.Form):
         return email
 
 
-class FreeAgentRequestForm(forms.Form):
+class FreeAgentRequestForm(SeasonFieldsMixin, forms.Form):
     season = forms.ModelChoiceField(
         queryset=Season.objects.none(),
         label="Season",
@@ -162,7 +221,9 @@ class FreeAgentRequestForm(forms.Form):
     sport = forms.ModelChoiceField(
         queryset=Sport.objects.all().order_by("name"),
         label="Sport",
+        required=False,
         empty_label="Choose a sport",
+        help_text=SPORT_HELP,
     )
 
     division = forms.ModelChoiceField(
@@ -175,18 +236,9 @@ class FreeAgentRequestForm(forms.Form):
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        seasons = Season.objects.allowing(SeasonAction.REQUEST_FREE_AGENT)
-        self.fields["division"].queryset = (
-            Division.objects.filter(season__in=seasons)
-            .select_related("season")
-            .order_by("season__name", "name")
-        )
-        self.fields["division"].label_from_instance = (
-            lambda division: f"{division.name} — {division.season.name}"
-        )
-        self.fields["season"].queryset = (
-            seasons.exclude(teams__roster__player=user)
-            .order_by("start_date", "name")
+        self.setup_season_fields(
+            Season.objects.allowing(SeasonAction.REQUEST_FREE_AGENT)
+            .exclude(teams__roster__player=user)
             .distinct()
         )
 
@@ -199,28 +251,6 @@ class FreeAgentRequestForm(forms.Form):
         if FreeAgentRequest.objects.filter(player=self.user, season=season).exists():
             raise forms.ValidationError("You already requested placement this season.")
         return season
-
-    def clean_sport(self):
-        return self.cleaned_data["sport"]
-
-    def clean_division(self):
-        division = self.cleaned_data.get("division")
-        season = self.cleaned_data.get("season")
-        if division and (season is None or division.season_id != season.pk):
-            raise forms.ValidationError("Choose a division from the selected season.")
-        return division
-
-    def clean(self):
-        cleaned = super().clean()
-        season, sport = cleaned.get("season"), cleaned.get("sport")
-        if season and sport:
-            # Same rule as FreeAgentRequest.clean, shown on the field.
-            mismatch = season.sport_mismatch(
-                sport.pk, subject="Free agents", verb="ask for"
-            )
-            if mismatch:
-                self.add_error("sport", mismatch)
-        return cleaned
 
 
 class SeasonForm(forms.ModelForm):
