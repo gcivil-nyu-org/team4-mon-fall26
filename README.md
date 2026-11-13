@@ -80,6 +80,8 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 | `TEST_PLAYER_EMAIL`, `TEST_PLAYER_PASSWORD` | unset | Regular player account created on each deploy (testing site only) |
 | `DEMO_USERS_PASSWORD` | unset | Password for the demo players created on each deploy (`demo.captain1@nyu.edu`, `demo.captain2@nyu.edu`, `demo.player1@nyu.edu` to `demo.player4@nyu.edu`; testing site only). Locally: `DEMO_USERS_PASSWORD=... python manage.py seed_demo_users` |
 
+Each deploy also runs `seed_league_data` (sports) and then `seed_semester_seasons` (this and next semester's season for every sport). Run them locally in that order: `python manage.py seed_league_data && python manage.py seed_semester_seasons`. Add `--today YYYY-MM-DD` to `seed_semester_seasons` to try another date.
+
 ## Project layout
 
 ```

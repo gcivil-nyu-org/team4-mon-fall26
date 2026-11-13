@@ -210,13 +210,33 @@ class FreeAgentRequestForm(forms.Form):
             raise forms.ValidationError("Choose a division from the selected season.")
         return division
 
+    def clean(self):
+        cleaned = super().clean()
+        season, sport = cleaned.get("season"), cleaned.get("sport")
+        if season and sport:
+            # Same rule as FreeAgentRequest.clean, shown on the field.
+            mismatch = season.sport_mismatch(
+                sport.pk, subject="Free agents", verb="ask for"
+            )
+            if mismatch:
+                self.add_error("sport", mismatch)
+        return cleaned
+
 
 class SeasonForm(forms.ModelForm):
     """League Admins create and edit seasons. State changes go through the state buttons."""
 
+    sport = forms.ModelChoiceField(
+        queryset=Sport.objects.order_by("name"),
+        label="Sport",
+        required=False,
+        empty_label="Any sport",
+        help_text="Teams in this season must play this sport. Leave blank for any.",
+    )
+
     class Meta:
         model = Season
-        fields = ["name", "start_date", "end_date", "max_roster_size"]
+        fields = ["name", "sport", "start_date", "end_date", "max_roster_size"]
         widgets = {
             "start_date": forms.DateInput(attrs={"type": "date"}),
             "end_date": forms.DateInput(attrs={"type": "date"}),
@@ -225,6 +245,17 @@ class SeasonForm(forms.ModelForm):
 
     def clean_name(self):
         return " ".join(self.cleaned_data["name"].split())
+
+    def clean_sport(self):
+        sport = self.cleaned_data.get("sport")
+        if sport and self.instance.pk:
+            others = self.instance.teams.exclude(sport=sport)
+            if others.exists():
+                raise forms.ValidationError(
+                    "This season has teams of another sport. Move or remove "
+                    f"them before you set the sport to {sport.name}."
+                )
+        return sport
 
     def clean(self):
         cleaned = super().clean()
