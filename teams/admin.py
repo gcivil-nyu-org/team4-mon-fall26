@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet
 
+from .default_seasons import created_seasons_message, ensure_default_seasons
 from .models import (
     EventType,
     FreeAgentRequest,
@@ -56,6 +57,13 @@ class TeamAdmin(admin.ModelAdmin):
 class SportAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change:
+            seasons = ensure_default_seasons(obj)
+            if seasons:
+                self.message_user(request, created_seasons_message(seasons))
 
 
 @admin.register(EventType)
