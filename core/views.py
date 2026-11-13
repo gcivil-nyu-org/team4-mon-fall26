@@ -9,6 +9,7 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
 from matches.schedule import schedule_matches
+from matches.standings import dashboard_standings
 from teams.models import FreeAgentRequest, Roster, Season, Team
 from teams.season_rules import SeasonAction, SeasonState
 
@@ -29,6 +30,9 @@ def home(request):
         .exclude(pk=request.user.pk)
         .distinct()
     )
+    standings_label, standings_tabs = dashboard_standings(
+        request.user, timezone.localdate()
+    )
     return render(
         request,
         "core/dashboard.html",
@@ -38,6 +42,8 @@ def home(request):
             "captain_count": sum(e.role == Roster.Role.CAPTAIN for e in entries),
             "teammate_count": teammates.count(),
             "teammates": teammates[:5],
+            "standings_label": standings_label,
+            "standings_tabs": standings_tabs,
         },
     )
 

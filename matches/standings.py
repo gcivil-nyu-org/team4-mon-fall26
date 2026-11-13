@@ -68,3 +68,50 @@ def compute_standings(season):
         rows.values(),
         key=lambda row: (-row["points"], -row["won"], row["team"].name),
     )
+
+
+def dashboard_standings(user, today):
+    """This semester's standings for the dashboard: (semester label, tabs).
+
+    One tab per sport with a visible default season for the current term.
+    The player's sports come first, most recently joined first; the rest
+    follow by name. Each row gets `is_me` when the player is on that team.
+    """
+    from teams.models import Roster
+    from teams.semesters import current_semester
+
+    from .schedule import seasons_visible_to
+
+    semester = current_semester(today)
+    seasons = (
+        seasons_visible_to(user)
+        .filter(term=semester.term, sport__isnull=False)
+        .select_related("sport")
+    )
+    entries = Roster.objects.filter(player=user).order_by("-joined_at")
+    my_team_ids = set()
+    my_sport_rank = {}
+    for team_id, sport_id in entries.values_list("team_id", "team__sport_id"):
+        my_team_ids.add(team_id)
+        my_sport_rank.setdefault(sport_id, len(my_sport_rank))
+
+    tabs = []
+    for season in seasons:
+        rows = compute_standings(season)
+        for row in rows:
+            row["is_me"] = row["team"].pk in my_team_ids
+        tabs.append(
+            {
+                "sport": season.sport,
+                "season": season,
+                "is_mine": season.sport_id in my_sport_rank,
+                "rows": rows,
+            }
+        )
+    tabs.sort(
+        key=lambda tab: (
+            my_sport_rank.get(tab["sport"].pk, len(my_sport_rank)),
+            tab["sport"].name.lower(),
+        )
+    )
+    return semester.label, tabs

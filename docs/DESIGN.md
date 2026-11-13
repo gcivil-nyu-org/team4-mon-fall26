@@ -153,6 +153,45 @@ Same as the avatar, but a rounded square instead of a circle. Until logo uploads
 
 A clickable card (a team in a grid): add `card-link card-link-pop` and a single `stretched-link`. Inside, show the logo `md`, then the name (600), then one meta line (sport · season), and optionally a stacked avatar group.
 
+### Tabs (inside a card)
+
+Use tabs to switch one card between parallel views of the same thing, such as one leaderboard per sport. Don't use tabs to hide unrelated content or as page navigation.
+
+```html
+<div class="card">
+  <div class="card-header">
+    <div><h3 class="card-title">Standings</h3><div class="small text-secondary">Fall 2026</div></div>
+    <div class="card-actions"><a href="...">Full standings</a></div>
+  </div>
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap" role="tablist" aria-label="Standings by sport">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="standings-tab-1" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-1" aria-controls="standings-sport-1" aria-selected="true">
+          <i aria-hidden="true" class="ti ti-star-filled text-primary me-1"></i>Soccer<span class="visually-hidden"> (your sport)</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="standings-tab-2" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-2" aria-controls="standings-sport-2" aria-selected="false" tabindex="-1">Basketball</button>
+      </li>
+    </ul>
+  </div>
+  <div class="tab-content">
+    <div class="tab-pane active show" id="standings-sport-1" role="tabpanel" aria-labelledby="standings-tab-1" tabindex="0">...</div>
+    <div class="tab-pane" id="standings-sport-2" role="tabpanel" aria-labelledby="standings-tab-2" tabindex="0">...</div>
+  </div>
+</div>
+```
+
+- Put the tabs in their own `card-header`, under the header with the title. Tabler fills that header with the tab strip.
+- Use `<button>` tabs with `data-bs-toggle="tab"`. `tabler.min.js` switches them. Don't add JavaScript.
+- Make the first tab active. Give only the active tab `aria-selected="true"`. Give the other tabs `tabindex="-1"`.
+- Build ids from a primary key: `standings-tab-{{ pk }}` and `standings-sport-{{ pk }}`. Ids must be unique on the page.
+- Keep the tab row on one line. `flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap` scrolls it inside the card on narrow screens.
+- Keep `overflow-y-hidden`. Without it, the active tab's 1px overlap adds a vertical scrollbar.
+- Mark the user's own items with a star before the label: `ti ti-star-filled text-primary` and `aria-hidden="true"`.
+- Add the star's meaning as text for screen readers: `<span class="visually-hidden"> (your sport)</span>`.
+- Put the user's own items first. Give each pane its own empty state.
+
 ### List rows (rosters, members, activity)
 
 `list-group list-group-flush` inside a card. Each row: avatar `sm` · name (500) with secondary text below · trailing badge or action. Row height around 48px. Destructive row actions are `btn btn-sm btn-ghost-danger` and the label says what they do ("Remove").
@@ -258,7 +297,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 
 | Page | Structure |
 |---|---|
-| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards → `col-lg-8`: my teams card grid, upcoming games list → `col-lg-4`: leaderboard snippet (top 5), free agents avatar group |
+| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards → `col-lg-8`: my teams card, upcoming games list, Standings card (one tab per sport, full leaderboard) → `col-lg-4`: teammates avatar group, free agents avatar group |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
