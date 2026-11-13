@@ -43,7 +43,7 @@ Never put the connection string or password in the repo, a PR, an issue or a cha
 - **Accounts:**
   - `DJANGO_SUPERUSER_*` only creates the admin on the first deploy. Changing the password variable later has no effect. Use `python manage.py changepassword` or the admin site instead.
   - `TEST_PLAYER_*` and `DEMO_USERS_PASSWORD` accounts have their password and active status reset on every deploy. Their teams and other data stay.
-- **Seed data:** `seed_league_data` only adds sports and the demo season when they are missing. `seed_semester_seasons` only adds this and next semester's season for each sport when they are missing; it never changes existing seasons or their divisions. `seed_facilities` updates the seeded facilities on every deploy, so admin changes to them (for example, deactivating one) are undone at the next deploy.
+- **Seed data:** `seed_league_data` only adds sports and the demo season when they are missing. `seed_semester_seasons` only adds this and next semester's season for each sport when they are missing; it never changes existing seasons or their divisions. `seed_facilities` updates the seeded facilities on every deploy, so admin changes to them (for example, deactivating one) are undone at the next deploy. `seed_demo_league` (only when `SEED_DEMO_LEAGUE` is set) only adds demo teams and matches that are missing; it never changes existing teams or matches.
 
 ## Go back to SQLite
 

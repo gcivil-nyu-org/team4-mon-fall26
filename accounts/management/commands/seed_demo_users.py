@@ -14,15 +14,24 @@ from django.core.management.base import BaseCommand
 
 from accounts.roles import CASUAL_PLAYER_ROLE, assign_role
 
-# (email, first name, last name). Two captains and four players are enough to
-# demo teams, divisions and free-agent matching.
+# (email, first name, last name). seed_demo_league puts the four captains and
+# players 1 to 8 on four teams per season (a player can be on one team per
+# season). Players 9 and 10 stay off those teams, to demo free-agent matching.
 DEMO_USERS = [
     ("demo.captain1@nyu.edu", "Alex", "Rivera"),
     ("demo.captain2@nyu.edu", "Sam", "Chen"),
+    ("demo.captain3@nyu.edu", "Riley", "Okafor"),
+    ("demo.captain4@nyu.edu", "Jamie", "Santos"),
     ("demo.player1@nyu.edu", "Jordan", "Patel"),
     ("demo.player2@nyu.edu", "Taylor", "Kim"),
     ("demo.player3@nyu.edu", "Morgan", "Lee"),
     ("demo.player4@nyu.edu", "Casey", "Nguyen"),
+    ("demo.player5@nyu.edu", "Avery", "Johnson"),
+    ("demo.player6@nyu.edu", "Quinn", "Garcia"),
+    ("demo.player7@nyu.edu", "Drew", "Cohen"),
+    ("demo.player8@nyu.edu", "Skyler", "Ahmed"),
+    ("demo.player9@nyu.edu", "Reese", "Park"),
+    ("demo.player10@nyu.edu", "Parker", "Singh"),
 ]
 
 
