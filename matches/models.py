@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
-from teams.season_rules import SeasonAction
+from teams.season_rules import SeasonAction, SeasonState, season_allows
 
 
 class MatchQuerySet(models.QuerySet):
@@ -18,6 +18,23 @@ class MatchQuerySet(models.QuerySet):
         """
         return self.scheduled().filter(
             facility=facility, starts_at__lt=ends_at, ends_at__gt=starts_at
+        )
+
+    def needing_score(self, now):
+        """Ended matches with no result that can still be scored.
+
+        The status and season rules are the same as Match.can_change, which the
+        score views check.
+        """
+        live_states = [
+            state
+            for state in SeasonState.values
+            if season_allows(state, SeasonAction.SCHEDULE_MATCH)
+        ]
+        return self.scheduled().filter(
+            models.Q(home_score__isnull=True) | models.Q(away_score__isnull=True),
+            ends_at__lt=now,
+            season__state__in=live_states,
         )
 
 

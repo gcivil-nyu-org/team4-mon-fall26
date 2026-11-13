@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Forum · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><div class="subheader">Community</div><h1>Forum</h1><div class="page-meta">Talk about any sport with everyone at PlayNYU.</div></div>
+    <a class="btn btn-primary" href="{% url 'forums:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Start a topic</a>
+  </div>
+
+  <form class="d-flex flex-wrap align-items-end gap-2 mb-3" method="get">
+    <div>
+      <label class="form-label" for="sport-filter">Sport</label>
+      <select class="form-select" id="sport-filter" name="sport">
+        <option value="">All topics</option>
+        <option value="{{ general_filter }}"{% if selected == general_filter %} selected{% endif %}>General</option>
+        {% for sport in sports %}
+          <option value="{{ sport.pk }}"{% if selected == sport.pk|stringformat:"s" %} selected{% endif %}>{{ sport.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn btn-outline-secondary" type="submit">Filter</button>
+  </form>
+
+  <div class="card">
+    {% if page_obj.object_list %}
+      <div class="card-header">
+        <h3 class="card-title">{% if selected_label %}{{ selected_label }} topics{% else %}Topics{% endif %}</h3>
+        <div class="card-actions"><span class="text-secondary small pn-num">{{ page_obj.paginator.count }}</span></div>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for topic in page_obj %}
+          <div class="list-group-item d-flex align-items-center gap-3">
+            {% include "components/avatar.html" with person=topic.author size="sm" %}
+            <div class="flex-fill min-w-0">
+              <a class="fw-medium text-break" href="{% url 'forums:detail' topic.pk %}">{{ topic.title }}</a>
+              <div class="small text-secondary">{{ topic.author.get_full_name|default:topic.author.email|default:topic.author.username }} · {{ topic.sport_label }} · active {{ topic.last_activity_at|timesince }} ago</div>
+            </div>
+            <span class="small text-secondary text-nowrap flex-shrink-0"><i aria-hidden="true" class="ti ti-message me-1"></i><span class="pn-num">{{ topic.reply_count }}</span><span class="visually-hidden"> repl{{ topic.reply_count|pluralize:"y,ies" }}</span></span>
+          </div>
+        {% endfor %}
+      </div>
+      {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex align-items-center">
+          <p class="m-0 small text-secondary pn-num">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+          <nav class="ms-auto" aria-label="Topic pages">
+            <ul class="pagination m-0">
+              {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?{% if selected %}sport={{ selected }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</span></li>
+              {% endif %}
+              {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?{% if selected %}sport={{ selected }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></span></li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
+      {% endif %}
+    {% elif selected %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-messages"></i></div>
+        <p class="empty-title">No {{ selected_label }} topics yet</p>
+        <p class="empty-subtitle text-secondary">Start the first one with "Start a topic", or <a href="{% url 'forums:list' %}">see all topics</a>.</p>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-messages"></i></div>
+        <p class="empty-title">No topics yet</p>
+        <p class="empty-subtitle text-secondary">Start the first one with "Start a topic".</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

@@ -201,6 +201,8 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 `{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
 
+A row can end with one action. Pass `action_url` and `action_label`: `{% include "components/match_row.html" with action_url=url action_label="Record score" %}`. The action renders as `btn btn-sm btn-outline-secondary`.
+
 ### Stat card (dashboards)
 
 ```html
@@ -214,6 +216,8 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 ```
 
 Four across on desktop (`col-6 col-lg-3`). The label is always above the value, and there's at most one trend line.
+
+A stat card that opens its list is one link: `<a class="card card-sm card-link card-link-pop h-100" href="...">` with the same `card-body` inside.
 
 ### Leaderboard / stats table
 
@@ -256,6 +260,19 @@ Labels above inputs (`form-label`), inputs `form-control` / `form-select`, help 
 
 A warning the user can override (a booking overlap, say) is an `alert alert-warning text-body` with `role="alert"` at the top of the form, not a red error. Keep `text-body`: Tabler's amber alert text is only about 2:1 on its background. Don't use `text-secondary` inside it either, because that sits right at the 4.5:1 limit. It says what's wrong and what to do, and the submit button's label changes to match ("Schedule anyway").
 
+### Dependent selects
+
+Use this when one select limits another, such as season, then sport and division.
+
+- Put the controlling field first.
+- Make the form work with no JavaScript. Group the dependent options in one `<optgroup>` for each parent. Validate the pair on the server.
+- When the parent fixes a field's value, set that value on the server. Ignore the submitted value. A disabled field sends nothing.
+- Add the script as an enhancement. Pass the rules with `json_script`, and put the code in `static/js/`. Do not write inline handlers.
+- On change, the script keeps only the parent's options. It sets and disables a field that the parent fixes.
+- Say the rule in the field's `form-hint`, so the form reads the same with and without the script.
+
+The season fields use `{% include "components/season_fields.html" %}` in `{% block scripts %}`. The form needs `SeasonFieldsMixin` (`teams/forms.py`). The script is `static/js/season_fields.js`.
+
 ### Badges
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.
@@ -274,6 +291,24 @@ Season states use `{% include "components/season_state_badge.html" with season=s
 ```
 
 Every list and table has one. Say what's missing and what to do next.
+
+### Pagination
+
+A long list shows 20 rows per page. Put the pager in a `card-footer` under the list, and show it only when there is more than one page:
+
+```html
+<div class="card-footer d-flex align-items-center">
+  <p class="m-0 small text-secondary pn-num">Page 2 of 5</p>
+  <nav class="ms-auto" aria-label="Topic pages">
+    <ul class="pagination m-0">
+      <li class="page-item"><a class="page-link" href="?page=1"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</a></li>
+      <li class="page-item disabled"><span class="page-link">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></span></li>
+    </ul>
+  </nav>
+</div>
+```
+
+Use Django's `Paginator`. Keep the list's filter in each page link (`?sport=3&page=2`). A link that has no target is a `<span>` inside `page-item disabled`.
 
 ### Messages
 
@@ -299,10 +334,13 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Page | Structure |
 |---|---|
 | **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards: next match, record, games played, unread → `col-lg-8`: my teams, upcoming matches, standings (one tab per sport) → `col-lg-4`: matches to score (scorekeepers only), team chat, forum, recent activity, teammates. See the panel rules below. |
+| **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches) → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
+| **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
+| **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body → Replies card: list rows, oldest first, with Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
 
 ### Home / dashboard panels
@@ -338,7 +376,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
-| Shared partials (avatar, team logo, match row, form fields, map assets) | `templates/components/` |
+| Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
 | Template filters (`initials`, `sport_icon`, `control`) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)

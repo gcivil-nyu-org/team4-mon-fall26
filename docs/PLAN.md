@@ -46,8 +46,13 @@ site:
 
 ## What remains
 
-- **Icebox**: DMs, comments and blocking stay in the Icebox — no
-  near-term plan, revisit after team chat lands.
+- **Forums (#194, epic #32)**: new scope, agreed with the product owner
+  on 2026-11-13. The `forums` app has topics and replies, filed under a
+  sport or General. Any signed-in user reads and posts; League Admins
+  delete. Reporting into the moderation queue and a home page panel
+  follow in separate issues.
+- **Icebox**: DMs, match comments and blocking stay in the Icebox — no
+  near-term plan. Forums do not replace them.
 - **E9 leftovers**: create the error-tracking account and run the
   backup-restore test against the deployed database.
 - **Epic-text updates**: update the E5/E6/E7/E9 epic issue bodies to
@@ -60,3 +65,4 @@ site:
 | #9 | Verify `facilities/data/nyu_venues.csv` against real NYU venues | Done in this PR (Chelsea Waterside sports fixed) |
 | #150 | Write this roadmap | Done in this PR |
 | #154 | League Admin overview page in `core` | Done in this PR |
+| #194 | Forums: topics and replies per sport | In review |

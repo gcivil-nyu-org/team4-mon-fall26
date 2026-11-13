@@ -78,9 +78,12 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 | `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | unset (emails print to the console) | Set to send real verification emails over SMTP |
 | `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL`, `DJANGO_SUPERUSER_PASSWORD` | unset | Admin user created on deploy if it doesn't exist |
 | `TEST_PLAYER_EMAIL`, `TEST_PLAYER_PASSWORD` | unset | Regular player account created on each deploy (testing site only) |
-| `DEMO_USERS_PASSWORD` | unset | Password for the demo players created on each deploy (`demo.captain1@nyu.edu`, `demo.captain2@nyu.edu`, `demo.player1@nyu.edu` to `demo.player4@nyu.edu`; testing site only). Locally: `DEMO_USERS_PASSWORD=... python manage.py seed_demo_users` |
+| `DEMO_USERS_PASSWORD` | unset | Password for the demo players created on each deploy (`demo.captain1@nyu.edu` to `demo.captain4@nyu.edu`, `demo.player1@nyu.edu` to `demo.player10@nyu.edu`; testing site only). Locally: `DEMO_USERS_PASSWORD=... python manage.py seed_demo_users` |
+| `SEED_DEMO_LEAGUE` | unset | Set to any value on the testing site only. Each deploy then runs `seed_demo_league`, which adds demo teams and matches to this semester's seasons. Never set it on production |
 
 Each deploy also runs `seed_league_data` (sports) and then `seed_semester_seasons` (this and next semester's season for every sport). Run them locally in that order: `python manage.py seed_league_data && python manage.py seed_semester_seasons`. Add `--today YYYY-MM-DD` to `seed_semester_seasons` to try another date.
+
+`seed_demo_league` puts four demo teams ("Demo Violets", "Demo Bobcats", "Demo Torches", "Demo Arches") in each of this semester's seasons, with demo players as captains and roster members. It then schedules a round-robin: half the matches are played with scores, half are upcoming. It only adds what is missing and never changes existing teams or matches. It needs the demo players, the seasons and the facilities, so run it last. Locally, use `--force` in place of the variable: `python manage.py seed_demo_league --force`. It also takes `--today YYYY-MM-DD`.
 
 ## Project layout
 

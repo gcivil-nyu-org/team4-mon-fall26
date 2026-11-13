@@ -6,12 +6,10 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
-from facilities.models import Facility
-from matches.models import Match
-from matches.schedule import schedule_matches
 from matches.standings import dashboard_standings
-from teams.models import FreeAgentRequest, Roster, Season, Team
-from teams.season_rules import SeasonAction, SeasonState
+from teams.models import Roster
+
+from .overview import overview_context
 
 
 def home(request):
@@ -61,43 +59,8 @@ def _require_league_admin(user):
 
 @login_required
 def overview(request):
-    """League Admin overview: league-wide counts and quick links."""
+    """League Admin overview: what needs attention, plus links to every admin page."""
     _require_league_admin(request.user)
-    schedulable = Season.objects.allowing(SeasonAction.SCHEDULE_MATCH)
-    upcoming_matches = (
-        schedule_matches()
-        .scheduled()
-        .filter(starts_at__gte=timezone.now(), season__in=schedulable)
-        .order_by("starts_at", "pk")[:5]
-    )
-    season_counts = [
-        {
-            "label": SeasonState(value).label,
-            "count": Season.objects.filter(state=value).count(),
-        }
-        for value in SeasonState.values
-    ]
-    counts = {
-        "teams": Team.objects.count(),
-        "pending_requests": FreeAgentRequest.objects.filter(
-            season__in=Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS)
-        ).count(),
-        "upcoming_matches": (
-            Match.objects.scheduled()
-            .filter(starts_at__gte=timezone.now(), season__in=schedulable)
-            .count()
-        ),
-        "active_facilities": Facility.objects.filter(is_active=True).count(),
-    }
-    seasons = Season.objects.order_by("-start_date", "name")
-    return render(
-        request,
-        "core/overview.html",
-        {
-            "season_counts": season_counts,
-            "counts": counts,
-            "seasons": seasons,
-            "upcoming_matches": upcoming_matches,
-            "nav_section": "overview",
-        },
-    )
+    context = overview_context(timezone.now())
+    context["nav_section"] = "overview"
+    return render(request, "core/overview.html", context)

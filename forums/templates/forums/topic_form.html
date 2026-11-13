@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Start a topic · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><div class="subheader">Forum</div><h1>Start a topic</h1><div class="page-meta">Everyone signed in to PlayNYU can read and reply.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{% url 'forums:create' %}">
+        {% csrf_token %}
+        {% include "components/form_fields.html" %}
+        <button class="btn btn-primary" type="submit">Post topic</button>
+        <a class="btn btn-ghost-secondary" href="{% url 'forums:list' %}">Cancel</a>
+      </form>
+    </div>
+  </div>
+{% endblock %}
