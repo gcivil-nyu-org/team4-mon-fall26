@@ -61,7 +61,7 @@
         <div class="card-header">
           <h3 class="card-title">Upcoming matches</h3>
           {% if can_view_schedule %}
-            <div class="card-actions"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_schedule' team.season_id %}">View season schedule</a></div>
+            <div class="card-actions d-flex gap-2"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_schedule' team.season_id %}">View season schedule</a><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_standings' team.season_id %}">View standings</a></div>
           {% endif %}
         </div>
         {% if upcoming_matches %}
@@ -90,6 +90,7 @@
             <dt class="col-5 fw-normal text-secondary">Sport</dt><dd class="col-7">{{ team.sport }}</dd>
             <dt class="col-5 fw-normal text-secondary">Season</dt><dd class="col-7">{{ team.season|default:"None" }}{% if team.season %} {% include "components/season_state_badge.html" with season=team.season %}{% endif %}</dd>
             <dt class="col-5 fw-normal text-secondary">Division</dt><dd class="col-7">{{ team.division.name|default:"None" }}</dd>
+            {% if team.season_id %}<dt class="col-5 fw-normal text-secondary">Record</dt><dd class="col-7 pn-num">{% if record and record.played %}{{ record.won }}–{{ record.drawn }}–{{ record.lost }} · {{ record.points }} pts{% else %}No results yet{% endif %}</dd>{% endif %}
             <dt class="col-5 fw-normal text-secondary">Created</dt><dd class="col-7">{{ team.created_at|date:"M j, Y" }}</dd>
           </dl>
           <div class="d-flex justify-content-between small mb-1">

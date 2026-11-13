@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ season.name }} standings · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">{{ season.name }}</div>
+      <h1>Standings</h1>
+      <div class="page-meta">{% include "components/season_state_badge.html" %} Three points for a win, one for a draw.</div>
+    </div>
+    {% if seasons|length > 1 %}
+      <form class="d-flex align-items-end gap-2" method="get" action="{% url 'matches:standings' %}">
+        <div>
+          <label class="form-label" for="season-filter">Season</label>
+          <select class="form-select" id="season-filter" name="season">
+            {% for option in seasons %}
+              <option value="{{ option.pk }}"{% if option.pk == season.pk %} selected{% endif %}>{{ option.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn btn-outline-secondary" type="submit">Show</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {% if rows %}
+      <div class="card-header">
+        <h3 class="card-title">Leaderboard</h3>
+        <div class="card-actions"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_schedule' season.pk %}">View season schedule</a></div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th class="w-1">#</th>
+              <th>Team</th>
+              <th class="text-end" title="Played">P</th>
+              <th class="text-end" title="Won">W</th>
+              <th class="text-end" title="Drawn">D</th>
+              <th class="text-end" title="Lost">L</th>
+              <th class="text-end" title="Points">Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td class="pn-num text-secondary">{{ forloop.counter }}</td>
+                <td><div class="d-flex align-items-center gap-2">{% include "components/team_logo.html" with team=row.team size="sm" %}<span class="fw-medium">{{ row.team.name }}</span></div></td>
+                <td class="text-end pn-num">{{ row.played }}</td>
+                <td class="text-end pn-num">{{ row.won }}</td>
+                <td class="text-end pn-num">{{ row.drawn }}</td>
+                <td class="text-end pn-num">{{ row.lost }}</td>
+                <td class="text-end pn-num fw-bold">{{ row.points }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+        <p class="empty-title">No teams yet</p>
+        <p class="empty-subtitle text-secondary">The leaderboard fills in once teams join {{ season.name }} and play.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

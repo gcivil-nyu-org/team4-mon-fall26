@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Standings · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header mb-4">
+    <h1>Standings</h1>
+    <div class="page-meta">Pick a season to see its leaderboard.</div>
+  </div>
+
+  <div class="card">
+    {% if seasons %}
+      <div class="list-group list-group-flush">
+        {% for season in seasons %}
+          <a class="list-group-item list-group-item-action d-flex align-items-center gap-3" href="{% url 'matches:season_standings' season.pk %}">
+            <div class="flex-fill min-w-0">
+              <div class="fw-medium">{{ season.name }}</div>
+              <div class="small text-secondary pn-num">{{ season.start_date|date:"M j, Y" }}{% if season.end_date %} – {{ season.end_date|date:"M j, Y" }}{% endif %}</div>
+            </div>
+            {% include "components/season_state_badge.html" %}
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+        <p class="empty-title">No seasons yet</p>
+        <p class="empty-subtitle text-secondary">Standings show up here once a League Admin opens a season.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

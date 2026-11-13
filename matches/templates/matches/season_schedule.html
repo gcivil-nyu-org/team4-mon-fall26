@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ season.name }} schedule · PlayNYU{% endblock %}
 {% block content %}
-  <div class="page-header mb-4">
-    <div class="subheader">{{ season.name }}</div>
-    <h1>Season schedule</h1>
-    <div class="page-meta">{% include "components/season_state_badge.html" %} Times are New York time.</div>
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">{{ season.name }}</div>
+      <h1>Season schedule</h1>
+      <div class="page-meta">{% include "components/season_state_badge.html" %} Times are New York time.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'matches:season_standings' season.pk %}"><i aria-hidden="true" class="ti ti-trophy me-1"></i>View standings</a>
   </div>
 
   {% if divisions %}
