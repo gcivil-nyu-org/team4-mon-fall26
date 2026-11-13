@@ -13,6 +13,7 @@ from teams.views import _require_league_admin
 
 from .forms import MatchForm, ScoreForm
 from .models import Match
+from .scorekeeping import group_assigned_matches
 from .schedule import schedule_matches, seasons_visible_to
 from .standings import compute_standings
 
@@ -61,13 +62,10 @@ def my_matches(request):
     """The matches assigned to the signed-in scorekeeper."""
     if not has_role(request.user, SCOREKEEPER_ROLE):
         raise PermissionDenied("Scorekeeper access is required.")
-    matches = Match.objects.filter(scorekeeper=request.user).select_related(
-        "season", "home_team__sport", "away_team__sport", "facility"
-    )
     return render(
         request,
         "matches/my_matches.html",
-        {"matches": matches, "nav_section": "my_matches"},
+        {"groups": group_assigned_matches(request.user), "nav_section": "my_matches"},
     )
 
 
@@ -192,6 +190,10 @@ def submit_score(request, pk):
             messages.error(request, "Cancelled matches can't be scored.")
         else:
             messages.error(request, f"{match.season} isn't open or active.")
+        return redirect("matches:mine")
+    if not match.has_started:
+        # My matches hides the button until then. A typed URL gets the same answer.
+        messages.error(request, "You can submit the score once the match starts.")
         return redirect("matches:mine")
     form = ScoreForm(request.POST or None, instance=match)
     return _score_match(request, match, form, reverse("matches:mine"), "my_matches")

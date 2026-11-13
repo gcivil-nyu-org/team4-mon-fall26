@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
 from teams.season_rules import SeasonAction
@@ -140,6 +141,15 @@ class Match(models.Model):
     def can_change(self):
         """Closed seasons are history, so only live seasons' matches can change."""
         return not self.is_cancelled and self.season.allows(SeasonAction.SCHEDULE_MATCH)
+
+    @property
+    def has_started(self):
+        return self.starts_at <= timezone.now()
+
+    @property
+    def can_submit_score(self):
+        """A scorekeeper reports a result, so the match must have started."""
+        return self.can_change and self.has_started
 
     def cancel(self):
         self.status = self.Status.CANCELLED

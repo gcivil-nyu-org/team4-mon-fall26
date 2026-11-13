@@ -654,7 +654,8 @@ class MyMatchesTests(ScorekeeperFixtures):
         self.client.force_login(self.keeper)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["matches"]), [mine])
+        groups = response.context["groups"]
+        self.assertEqual(sum(groups.values(), []), [mine])
 
     def test_cancelled_match_stays_listed_and_is_labelled(self):
         self.assign().cancel()
@@ -663,7 +664,7 @@ class MyMatchesTests(ScorekeeperFixtures):
 
     def test_empty_state(self):
         self.client.force_login(self.keeper)
-        self.assertContains(self.client.get(self.url), "No matches assigned yet")
+        self.assertContains(self.client.get(self.url), "No upcoming matches")
 
     def test_nav_link_only_for_scorekeepers(self):
         link = f'href="{self.url}"'

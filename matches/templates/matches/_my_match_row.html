@@ -1,0 +1,19 @@
+{# One assigned match on My matches. Needs `match`. Pass primary=True for the page's one primary button. #}
+<div class="list-group-item d-flex flex-wrap align-items-center gap-3">
+  <div class="flex-fill min-w-0">
+    {% include "matches/_match_teams.html" %}
+    <div class="small text-secondary">{{ match.season.name }} · <span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span> · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
+  </div>
+  {% if match.has_result %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% endif %}
+  {% if match.is_cancelled %}
+    <span class="badge bg-secondary-lt flex-shrink-0">Cancelled</span>
+  {% elif not match.can_change %}
+    <span class="badge bg-secondary-lt flex-shrink-0">Season closed</span>
+  {% elif match.can_submit_score %}
+    {% if match.has_result %}
+      <a class="btn btn-sm btn-ghost-secondary flex-shrink-0" href="{% url 'matches:submit_score' match.pk %}">Correct score</a>
+    {% else %}
+      <a class="btn btn-sm {% if primary %}btn-primary{% else %}btn-outline-secondary{% endif %} flex-shrink-0" href="{% url 'matches:submit_score' match.pk %}">Submit score</a>
+    {% endif %}
+  {% endif %}
+</div>

@@ -1,0 +1,27 @@
+{% if show %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Matches to score</h3>
+    {% if count %}<div class="card-actions"><span class="text-secondary small"><span class="pn-num">{{ count }}</span> waiting</span></div>{% endif %}
+  </div>
+  {% if matches %}
+    <div class="list-group list-group-flush">
+      {% for match in matches %}
+        <div class="list-group-item d-flex flex-wrap align-items-center gap-2">
+          <div class="flex-fill min-w-0">
+            {% include "matches/_match_teams.html" %}
+            <div class="small text-secondary pn-num">{{ match.starts_at|date:"D M j, g:i A" }}</div>
+          </div>
+          <a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="{% url 'matches:submit_score' match.pk %}" aria-label="Submit score for {{ match.home_team.name }} vs {{ match.away_team.name }}">Submit score</a>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="card-footer"><a href="{% url 'matches:mine' %}">{% if count > matches|length %}See all {{ count }} in My matches{% else %}Go to My matches{% endif %}</a></div>
+  {% else %}
+    <div class="card-body">
+      <div class="d-flex align-items-center gap-2 text-secondary"><i aria-hidden="true" class="ti ti-circle-check"></i><span>All scores are in.</span></div>
+      <a class="small" href="{% url 'matches:mine' %}">Go to My matches</a>
+    </div>
+  {% endif %}
+</div>
+{% endif %}
