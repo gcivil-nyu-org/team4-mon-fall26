@@ -3,8 +3,10 @@ import unittest
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
+from django.template import Context, Template
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from facilities.models import Facility
 from matches.models import Match
@@ -266,3 +268,88 @@ class NavbarCountTests(NotificationFixtures):
     def test_no_bell_when_logged_out(self):
         response = self.client.get(reverse("core:home"))
         self.assertNotContains(response, "ti-bell")
+
+
+class HomeActivityPanelTests(NotificationFixtures):
+    def note(self, verb, minutes_ago=0, recipient=None, **kwargs):
+        note = Notification.objects.create(
+            recipient=recipient or self.alice, verb=verb, **kwargs
+        )
+        # created_at is auto_now_add, so set the age with an update.
+        Notification.objects.filter(pk=note.pk).update(
+            created_at=timezone.now() - datetime.timedelta(minutes=minutes_ago)
+        )
+        return note
+
+    def panel(self, user=None):
+        self.client.force_login(user or self.alice)
+        response = self.client.get(reverse("core:home"))
+        self.assertEqual(response.status_code, 200)
+        return response
+
+    def test_dashboard_renders_the_panel(self):
+        response = self.panel()
+        self.assertTemplateUsed(response, "notifications/_home_panel.html")
+        self.assertContains(response, "Recent activity")
+
+    def test_shows_only_own_notifications(self):
+        self.note("Alice only")
+        self.note("Bob only", recipient=self.bob)
+        response = self.panel()
+        self.assertContains(response, "Alice only")
+        self.assertNotContains(response, "Bob only")
+
+    def test_shows_the_latest_five_newest_first(self):
+        for age in range(7):
+            self.note(f"Update {age}", minutes_ago=age)
+        response = self.panel()
+        content = response.content.decode()
+        positions = [content.index(f"Update {age}") for age in range(5)]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotContains(response, "Update 5")
+        self.assertNotContains(response, "Update 6")
+
+    def test_rows_link_to_the_notification_link(self):
+        self.note("Linked update", link="/teams/42/")
+        self.note("Plain update", link="")
+        response = self.panel()
+        self.assertContains(
+            response,
+            '<a class="list-group-item list-group-item-action d-flex '
+            'align-items-center gap-2" href="/teams/42/">',
+        )
+        self.assertContains(response, "Plain update")
+
+    def test_row_shows_relative_time(self):
+        self.note("Old update", minutes_ago=180)
+        self.assertContains(self.panel(), "3\xa0hours ago")
+
+    def test_unread_rows_are_distinct(self):
+        self.note("Fresh update")
+        response = self.panel()
+        self.assertContains(response, '<div class="fw-medium">Fresh update</div>')
+        self.assertContains(response, '<span class="badge bg-primary-lt">New</span>')
+
+    def test_read_rows_are_plain(self):
+        self.note("Seen update", is_read=True)
+        response = self.panel()
+        self.assertContains(response, "<div>Seen update</div>")
+        self.assertNotContains(response, '<span class="badge bg-primary-lt">New</span>')
+
+    def test_empty_state(self):
+        response = self.panel()
+        self.assertContains(
+            response, "No activity yet. Match, score and roster updates appear here."
+        )
+
+    def test_see_all_links_to_the_list(self):
+        response = self.panel()
+        self.assertContains(
+            response, f'<a href="{reverse("notifications:list")}">See all</a>'
+        )
+
+    def test_renders_nothing_when_logged_out(self):
+        rendered = Template(
+            "{% load notifications_tags %}{% home_activity_panel %}"
+        ).render(Context({}))
+        self.assertEqual(rendered.strip(), "")
