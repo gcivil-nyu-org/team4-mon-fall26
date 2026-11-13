@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "facilities",
     "matches",
     "notifications",
+    "chat",
     "audit",
 ]
 
