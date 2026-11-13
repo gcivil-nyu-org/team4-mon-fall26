@@ -167,7 +167,7 @@ Use tabs to switch one card between parallel views of the same thing, such as on
     <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap position-relative" role="tablist" aria-label="Standings by sport">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="standings-tab-1" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-1" aria-controls="standings-sport-1" aria-selected="true">
-          <i aria-hidden="true" class="ti ti-star-filled text-primary me-1"></i>Soccer<span class="visually-hidden"> (your sport)</span>
+          <i aria-hidden="true" class="ti ti-star text-primary me-1"></i>Soccer<span class="visually-hidden"> (your sport)</span>
         </button>
       </li>
       <li class="nav-item" role="presentation">
@@ -189,7 +189,7 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 - Keep the tab row on one line. `flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap` scrolls it inside the card on narrow screens.
 - Add `position-relative` to the tab row. Without it, `visually-hidden` text in a tab escapes the row and makes the page scroll sideways.
 - Keep `overflow-y-hidden`. Without it, the active tab's 1px overlap adds a vertical scrollbar.
-- Mark the user's own items with a star before the label: `ti ti-star-filled text-primary` and `aria-hidden="true"`.
+- Mark the user's own items with a star before the label: `ti ti-star text-primary` and `aria-hidden="true"`.
 - Add the star's meaning as text for screen readers: `<span class="visually-hidden"> (your sport)</span>`.
 - Put the user's own items first. Give each pane its own empty state.
 
