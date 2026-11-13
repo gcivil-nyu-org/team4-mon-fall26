@@ -10,13 +10,18 @@ Locally: python manage.py seed_semester_seasons [--today YYYY-MM-DD]
 """
 
 import datetime
-from typing import NamedTuple
-
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from teams.models import Division, Season, Sport
 from teams.season_rules import SeasonState
+from teams.semesters import (  # noqa: F401 (tests import these from here)
+    SEMESTERS,
+    Semester,
+    current_semester,
+    next_semester,
+    semesters_in_year,
+)
 
 # Divisions added to each new semester season. Edit this list to change the defaults.
 DEFAULT_DIVISIONS = [
@@ -28,45 +33,6 @@ DEFAULT_DIVISIONS = [
     "Tisch",
     "Inter-school",
 ]
-
-# (term, label, start (month, day), end (month, day)), in calendar order.
-SEMESTERS = [
-    ("spring", "Spring", (1, 20), (5, 10)),
-    ("fall", "Fall", (9, 1), (12, 15)),
-]
-
-
-class Semester(NamedTuple):
-    term: str  # for example "2026-fall"
-    label: str  # for example "Fall 2026"
-    start_date: datetime.date
-    end_date: datetime.date
-
-
-def semesters_in_year(year):
-    """Return the semesters that start in `year`, in calendar order."""
-    return [
-        Semester(
-            term=f"{year}-{key}",
-            label=f"{label} {year}",
-            start_date=datetime.date(year, *start),
-            end_date=datetime.date(year, *end),
-        )
-        for key, label, start, end in SEMESTERS
-    ]
-
-
-def current_semester(today):
-    """Return the semester that contains `today`, or else the next one to start."""
-    for semester in semesters_in_year(today.year) + semesters_in_year(today.year + 1):
-        if today <= semester.end_date:
-            return semester
-    raise AssertionError("unreachable: next year always has a semester")
-
-
-def next_semester(semester):
-    """Return the semester that starts after `semester`."""
-    return current_semester(semester.end_date + datetime.timedelta(days=1))
 
 
 def parse_date(value):
