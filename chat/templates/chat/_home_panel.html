@@ -1,5 +1,5 @@
 {% if show_panel %}
-<div class="card">
+<div class="card" id="team-chat">
   <div class="card-header"><h3 class="card-title">Team chat</h3></div>
   {% if rows %}
     <div class="list-group list-group-flush">
@@ -13,7 +13,7 @@
             </div>
             <div class="small text-secondary text-truncate">{% if row.message %}{{ row.preview }}{% else %}No messages yet. Say hello.{% endif %}</div>
           </div>
-          {# Unread badge slot: put a "badge bg-primary-lt pn-num" with row.unread_count here. #}
+          {% if row.unread_count %}<span class="badge bg-primary-lt pn-num">{{ row.unread_count }}<span class="visually-hidden"> unread messages</span></span>{% endif %}
         </a>
       {% endfor %}
     </div>

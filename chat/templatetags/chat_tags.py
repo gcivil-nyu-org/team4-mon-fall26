@@ -1,10 +1,11 @@
 from django import template
 from django.db.models import OuterRef, Subquery
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.timesince import timesince
 
 from chat.models import Message
-from teams.models import Team
+from chat.unread import teams_with_unread
 
 register = template.Library()
 
@@ -32,7 +33,8 @@ def home_chat_rows(user):
     """One row per team the user is on, each with its latest message.
 
     Two queries for any number of teams:
-    1. The user's teams, each annotated with the pk of its latest message.
+    1. The user's teams, each annotated with the pk of its latest message
+       and its unread count.
     2. Those messages, with their authors.
 
     Teams come from the user's roster only, so a message from a different
@@ -45,7 +47,7 @@ def home_chat_rows(user):
         .values("pk")[:1]
     )
     teams = list(
-        Team.objects.filter(roster__player=user)
+        teams_with_unread(user)
         .select_related("sport")
         .annotate(latest_message_pk=Subquery(latest_pk))
         .order_by("-roster__joined_at")
@@ -65,8 +67,7 @@ def home_chat_rows(user):
                 "message": message,
                 "preview": _preview(message) if message else "",
                 "time_label": _relative_time(message.created_at) if message else "",
-                # Unread badge (later PR): add "unread_count" here with one
-                # grouped query, then show it in _home_panel.html.
+                "unread_count": team.unread_count,
             }
         )
     return rows
@@ -79,3 +80,21 @@ def home_chat_panel(context):
     if not getattr(user, "is_authenticated", False):
         return {"show_panel": False}
     return {"show_panel": True, "rows": home_chat_rows(user)}
+
+
+@register.simple_tag(takes_context=True)
+def chat_nav(context):
+    """Total unread chat messages and the link for the navbar chat item.
+
+    One query. The link goes to the thread when the user has one team.
+    Otherwise it goes to the "Team chat" panel on Home.
+    """
+    user = context.get("user")
+    if not getattr(user, "is_authenticated", False):
+        return {"unread": 0, "url": ""}
+    teams = list(teams_with_unread(user).values_list("pk", "unread_count"))
+    if len(teams) == 1:
+        url = reverse("chat:thread", args=[teams[0][0]])
+    else:
+        url = reverse("core:home") + "#team-chat"
+    return {"unread": sum(count for _, count in teams), "url": url}
