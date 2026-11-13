@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     "facilities",
     "matches",
     "notifications",
+    "audit",
 ]
 
 MIDDLEWARE = [
@@ -74,6 +75,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "audit.middleware.AuditMiddleware",
 ]
 
 ROOT_URLCONF = "playnyu.urls"
@@ -182,9 +184,7 @@ EMAIL_VERIFICATION_TIMEOUT = 60 * 60 * 24
 LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS = int(
     os.environ.get("LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS", "5")
 )
-LOGIN_RATE_LIMIT_IP_ATTEMPTS = int(
-    os.environ.get("LOGIN_RATE_LIMIT_IP_ATTEMPTS", "20")
-)
+LOGIN_RATE_LIMIT_IP_ATTEMPTS = int(os.environ.get("LOGIN_RATE_LIMIT_IP_ATTEMPTS", "20"))
 LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(
     os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "900")
 )
@@ -204,3 +204,69 @@ VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS = int(
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "teams:list"
 LOGOUT_REDIRECT_URL = "core:home"
+
+
+# Structured logging (#165): everything goes to the console (Travis/EB read
+# stdout), at INFO by default. Each app logs under its own named logger.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "format": "{levelname} {asctime} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "accounts": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "audit": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "facilities": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "matches": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "profiles": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "teams": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

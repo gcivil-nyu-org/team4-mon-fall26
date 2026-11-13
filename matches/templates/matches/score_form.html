@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Record score · {{ match }} · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <div class="subheader">{{ match.season.name }}</div>
+          <h1>Record the score</h1>
+          <div class="page-meta pn-num">{{ match.home_team.name }} vs {{ match.away_team.name }} · {{ match.starts_at|date:"D M j, g:i A" }}</div>
+        </div>
+        {% if match.has_result %}
+          <div class="alert alert-warning text-body" role="alert">
+            <div class="fw-medium">This match already has a score ({{ match.home_score }} – {{ match.away_score }}).</div>
+            <div class="small">Saving overwrites it. The standings recompute from the new score.</div>
+          </div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Save score</button>
+            <a class="btn btn-ghost-secondary" href="{{ back_url }}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

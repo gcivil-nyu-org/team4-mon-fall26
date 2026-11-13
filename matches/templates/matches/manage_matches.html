@@ -37,6 +37,7 @@
               <th>Match</th>
               <th>When</th>
               <th>Facility</th>
+              <th class="text-end">Score</th>
               <th>Scorekeeper</th>
               <th>Status</th>
               <th class="w-1"><span class="visually-hidden">Actions</span></th>
@@ -51,6 +52,7 @@
                 </td>
                 <td class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</td>
                 <td>{{ match.facility.name }}</td>
+                <td class="text-end pn-num fw-medium">{% if match.has_result %}{{ match.home_score }} – {{ match.away_score }}{% else %}<span class="text-secondary">–</span>{% endif %}</td>
                 <td>
                   {% if match.scorekeeper %}
                     <div class="d-flex align-items-center gap-2">
@@ -76,6 +78,7 @@
                 <td>
                   {% if match.can_change %}
                     <div class="d-flex flex-wrap justify-content-end gap-2">
+                      <a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:score' match.pk %}">Score</a>
                       <a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:edit' match.pk %}">Edit</a>
                       <form method="post" action="{% url 'matches:cancel' match.pk %}" onsubmit="return confirm('Cancel {{ match|escapejs }}?');">
                         {% csrf_token %}

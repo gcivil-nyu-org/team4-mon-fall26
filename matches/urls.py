@@ -12,4 +12,8 @@ urlpatterns = [
     path("manage/new/", views.match_form, name="create"),
     path("manage/<int:pk>/edit/", views.match_form, name="edit"),
     path("manage/<int:pk>/cancel/", views.cancel_match, name="cancel"),
+    path("manage/<int:pk>/score/", views.record_score, name="score"),
+    path("mine/<int:pk>/score/", views.submit_score, name="submit_score"),
+    path("standings/", views.standings_seasons, name="standings"),
+    path("standings/<int:pk>/", views.season_standings, name="season_standings"),
 ]
