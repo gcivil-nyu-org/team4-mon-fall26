@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Notifications · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">Inbox</div>
+      <h1>Notifications</h1>
+      <div class="page-meta">Match, score and roster updates for your teams.</div>
+    </div>
+    {% if unread_count %}
+      <form method="post" action="{% url 'notifications:mark_all_read' %}">
+        {% csrf_token %}
+        <button class="btn btn-primary" type="submit"><i aria-hidden="true" class="ti ti-checks me-2"></i>Mark all as read</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {% if notifications %}
+      <div class="list-group list-group-flush">
+        {% for notification in notifications %}
+          <div class="list-group-item d-flex align-items-center gap-3">
+            <span class="avatar avatar-sm {% if notification.is_read %}bg-secondary-lt{% else %}bg-primary-lt{% endif %}">
+              <i aria-hidden="true" class="ti {% if notification.is_read %}ti-bell-off{% else %}ti-bell{% endif %}"></i>
+            </span>
+            <div class="flex-grow-1 min-w-0">
+              <div class="{% if not notification.is_read %}fw-medium{% endif %}">{{ notification.verb }}</div>
+              <div class="small text-secondary">{{ notification.created_at|timesince }} ago</div>
+            </div>
+            {% if notification.link %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'notifications:open' notification.pk %}">View</a>
+            {% endif %}
+            {% if not notification.is_read %}
+              <form method="post" action="{% url 'notifications:mark_read' notification.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-ghost-secondary" type="submit">Mark as read</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-bell"></i></div>
+        <p class="empty-title">No notifications yet</p>
+        <p class="empty-subtitle text-secondary">Match, score and roster updates for your teams will appear here.</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

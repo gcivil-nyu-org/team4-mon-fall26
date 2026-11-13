@@ -63,6 +63,12 @@ class DashboardTests(TestCase):
         self.assertTemplateUsed(response, "core/home.html")
         self.assertContains(response, "Sign up with your NYU email")
 
+    def test_landing_page_describes_current_features(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, "coming soon")
+        for text in ("Schedules and standings", "Facilities map", "Team chat"):
+            self.assertContains(response, text)
+
     def test_signed_in_sees_dashboard_greeting(self):
         self.login()
         response = self.client.get(self.url)
@@ -79,8 +85,7 @@ class DashboardTests(TestCase):
         self.join(theirs, both)
         self.login()
         context = self.client.get(self.url).context
-        self.assertEqual(context["team_count"], 2)
-        self.assertEqual(context["captain_count"], 1)
+        self.assertEqual(len(context["entries"]), 2)
         self.assertEqual(context["teammate_count"], 2)
         self.assertCountEqual(context["teammates"], [other_cap, both])
 
@@ -109,4 +114,4 @@ class DashboardTests(TestCase):
         self.login()
         response = self.client.get(self.url)
         self.assertNotContains(response, "Strangers")
-        self.assertEqual(response.context["team_count"], 0)
+        self.assertEqual(len(response.context["entries"]), 0)

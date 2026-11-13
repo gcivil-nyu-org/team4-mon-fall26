@@ -1,9 +1,10 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
-from teams.season_rules import SeasonAction
+from teams.season_rules import SeasonAction, SeasonState, season_allows
 
 
 class MatchQuerySet(models.QuerySet):
@@ -18,6 +19,23 @@ class MatchQuerySet(models.QuerySet):
         """
         return self.scheduled().filter(
             facility=facility, starts_at__lt=ends_at, ends_at__gt=starts_at
+        )
+
+    def needing_score(self, now):
+        """Ended matches with no result that can still be scored.
+
+        The status and season rules are the same as Match.can_change, which the
+        score views check.
+        """
+        live_states = [
+            state
+            for state in SeasonState.values
+            if season_allows(state, SeasonAction.SCHEDULE_MATCH)
+        ]
+        return self.scheduled().filter(
+            models.Q(home_score__isnull=True) | models.Q(away_score__isnull=True),
+            ends_at__lt=now,
+            season__state__in=live_states,
         )
 
 
@@ -45,6 +63,8 @@ class Match(models.Model):
     status = models.CharField(
         max_length=10, choices=Status.choices, default=Status.SCHEDULED
     )
+    home_score = models.PositiveIntegerField(null=True, blank=True)
+    away_score = models.PositiveIntegerField(null=True, blank=True)
     # SET_NULL: deleting a user shouldn't delete or block the match; it just needs
     # a new scorekeeper. Losing the role keeps the link so past matches stay
     # accurate, so anything that acts for a scorekeeper must check the role too.
@@ -109,6 +129,12 @@ class Match(models.Model):
             errors["scorekeeper"] = (
                 "Only users with the Scorekeeper role can be assigned."
             )
+        scored = [self.home_score is not None, self.away_score is not None]
+        if any(scored) and not all(scored):
+            errors["home_score"] = "Enter both scores, or leave both blank."
+            errors["away_score"] = "Enter both scores, or leave both blank."
+        if any(scored) and self.status == self.Status.CANCELLED:
+            errors["home_score"] = "Cancelled matches can't have a score."
         if errors:
             raise ValidationError(errors)
 
@@ -133,6 +159,15 @@ class Match(models.Model):
         """Closed seasons are history, so only live seasons' matches can change."""
         return not self.is_cancelled and self.season.allows(SeasonAction.SCHEDULE_MATCH)
 
+    @property
+    def has_started(self):
+        return self.starts_at <= timezone.now()
+
+    @property
+    def can_submit_score(self):
+        """A scorekeeper reports a result, so the match must have started."""
+        return self.can_change and self.has_started
+
     def cancel(self):
         self.status = self.Status.CANCELLED
         self.save(update_fields=["status"])
@@ -140,6 +175,11 @@ class Match(models.Model):
     @property
     def is_cancelled(self):
         return self.status == self.Status.CANCELLED
+
+    @property
+    def has_result(self):
+        """Both scores are recorded, so the match counts in the standings."""
+        return self.home_score is not None and self.away_score is not None
 
     def __str__(self):
         return f"{self.home_team} vs {self.away_team}"

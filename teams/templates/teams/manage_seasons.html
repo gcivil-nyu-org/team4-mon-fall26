@@ -29,7 +29,7 @@
                 <tr>
                   <td>
                     <div class="fw-medium">{{ season.name }}</div>
-                    <div class="small text-secondary">{{ season.start_date|date:"M j, Y" }}{% if season.end_date %} – {{ season.end_date|date:"M j, Y" }}{% endif %}</div>
+                    <div class="small text-secondary">{% if season.sport %}{{ season.sport.name }}{% else %}Any sport{% endif %} · {{ season.start_date|date:"M j, Y" }}{% if season.end_date %} – {{ season.end_date|date:"M j, Y" }}{% endif %}</div>
                   </td>
                   <td>{% include "components/season_state_badge.html" with season=season %}</td>
                   <td class="text-end pn-num">{{ season.team_count }}</td>

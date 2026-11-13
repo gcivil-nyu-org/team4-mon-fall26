@@ -12,6 +12,7 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
+from matches.standings import compute_standings
 
 from .forms import (
     AddPlayerForm,
@@ -95,7 +96,17 @@ def create_team(request):
         if team is not None:
             messages.success(request, f"Team {team.name} created. You are the captain.")
             return redirect("teams:detail", pk=team.pk)
-    return render(request, "teams/team_form.html", {"form": form})
+    return render(
+        request,
+        "teams/team_form.html",
+        {
+            "form": form,
+            "has_sports": form.fields["sport"].queryset.exists(),
+            "has_open_seasons": form.fields["season"].queryset.exists(),
+            "is_league_admin": request.user.is_superuser
+            or has_role(request.user, LEAGUE_ADMIN_ROLE),
+        },
+    )
 
 
 @login_required
@@ -109,6 +120,16 @@ def team_detail(request, pk):
     # Captain first, then players in the order they joined.
     roster = team.roster.select_related("player").order_by("role", "joined_at")
     upcoming_matches, past_matches = team_schedule(team, request.user)
+    record = None
+    if team.season_id:
+        record = next(
+            (
+                row
+                for row in compute_standings(team.season)
+                if row["team"].pk == team.pk
+            ),
+            None,
+        )
     return render(
         request,
         "teams/team_detail.html",
@@ -122,6 +143,7 @@ def team_detail(request, pk):
             "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
             "upcoming_matches": upcoming_matches,
             "past_matches": past_matches,
+            "record": record,
             "can_view_schedule": seasons_visible_to(request.user)
             .filter(pk=team.season_id)
             .exists(),
@@ -418,13 +440,13 @@ def match_free_agents(request, season_pk):
         )
         free_agents = list(
             FreeAgentRequest.objects.filter(season=season)
-            .select_for_update()
+            .select_for_update(of=("self",))
             .select_related("player", "division")
             .order_by("requested_at", "pk")
         )
         teams = list(
             Team.objects.filter(season=season)
-            .select_for_update()
+            .select_for_update(of=("self",))
             .select_related("season", "division")
             .order_by("pk")
         )
@@ -532,8 +554,10 @@ def _season_transitions(season):
 @login_required
 def manage_seasons(request):
     _require_league_admin(request.user)
-    seasons = Season.objects.annotate(team_count=Count("teams")).order_by(
-        "-start_date", "name"
+    seasons = (
+        Season.objects.select_related("sport")
+        .annotate(team_count=Count("teams"))
+        .order_by("-start_date", "name")
     )
     rows = [
         {"season": season, "transitions": _season_transitions(season)}

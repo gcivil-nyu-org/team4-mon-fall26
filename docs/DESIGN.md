@@ -103,7 +103,7 @@ Sport icons come from the `sport_icon` filter in `core/templatetags/ui.py`. Add 
 
 ## 4. Layout
 
-- Top navbar (horizontal), white, with the brand left, nav center-left, and the user's avatar + menu on the right.
+- Top navbar (horizontal), white, with the brand left, nav center-left, and team chat, the notifications bell and the user's avatar + menu on the right.
 - Content width: `container-xl`. Forms and auth pages: a single card inside `<div class="pn-auth">` (26rem wide, centered).
 - Every page starts with a **page header**: optional `subheader` overline, a plain `<h1>` (no classes; a test relies on this), one `page-meta` line, and at most one primary action on the right:
 
@@ -153,6 +153,46 @@ Same as the avatar, but a rounded square instead of a circle. Until logo uploads
 
 A clickable card (a team in a grid): add `card-link card-link-pop` and a single `stretched-link`. Inside, show the logo `md`, then the name (600), then one meta line (sport · season), and optionally a stacked avatar group.
 
+### Tabs (inside a card)
+
+Use tabs to switch one card between parallel views of the same thing, such as one leaderboard per sport. Don't use tabs to hide unrelated content or as page navigation.
+
+```html
+<div class="card">
+  <div class="card-header">
+    <div><h3 class="card-title">Standings</h3><div class="small text-secondary">Fall 2026</div></div>
+    <div class="card-actions"><a href="...">Full standings</a></div>
+  </div>
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap position-relative" role="tablist" aria-label="Standings by sport">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="standings-tab-1" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-1" aria-controls="standings-sport-1" aria-selected="true">
+          <i aria-hidden="true" class="ti ti-star text-primary me-1"></i>Soccer<span class="visually-hidden"> (your sport)</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="standings-tab-2" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-2" aria-controls="standings-sport-2" aria-selected="false" tabindex="-1">Basketball</button>
+      </li>
+    </ul>
+  </div>
+  <div class="tab-content">
+    <div class="tab-pane active show" id="standings-sport-1" role="tabpanel" aria-labelledby="standings-tab-1" tabindex="0">...</div>
+    <div class="tab-pane" id="standings-sport-2" role="tabpanel" aria-labelledby="standings-tab-2" tabindex="0">...</div>
+  </div>
+</div>
+```
+
+- Put the tabs in their own `card-header`, under the header with the title. Tabler fills that header with the tab strip.
+- Use `<button>` tabs with `data-bs-toggle="tab"`. `tabler.min.js` switches them. Don't add JavaScript.
+- Make the first tab active. Give only the active tab `aria-selected="true"`. Give the other tabs `tabindex="-1"`.
+- Build ids from a primary key: `standings-tab-{{ pk }}` and `standings-sport-{{ pk }}`. Ids must be unique on the page.
+- Keep the tab row on one line. `flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap` scrolls it inside the card on narrow screens.
+- Add `position-relative` to the tab row. Without it, `visually-hidden` text in a tab escapes the row and makes the page scroll sideways.
+- Keep `overflow-y-hidden`. Without it, the active tab's 1px overlap adds a vertical scrollbar.
+- Mark the user's own items with a star before the label: `ti ti-star text-primary` and `aria-hidden="true"`.
+- Add the star's meaning as text for screen readers: `<span class="visually-hidden"> (your sport)</span>`.
+- Put the user's own items first. Give each pane its own empty state.
+
 ### List rows (rosters, members, activity)
 
 `list-group list-group-flush` inside a card. Each row: avatar `sm` · name (500) with secondary text below · trailing badge or action. Row height around 48px. Destructive row actions are `btn btn-sm btn-ghost-danger` and the label says what they do ("Remove").
@@ -160,6 +200,8 @@ A clickable card (a team in a grid): add `card-link card-link-pop` and a single 
 ### Match rows (schedules)
 
 `{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
+
+A row can end with one action. Pass `action_url` and `action_label`: `{% include "components/match_row.html" with action_url=url action_label="Record score" %}`. The action renders as `btn btn-sm btn-outline-secondary`.
 
 ### Stat card (dashboards)
 
@@ -174,6 +216,8 @@ A clickable card (a team in a grid): add `card-link card-link-pop` and a single 
 ```
 
 Four across on desktop (`col-6 col-lg-3`). The label is always above the value, and there's at most one trend line.
+
+A stat card that opens its list is one link: `<a class="card card-sm card-link card-link-pop h-100" href="...">` with the same `card-body` inside.
 
 ### Leaderboard / stats table
 
@@ -216,9 +260,27 @@ Labels above inputs (`form-label`), inputs `form-control` / `form-select`, help 
 
 A warning the user can override (a booking overlap, say) is an `alert alert-warning text-body` with `role="alert"` at the top of the form, not a red error. Keep `text-body`: Tabler's amber alert text is only about 2:1 on its background. Don't use `text-secondary` inside it either, because that sits right at the 4.5:1 limit. It says what's wrong and what to do, and the submit button's label changes to match ("Schedule anyway").
 
+### Dependent selects
+
+Use this when one select limits another, such as season, then sport and division.
+
+- Put the controlling field first.
+- Make the form work with no JavaScript. Group the dependent options in one `<optgroup>` for each parent. Validate the pair on the server.
+- When the parent fixes a field's value, set that value on the server. Ignore the submitted value. A disabled field sends nothing.
+- Add the script as an enhancement. Pass the rules with `json_script`, and put the code in `static/js/`. Do not write inline handlers.
+- On change, the script keeps only the parent's options. It sets and disables a field that the parent fixes.
+- Say the rule in the field's `form-hint`, so the form reads the same with and without the script.
+
+The season fields use `{% include "components/season_fields.html" %}` in `{% block scripts %}`. The form needs `SeasonFieldsMixin` (`teams/forms.py`). The script is `static/js/season_fields.js`.
+
 ### Badges
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.
+
+Unread counts are the one number badge. Render nothing when the count is 0.
+
+- In a list row: `<span class="badge bg-primary-lt pn-num">3<span class="visually-hidden"> unread messages</span></span>`, as the trailing item.
+- In the navbar (bell, team chat): `<span class="badge bg-red-lt ms-1 pn-num">3</span>` after the icon. Put the count in the link's `aria-label` ("Team chat, 3 unread").
 
 Season states use `{% include "components/season_state_badge.html" with season=season %}`: Draft and Closed are `bg-secondary-lt`, Open (registration) is `bg-green-lt`, Active (under way, rosters locked) is `bg-yellow-lt`.
 
@@ -234,6 +296,24 @@ Season states use `{% include "components/season_state_badge.html" with season=s
 ```
 
 Every list and table has one. Say what's missing and what to do next.
+
+### Pagination
+
+A long list shows 20 rows per page. Put the pager in a `card-footer` under the list, and show it only when there is more than one page:
+
+```html
+<div class="card-footer d-flex align-items-center">
+  <p class="m-0 small text-secondary pn-num">Page 2 of 5</p>
+  <nav class="ms-auto" aria-label="Topic pages">
+    <ul class="pagination m-0">
+      <li class="page-item"><a class="page-link" href="?page=1"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</a></li>
+      <li class="page-item disabled"><span class="page-link">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></span></li>
+    </ul>
+  </nav>
+</div>
+```
+
+Use Django's `Paginator`. Keep the list's filter in each page link (`?sport=3&page=2`). A link that has no target is a `<span>` inside `page-item disabled`.
 
 ### Messages
 
@@ -258,12 +338,31 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 
 | Page | Structure |
 |---|---|
-| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards → `col-lg-8`: my teams card grid, upcoming games list → `col-lg-4`: leaderboard snippet (top 5), free agents avatar group |
+| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards: next match, record, games played, unread → `col-lg-8`: my teams, upcoming matches, standings (one tab per sport) → `col-lg-4`: matches to score (scorekeepers only), team chat, forum, recent activity, teammates. See the panel rules below. |
+| **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches) → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
+| **My matches (scorekeeper)** | Page header → one card per section, in this order: Needs a score, Upcoming, Scored → each card holds match rows with both team logos and its own empty state. Only the first row of Needs a score has the primary button. |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
+| **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
+| **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body → Replies card: list rows, oldest first, with Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
+
+### Home / dashboard panels
+
+`core/templates/core/dashboard.html` is the layout only. It holds the page header, the stat row, the main column and the rail.
+
+- Make each panel one card.
+- Keep the panel order from the recipe above.
+- Put a panel that `core` owns in a partial: `core/templates/core/dashboard/_<panel>.html`.
+- Put a panel that a different app owns in an inclusion tag in that app. Follow `notifications/templatetags/notifications_tags.py`.
+- Do not add panel data to the `home` view. The inclusion tag gets its own data.
+- Exception: when the stat row already loads the data, pass it to the tag as arguments. Example: `{% upcoming_matches_panel upcoming_matches past_matches %}`.
+- Add the panel to `dashboard.html` with one line. Replace the `{# slot: ... #}` comment for that panel.
+- Keep one blank line above and below each panel line. This prevents merge conflicts.
+- Do not add a margin to a panel card. Each column sets the space with `d-flex flex-column gap-3`.
+- Render nothing when a panel does not apply to the user.
 
 ## 7. Images and placeholder data
 
@@ -284,7 +383,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
-| Shared partials (avatar, team logo, match row, form fields, map assets) | `templates/components/` |
+| Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
 | Template filters (`initials`, `sport_icon`, `control`) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)

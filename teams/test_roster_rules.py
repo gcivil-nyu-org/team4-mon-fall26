@@ -1,6 +1,7 @@
 """Roster capacity and one team per season, on every path onto a team (#135)."""
 
 import datetime
+from unittest import skipUnless
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -441,6 +442,7 @@ class AdminPathTests(TestCase):
 
 
 class ConcurrencySettingsTests(TestCase):
+    @skipUnless(connection.vendor == "sqlite", "SQLite setting")
     def test_sqlite_transactions_take_the_write_lock_up_front(self):
         """Roster checks rely on this: SQLite ignores select_for_update."""
         self.assertEqual(

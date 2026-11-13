@@ -15,6 +15,8 @@ from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
+from playnyu.database import database_config
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -61,6 +63,10 @@ INSTALLED_APPS = [
     "accounts",
     "facilities",
     "matches",
+    "notifications",
+    "chat",
+    "forums",
+    "audit",
 ]
 
 MIDDLEWARE = [
@@ -71,6 +77,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "audit.middleware.AuditMiddleware",
 ]
 
 ROOT_URLCONF = "playnyu.urls"
@@ -96,16 +103,9 @@ WSGI_APPLICATION = "playnyu.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+# Set DATABASE_URL on AWS (docs/DATABASE.md). Unset, local development uses SQLite.
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        # Start write transactions with the write lock held. SQLite ignores
-        # select_for_update, so without this two requests can read the same
-        # roster and the loser fails with "database is locked" instead of seeing
-        # the normal validation message.
-        "OPTIONS": {"transaction_mode": "IMMEDIATE"},
-    }
+    "default": database_config(os.environ.get("DATABASE_URL"), BASE_DIR / "db.sqlite3")
 }
 
 
@@ -180,15 +180,13 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 # Email confirmation links expire after 24 hours.
 EMAIL_VERIFICATION_TIMEOUT = 60 * 60 * 24
 
-# Authentication throttles use the configured database. With SQLite, counters
-# are shared by processes on the same instance; a multi-instance deployment
-# needs a shared database backend. Tune the limits with environment variables.
+# Authentication throttles use the configured database, so counters are shared
+# by every instance that uses it. With SQLite, only processes on the same instance
+# share them. Tune the limits with environment variables.
 LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS = int(
     os.environ.get("LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS", "5")
 )
-LOGIN_RATE_LIMIT_IP_ATTEMPTS = int(
-    os.environ.get("LOGIN_RATE_LIMIT_IP_ATTEMPTS", "20")
-)
+LOGIN_RATE_LIMIT_IP_ATTEMPTS = int(os.environ.get("LOGIN_RATE_LIMIT_IP_ATTEMPTS", "20"))
 LOGIN_RATE_LIMIT_WINDOW_SECONDS = int(
     os.environ.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "900")
 )
@@ -208,3 +206,69 @@ VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS = int(
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "teams:list"
 LOGOUT_REDIRECT_URL = "core:home"
+
+
+# Structured logging (#165): everything goes to the console (Travis/EB read
+# stdout), at INFO by default. Each app logs under its own named logger.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "format": "{levelname} {asctime} {name}: {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "default",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "accounts": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "audit": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "facilities": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "matches": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "profiles": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "teams": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

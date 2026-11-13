@@ -11,9 +11,11 @@ from teams.models import Season
 from teams.season_rules import SeasonAction
 from teams.views import _require_league_admin
 
-from .forms import MatchForm
+from .forms import MatchForm, ScoreForm
 from .models import Match
+from .scorekeeping import group_assigned_matches
 from .schedule import schedule_matches, seasons_visible_to
+from .standings import compute_standings
 
 
 def _manage_url(season_id):
@@ -60,13 +62,10 @@ def my_matches(request):
     """The matches assigned to the signed-in scorekeeper."""
     if not has_role(request.user, SCOREKEEPER_ROLE):
         raise PermissionDenied("Scorekeeper access is required.")
-    matches = Match.objects.filter(scorekeeper=request.user).select_related(
-        "season", "home_team__sport", "away_team__sport", "facility"
-    )
     return render(
         request,
         "matches/my_matches.html",
-        {"matches": matches, "nav_section": "my_matches"},
+        {"groups": group_assigned_matches(request.user), "nav_section": "my_matches"},
     )
 
 
@@ -133,6 +132,73 @@ def cancel_match(request, pk):
     return redirect(_manage_url(match.season_id))
 
 
+def _score_match(request, match, form, back_url, nav_section):
+    """Shared save path for League Admin and scorekeeper score entry."""
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"Saved the score for {match}.")
+        return redirect(back_url)
+    return render(
+        request,
+        "matches/score_form.html",
+        {
+            "form": form,
+            "match": match,
+            "back_url": back_url,
+            "nav_section": nav_section,
+        },
+    )
+
+
+@login_required
+def record_score(request, pk):
+    """League Admins enter or correct a match score. Corrections overwrite."""
+    _require_league_admin(request.user)
+    match = get_object_or_404(
+        Match.objects.select_related(
+            "season", "home_team__sport", "away_team__sport", "facility"
+        ),
+        pk=pk,
+    )
+    if not match.can_change:
+        if match.is_cancelled:
+            messages.error(request, "Cancelled matches can't be scored.")
+        else:
+            messages.error(request, f"{match.season} isn't open or active.")
+        return redirect(_manage_url(match.season_id))
+    form = ScoreForm(request.POST or None, instance=match)
+    return _score_match(
+        request, match, form, _manage_url(match.season_id), "league_setup"
+    )
+
+
+@login_required
+def submit_score(request, pk):
+    """The assigned scorekeeper submits the result for their match."""
+    if not has_role(request.user, SCOREKEEPER_ROLE):
+        raise PermissionDenied("Scorekeeper access is required.")
+    match = get_object_or_404(
+        Match.objects.select_related(
+            "season", "home_team__sport", "away_team__sport", "facility"
+        ),
+        pk=pk,
+    )
+    if match.scorekeeper_id != request.user.pk:
+        raise PermissionDenied("Only the assigned scorekeeper can submit this score.")
+    if not match.can_change:
+        if match.is_cancelled:
+            messages.error(request, "Cancelled matches can't be scored.")
+        else:
+            messages.error(request, f"{match.season} isn't open or active.")
+        return redirect("matches:mine")
+    if not match.has_started:
+        # My matches hides the button until then. A typed URL gets the same answer.
+        messages.error(request, "You can submit the score once the match starts.")
+        return redirect("matches:mine")
+    form = ScoreForm(request.POST or None, instance=match)
+    return _score_match(request, match, form, reverse("matches:mine"), "my_matches")
+
+
 @login_required
 def schedule_seasons(request):
     """Every season the player can see, linking to its schedule."""
@@ -169,6 +235,37 @@ def season_schedule(request, pk):
             "divisions": divisions,
             "division": division,
             "matches": matches,
+            "nav_section": "schedule",
+        },
+    )
+
+
+@login_required
+def standings_seasons(request):
+    """Every season the player can see, linking to its standings."""
+    seasons = seasons_visible_to(request.user).order_by("-start_date", "name")
+    season_id = request.GET.get("season", "")
+    if season_id.isdecimal() and seasons.filter(pk=season_id).exists():
+        return redirect("matches:season_standings", pk=season_id)
+    return render(
+        request,
+        "matches/standings_seasons.html",
+        {"seasons": seasons, "nav_section": "schedule"},
+    )
+
+
+@login_required
+def season_standings(request, pk):
+    """The season's leaderboard: P/W/D/L/Pts from recorded scores."""
+    season = get_object_or_404(seasons_visible_to(request.user), pk=pk)
+    seasons = seasons_visible_to(request.user).order_by("-start_date", "name")
+    return render(
+        request,
+        "matches/season_standings.html",
+        {
+            "season": season,
+            "seasons": seasons,
+            "rows": compute_standings(season),
             "nav_section": "schedule",
         },
     )

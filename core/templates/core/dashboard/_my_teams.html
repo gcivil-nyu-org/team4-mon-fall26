@@ -1,0 +1,31 @@
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">My teams</h3>
+    <div class="card-actions"><a href="{% url 'teams:list' %}">View all</a></div>
+  </div>
+  {% if entries %}
+    <div class="list-group list-group-flush">
+      {% for entry in entries %}
+        {# A row holds two links (team, chat), so the row itself is not a link. #}
+        <div class="list-group-item d-flex align-items-center gap-3">
+          {% include "components/team_logo.html" with team=entry.team size="md" %}
+          <div class="flex-fill min-w-0">
+            <a class="fw-medium text-reset" href="{% url 'teams:detail' entry.team.pk %}">{{ entry.team.name }}</a>
+            <div class="small text-secondary">{{ entry.team.sport }}{% if entry.team.season %} · {{ entry.team.season }}{% endif %}</div>
+          </div>
+          {% if entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
+          <span class="pn-num fw-medium flex-shrink-0" title="Won – drawn – lost">{{ entry.record.won }}–{{ entry.record.drawn }}–{{ entry.record.lost }}<span class="visually-hidden"> record</span></span>
+          <a class="btn btn-icon btn-ghost-secondary flex-shrink-0" href="{% url 'chat:thread' entry.team.pk %}" aria-label="Team chat" title="Team chat"><i aria-hidden="true" class="ti ti-message-circle"></i></a>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card-body">
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
+        <p class="empty-title">No teams yet</p>
+        <p class="empty-subtitle text-secondary">Create a team, or ask a captain to add you with your NYU email.</p>
+      </div>
+    </div>
+  {% endif %}
+</div>
