@@ -45,9 +45,11 @@ def _bucket_key(scope, identifier):
 
 
 def _status(key, max_attempts, window_seconds, now):
-    bucket = RateLimitBucket.objects.filter(pk=key).only(
-        "count", "window_started_at"
-    ).first()
+    bucket = (
+        RateLimitBucket.objects.filter(pk=key)
+        .only("count", "window_started_at")
+        .first()
+    )
     if bucket is None or bucket.count < max_attempts:
         return RateLimitDecision(allowed=True)
 

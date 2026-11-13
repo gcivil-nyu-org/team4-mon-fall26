@@ -48,7 +48,7 @@ python manage.py test
 
 ## CI and deployment (Travis CI)
 
-Every push and pull request runs `flake8`, the tests and a coverage check (`.travis.yml`).
+Every push and pull request runs `black --check`, `flake8`, the tests and a coverage check (`.travis.yml`).
 When the build passes, a push to `testing` deploys to the testing environment and a push to
 `main` deploys to production (`playnyu-prod`, us-east-2). Pull request builds never deploy.
 
@@ -56,6 +56,7 @@ Run the same checks locally:
 
 ```bash
 pip install -r requirements-dev.txt
+black --check .
 flake8 .
 coverage run manage.py test && coverage report
 ```
