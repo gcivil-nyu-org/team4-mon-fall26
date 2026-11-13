@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
-from teams.models import Roster
+from teams.models import Division, Roster
 from teams.season_rules import SeasonState
 
 from .forms import ScoreForm
@@ -325,3 +325,125 @@ class ResultDisplayTests(ScorekeeperFixtures):
             ).status_code,
             404,
         )
+
+
+class DivisionStandingsTests(MatchFixtures):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.gold = Division.objects.create(season=cls.season, name="Gold")
+        cls.silver = Division.objects.create(season=cls.season, name="Silver")
+        cls.empty = Division.objects.create(season=cls.season, name="Bronze")
+        cls.third = cls.make_team("Terriers", cls.soccer, cls.season)
+        for team, division in (
+            (cls.home, cls.gold),
+            (cls.away, cls.gold),
+            (cls.third, cls.silver),
+        ):
+            team.division = division
+            team.save()
+
+    def setUp(self):
+        self.client.force_login(self.player)
+
+    def play(self, home, away, home_score, away_score):
+        self.build(
+            home_team=home, away_team=away, home_score=home_score, away_score=away_score
+        ).save()
+
+    def url(self, season=None):
+        return reverse("matches:season_standings", args=[(season or self.season).pk])
+
+    def names(self, response):
+        return [row["team"].name for row in response.context["rows"]]
+
+    def test_division_lists_only_its_teams(self):
+        rows = compute_standings(self.season, self.gold)
+        self.assertEqual([row["team"].name for row in rows], ["Bobcats", "Violets"])
+        rows = compute_standings(self.season, self.silver)
+        self.assertEqual([row["team"].name for row in rows], ["Terriers"])
+
+    def test_division_records_count_cross_division_matches(self):
+        self.play(self.away, self.home, 1, 0)
+        self.play(self.home, self.third, 2, 0)
+        self.play(self.home, self.third, 3, 0)
+        rows = compute_standings(self.season, self.gold)
+        # Violets lost inside Gold but lead it on wins against Silver.
+        self.assertEqual([row["team"].name for row in rows], ["Violets", "Bobcats"])
+        self.assertEqual(
+            (rows[0]["played"], rows[0]["won"], rows[0]["lost"], rows[0]["points"]),
+            (3, 2, 1, 6),
+        )
+        silver = compute_standings(self.season, self.silver)
+        self.assertEqual((silver[0]["played"], silver[0]["lost"]), (2, 2))
+
+    def test_no_division_keeps_the_whole_season(self):
+        self.assertEqual(
+            compute_standings(self.season), compute_standings(self.season, None)
+        )
+        self.assertEqual(len(compute_standings(self.season)), 4)
+
+    def test_teams_without_a_division_only_show_under_all(self):
+        self.assertIn("Hoopers", self.names(self.client.get(self.url())))
+        for division in (self.gold, self.silver, self.empty):
+            response = self.client.get(self.url(), {"division": division.pk})
+            self.assertNotIn("Hoopers", self.names(response))
+
+    def test_filter_shown_with_all_divisions_as_the_default(self):
+        response = self.client.get(self.url())
+        self.assertContains(response, 'name="division"')
+        self.assertContains(response, '<option value="">All divisions</option>')
+        self.assertNotContains(response, "selected>Gold")
+        self.assertIsNone(response.context["division"])
+        self.assertEqual(len(response.context["rows"]), 4)
+        self.assertNotContains(response, "including matches against other divisions")
+
+    def test_filter_hidden_when_season_has_no_divisions(self):
+        response = self.client.get(self.url(self.other_season))
+        self.assertNotContains(response, 'name="division"')
+        response = self.client.get(self.url(self.other_season), {"division": "1"})
+        self.assertEqual(self.names(response), ["Outsiders"])
+
+    def test_page_filters_by_division(self):
+        response = self.client.get(self.url(), {"division": self.gold.pk})
+        self.assertEqual(self.names(response), ["Bobcats", "Violets"])
+        self.assertEqual(response.context["division"], self.gold)
+        self.assertEqual(response.context["season"], self.season)
+        self.assertContains(response, f'value="{self.gold.pk}" selected')
+        self.assertContains(response, f'value="{self.season.pk}" selected')
+        self.assertContains(response, "Gold · Three points for a win")
+        self.assertContains(response, "Gold leaderboard")
+        self.assertContains(response, "including matches against other divisions")
+
+    def test_division_form_is_a_get_to_the_same_season(self):
+        # No action, so the browser submits to the season's own URL.
+        self.assertContains(
+            self.client.get(self.url()),
+            '<form class="d-flex align-items-end gap-2" method="get">',
+        )
+
+    def test_changing_season_resets_the_division(self):
+        response = self.client.get(
+            reverse("matches:standings"), {"season": self.other_season.pk}
+        )
+        self.assertRedirects(response, self.url(self.other_season))
+
+    def test_bad_division_values_show_all_divisions(self):
+        foreign = Division.objects.create(season=self.other_season, name="Gold")
+        for value in ("", "abc", "-1", "1.5", "999999", "9" * 40, "\x00", foreign.pk):
+            response = self.client.get(self.url(), {"division": value})
+            self.assertEqual(response.status_code, 200, value)
+            self.assertIsNone(response.context["division"], value)
+            self.assertEqual(len(response.context["rows"]), 4, value)
+
+    def test_division_with_no_teams_shows_an_empty_state(self):
+        response = self.client.get(self.url(), {"division": self.empty.pk})
+        self.assertEqual(response.context["rows"], [])
+        self.assertContains(response, "No teams in Bronze")
+        self.assertContains(response, f'href="{self.url()}"')
+
+    def test_all_divisions_table_labels_each_team_division(self):
+        label = '<div class="small text-secondary">Silver</div>'
+        self.assertContains(self.client.get(self.url()), label)
+        response = self.client.get(self.url(), {"division": self.silver.pk})
+        self.assertNotContains(response, label)
