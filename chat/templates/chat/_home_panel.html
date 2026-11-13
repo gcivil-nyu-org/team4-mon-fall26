@@ -1,0 +1,29 @@
+{% if show_panel %}
+<div class="card" id="team-chat">
+  <div class="card-header"><h3 class="card-title">Team chat</h3></div>
+  {% if rows %}
+    <div class="list-group list-group-flush">
+      {% for row in rows %}
+        <a class="list-group-item list-group-item-action d-flex align-items-center gap-3" href="{% url 'chat:thread' row.team.pk %}">
+          {% include "components/team_logo.html" with team=row.team size="md" %}
+          <div class="flex-fill min-w-0">
+            <div class="d-flex justify-content-between align-items-baseline gap-2">
+              <span class="fw-medium text-truncate">{{ row.team.name }}</span>
+              {% if row.message %}<time class="small text-secondary text-nowrap" datetime="{{ row.message.created_at|date:'c' }}" title="{{ row.message.created_at|date:'M j, Y g:i a' }}">{{ row.time_label }}</time>{% endif %}
+            </div>
+            <div class="small text-secondary text-truncate">{% if row.message %}{{ row.preview }}{% else %}No messages yet. Say hello.{% endif %}</div>
+          </div>
+          {% if row.unread_count %}<span class="badge bg-primary-lt pn-num">{{ row.unread_count }}<span class="visually-hidden"> unread messages</span></span>{% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card-body">
+      <div class="empty py-2">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-messages"></i></div>
+        <p class="empty-subtitle text-secondary">Join a team to chat with teammates.</p>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endif %}

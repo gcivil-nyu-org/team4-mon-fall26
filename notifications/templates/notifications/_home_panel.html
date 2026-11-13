@@ -1,0 +1,28 @@
+{% if show %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Recent activity</h3>
+    <div class="card-actions"><a href="{% url 'notifications:list' %}">See all</a></div>
+  </div>
+  {% if notifications %}
+    <div class="list-group list-group-flush">
+      {% for notification in notifications %}
+        {% if notification.url %}<a class="list-group-item list-group-item-action d-flex align-items-center gap-2" href="{{ notification.url }}">{% else %}<div class="list-group-item d-flex align-items-center gap-2">{% endif %}
+          <div class="flex-fill min-w-0">
+            <div{% if not notification.is_read %} class="fw-medium"{% endif %}>{{ notification.verb }}</div>
+            <div class="small text-secondary">{{ notification.created_at|timesince }} ago</div>
+          </div>
+          {% if not notification.is_read %}<span class="badge bg-primary-lt">New</span>{% endif %}
+        {% if notification.url %}</a>{% else %}</div>{% endif %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card-body">
+      <div class="empty py-2">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-bell"></i></div>
+        <p class="empty-subtitle text-secondary">No activity yet. Match, score and roster updates appear here.</p>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endif %}

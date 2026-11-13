@@ -1,0 +1,6 @@
+{# Both teams of a match, each with its logo. Needs `match` in context. #}
+<div class="d-flex flex-wrap align-items-center gap-2 fw-medium">
+  <span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="d-inline-flex flex-shrink-0">{% include "components/team_logo.html" with team=match.home_team size="sm" %}</span><span class="text-break">{{ match.home_team.name }}</span></span>
+  <span class="text-secondary fw-normal">vs</span>
+  <span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="d-inline-flex flex-shrink-0">{% include "components/team_logo.html" with team=match.away_team size="sm" %}</span><span class="text-break">{{ match.away_team.name }}</span></span>
+</div>

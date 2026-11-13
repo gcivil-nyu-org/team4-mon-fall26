@@ -103,7 +103,7 @@ Sport icons come from the `sport_icon` filter in `core/templatetags/ui.py`. Add 
 
 ## 4. Layout
 
-- Top navbar (horizontal), white, with the brand left, nav center-left, and the user's avatar + menu on the right.
+- Top navbar (horizontal), white, with the brand left, nav center-left, and team chat, the notifications bell and the user's avatar + menu on the right.
 - Content width: `container-xl`. Forms and auth pages: a single card inside `<div class="pn-auth">` (26rem wide, centered).
 - Every page starts with a **page header**: optional `subheader` overline, a plain `<h1>` (no classes; a test relies on this), one `page-meta` line, and at most one primary action on the right:
 
@@ -277,6 +277,11 @@ The season fields use `{% include "components/season_fields.html" %}` in `{% blo
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.
 
+Unread counts are the one number badge. Render nothing when the count is 0.
+
+- In a list row: `<span class="badge bg-primary-lt pn-num">3<span class="visually-hidden"> unread messages</span></span>`, as the trailing item.
+- In the navbar (bell, team chat): `<span class="badge bg-red-lt ms-1 pn-num">3</span>` after the icon. Put the count in the link's `aria-label` ("Team chat, 3 unread").
+
 Season states use `{% include "components/season_state_badge.html" with season=season %}`: Draft and Closed are `bg-secondary-lt`, Open (registration) is `bg-green-lt`, Active (under way, rosters locked) is `bg-yellow-lt`.
 
 ### Empty states
@@ -337,6 +342,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches) → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
+| **My matches (scorekeeper)** | Page header → one card per section, in this order: Needs a score, Upcoming, Scored → each card holds match rows with both team logos and its own empty state. Only the first row of Needs a score has the primary button. |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
@@ -352,6 +358,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 - Put a panel that `core` owns in a partial: `core/templates/core/dashboard/_<panel>.html`.
 - Put a panel that a different app owns in an inclusion tag in that app. Follow `notifications/templatetags/notifications_tags.py`.
 - Do not add panel data to the `home` view. The inclusion tag gets its own data.
+- Exception: when the stat row already loads the data, pass it to the tag as arguments. Example: `{% upcoming_matches_panel upcoming_matches past_matches %}`.
 - Add the panel to `dashboard.html` with one line. Replace the `{# slot: ... #}` comment for that panel.
 - Keep one blank line above and below each panel line. This prevents merge conflicts.
 - Do not add a margin to a panel card. Each column sets the space with `d-flex flex-column gap-3`.

@@ -11,7 +11,9 @@
         <div class="page-meta">{{ team.sport }}{% if team.division %} · {{ team.division.name }}{% endif %} · Captain {{ team.captain.get_full_name|default:team.captain.email }}</div>
       </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+      {# The view returns 404 to non-members, so each viewer is on the roster. #}
+      <a class="btn btn-outline-secondary" href="{% url 'chat:thread' team.pk %}"><i aria-hidden="true" class="ti ti-messages me-1"></i>Team chat</a>
       {% if is_captain %}
         {% if not can_add %}
           <button class="btn btn-primary" type="button" disabled title="{{ team.season }} isn't accepting new players.">Roster closed</button>

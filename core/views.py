@@ -6,7 +6,8 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
-from matches.standings import dashboard_standings
+from matches.schedule import player_schedule
+from matches.standings import dashboard_standings, team_records, total_record
 from teams.models import Roster
 
 from .overview import overview_context
@@ -18,7 +19,7 @@ def home(request):
         return render(request, "core/home.html")
     entries = (
         Roster.objects.filter(player=request.user)
-        .select_related("team", "team__season")
+        .select_related("team__sport", "team__season")
         .order_by("-joined_at")
     )
     team_ids = [entry.team_id for entry in entries]
@@ -28,6 +29,11 @@ def home(request):
         .exclude(pk=request.user.pk)
         .distinct()
     )
+    records = team_records(team_ids)
+    for entry in entries:
+        entry.record = records[entry.team_id]
+    upcoming, past = player_schedule(request.user)
+    to_play = [match for match in upcoming if not match.is_cancelled]
     standings_label, standings_tabs = dashboard_standings(
         request.user, timezone.localdate()
     )
@@ -36,8 +42,11 @@ def home(request):
         "core/dashboard.html",
         {
             "entries": entries,
-            "team_count": len(team_ids),
-            "captain_count": sum(e.role == Roster.Role.CAPTAIN for e in entries),
+            "record": total_record(records),
+            "next_match": to_play[0] if to_play else None,
+            "to_play_count": len(to_play),
+            "upcoming_matches": upcoming,
+            "past_matches": past,
             "teammate_count": teammates.count(),
             "teammates": teammates[:5],
             "standings_label": standings_label,

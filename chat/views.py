@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
@@ -10,6 +11,7 @@ from teams.models import Team
 
 from .forms import MessageForm
 from .models import Message
+from .unread import mark_thread_read
 
 
 def _get_team_for_member(team_pk, user):
@@ -35,11 +37,16 @@ def team_thread(request, team_pk):
             message.team = team
             message.author = request.user
             message.save()
+            mark_thread_read(request.user, team)
             django_messages.success(request, "Message sent.")
             return redirect("chat:thread", team_pk=team.pk)
-    chat_messages = team.chat_messages.select_related("author").order_by(
-        "created_at", "pk"
+    # Take the time before the query. A message that lands during the query
+    # then stays unread.
+    opened_at = timezone.now()
+    chat_messages = list(
+        team.chat_messages.select_related("author").order_by("created_at", "pk")
     )
+    mark_thread_read(request.user, team, opened_at)
     return render(
         request,
         "chat/thread.html",

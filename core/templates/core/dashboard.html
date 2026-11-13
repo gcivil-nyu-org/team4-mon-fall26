@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% load notifications_tags %}
+{% load chat_tags %}
+{% load scorekeeper_tags %}
 {% block title %}Home · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -17,20 +20,20 @@
 
       {% include "core/dashboard/_my_teams.html" %}
 
-      {# slot: upcoming matches (matches app) #}
+      {% load matches_tags %}{% upcoming_matches_panel upcoming_matches past_matches %}
 
       {% include "core/dashboard/_standings.html" %}
 
     </div>
     <div class="col-lg-4 d-flex flex-column gap-3">
 
-      {# slot: matches to score (scorekeepers only) #}
+      {% matches_to_score %}
 
-      {# slot: team chat #}
+      {% home_chat_panel %}
 
       {# slot: forum #}
 
-      {# slot: recent activity (notifications) #}
+      {% home_activity_panel %}
 
       {% include "core/dashboard/_teammates.html" %}
 
