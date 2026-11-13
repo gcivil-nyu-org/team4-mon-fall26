@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.dateformat import format as date_format
 from django.views.decorators.http import require_POST
 
+from accounts.placeholders import placeholder_for, send_invite_email
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
@@ -178,15 +179,31 @@ def add_player(request, pk):
                 added = False
             if added:
                 # TODO: players are added without consent; replace with an invite/accept flow later.
+                player = form.player
+                if player is None:
+                    player, created = placeholder_for(
+                        form.cleaned_data["email"], invited_by=request.user
+                    )
+                    if created:
+                        transaction.on_commit(
+                            lambda: send_invite_email(
+                                request, player, team, request.user
+                            )
+                        )
                 if team.season_id:
                     FreeAgentRequest.objects.filter(
-                        player=form.player, season_id=team.season_id
+                        player=player, season_id=team.season_id
                     ).delete()
-                Roster.objects.create(
-                    team=team, player=form.player, role=Roster.Role.PLAYER
-                )
+                Roster.objects.create(team=team, player=player, role=Roster.Role.PLAYER)
         if added:
-            messages.success(request, f"Added {form.player.email} to {team.name}.")
+            if player.is_active:
+                message = f"Added {player.email} to {team.name}."
+            else:
+                message = (
+                    f"Added {player.email} to {team.name}. They'll see the team "
+                    "when they sign up with that email."
+                )
+            messages.success(request, message)
             return redirect("teams:detail", pk=team.pk)
     return render(request, "teams/add_player.html", {"form": form, "team": team})
 

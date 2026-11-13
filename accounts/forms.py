@@ -1,6 +1,9 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.db.models import Q
+
+from .placeholders import is_placeholder
 
 NYU_DOMAIN = "@nyu.edu"
 UNVERIFIED_MESSAGE = (
@@ -29,11 +32,15 @@ class SignUpForm(UserCreationForm):
             raise forms.ValidationError("Please use your NYU ID (an @nyu.edu email).")
 
         User = get_user_model()
+        existing = User.objects.filter(
+            Q(email__iexact=email) | Q(username__iexact=email)
+        ).first()
 
-        if (
-            User.objects.filter(email__iexact=email).exists()
-            or User.objects.filter(username__iexact=email).exists()
-        ):
+        # A placeholder (someone added this email to a team) can be claimed.
+        # The claim completes only when the email link is opened.
+        if existing is not None and is_placeholder(existing):
+            self.placeholder = existing
+        elif existing is not None:
             raise forms.ValidationError(
                 "An account with this email already exists. "
                 "Log in, or request a new confirmation email."
@@ -42,7 +49,15 @@ class SignUpForm(UserCreationForm):
         return email
 
     def save(self, commit=True):
-        user = super().save(commit=False)
+        placeholder = getattr(self, "placeholder", None)
+        if placeholder is None:
+            user = super().save(commit=False)
+        else:
+            # Same user, so teams and match history stay with the person.
+            user = placeholder
+            user.first_name = self.cleaned_data["first_name"]
+            user.last_name = self.cleaned_data["last_name"]
+            user.set_password(self.cleaned_data["password1"])
         user.username = user.email = self.cleaned_data["email"]
         user.is_active = False  # becomes active when the email link is opened
 

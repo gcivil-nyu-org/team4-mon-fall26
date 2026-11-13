@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from .catalog_rules import name_key, validate_catalog_name
 from .models import (
@@ -177,30 +178,43 @@ class DivisionCreateForm(forms.ModelForm):
 
 
 class AddPlayerForm(forms.Form):
-    email = forms.EmailField(label="Player's NYU email")
+    """Any @nyu.edu email can be added, with or without an account.
+
+    When no user has the email, `player` is None and the view creates a
+    placeholder account (accounts/placeholders.py). The errors never say
+    whether an account exists.
+    """
+
+    email = forms.EmailField(
+        label="Player's NYU email",
+        help_text="They don't need an account yet. We'll email them to sign up.",
+    )
 
     def __init__(self, *args, team, **kwargs):
         super().__init__(*args, **kwargs)
         self.team = team
+        self.player = None
 
     def clean_email(self):
         email = self.cleaned_data["email"].strip().lower()
         if not email.endswith(NYU_DOMAIN):
             raise forms.ValidationError("Only @nyu.edu emails can be added.")
 
-        # Unverified accounts are inactive, so this only finds verified players.
-        # TODO(T25): this error reveals whether an account exists; rate-limit this endpoint.
+        # Active or not: unverified sign-ups and placeholders can be added too.
         user = (
-            get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+            get_user_model()
+            .objects.filter(Q(email__iexact=email) | Q(username__iexact=email))
+            .first()
         )
-        if user is None:
-            raise forms.ValidationError("No PlayNYU account with that email.")
-        if Roster.objects.filter(team=self.team, player=user).exists():
+        # A new placeholder can't be on any team yet, so only the size check applies.
+        if user and Roster.objects.filter(team=self.team, player=user).exists():
             raise forms.ValidationError("That player is already on this team.")
         if self.team.is_full():
             raise forms.ValidationError(
                 f"The roster is full ({self.team.max_roster_size} players)."
             )
+        if user is None:
+            return email
         current = season_team_for(user, self.team.season)
         if current is not None:
             # Don't name the other team: the captain may not be allowed to see it.

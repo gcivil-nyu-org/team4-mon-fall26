@@ -294,6 +294,8 @@ The season fields use `{% include "components/season_fields.html" %}` in `{% blo
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.
 
+A roster row for an inactive player (not signed up, or not verified) shows `badge bg-secondary-lt` "Not signed up yet" as the trailing item. This badge is the one exception to the two-word limit. Show the name as plain text, with no profile link.
+
 Unread counts are the one number badge. Render nothing when the count is 0.
 
 - In a list row: `<span class="badge bg-primary-lt pn-num">3<span class="visually-hidden"> unread messages</span></span>`, as the trailing item.

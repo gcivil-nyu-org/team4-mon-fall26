@@ -1,0 +1,12 @@
+{% autoescape off %}Hi {{ user.first_name|default:"there" }},
+
+{% if inviter %}{{ inviter }} added you{% else %}You were added{% endif %} to {{ team.name }} on PlayNYU.
+
+Sign up with this email ({{ user.email }}) to join the team and see its matches:
+
+{{ link }}
+
+If you don't want to play, you can ignore this email.
+
+PlayNYU
+{% endautoescape %}

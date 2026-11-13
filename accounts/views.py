@@ -10,6 +10,7 @@ from profiles.models import PlayerProfile
 
 from .emails import send_verification_email
 from .forms import LoginForm, ResendVerificationForm, SignUpForm
+from .models import PendingAccount
 from .roles import CASUAL_PLAYER_ROLE, assign_role
 from .rate_limits import (
     clear_login_failures,
@@ -68,6 +69,8 @@ def verify(request, uidb64, token):
     if (
         user is None
         or user.is_active
+        # An unclaimed placeholder has no password, so no link can activate it.
+        or not user.has_usable_password()
         or not email_verification_token.check_token(user, token)
     ):
         return render(
@@ -80,6 +83,8 @@ def verify(request, uidb64, token):
     with transaction.atomic():
         user.is_active = True
         user.save(update_fields=["is_active"])
+        # The placeholder is now claimed.
+        PendingAccount.objects.filter(user=user).delete()
         PlayerProfile.objects.get_or_create(
             user=user, defaults={"net_id": _net_id_from_email(user.email)}
         )
@@ -108,7 +113,8 @@ def resend_verification(request):
             .objects.filter(email__iexact=email, is_active=False)
             .first()
         )
-        if user and decision.allowed:
+        # Skip unclaimed placeholders: they must sign up to set a password.
+        if user and user.has_usable_password() and decision.allowed:
             send_verification_email(request, user)
         # Same screen either way, so this form doesn't reveal which emails have accounts.
         request.session["verification_email"] = email
