@@ -46,6 +46,15 @@ Nothing else. `closed` is final. Moving a season to the state it is already in i
 
 **Who:** only League Admins and superusers create or edit seasons and change their state.
 
+**By date:** the `advance_season_states` command also changes states (rule: `automatic_states` in `teams/season_rules.py`). It runs on every deploy; the README says how to run it daily.
+
+- open → active on the day after `Season.registration_closes_on`. The start date does not trigger this: default semester seasons are created open after their start date.
+- active → closed on the day after `Season.end_date`.
+- A draft season never changes. A missing date never triggers a change.
+- `Season.auto_state = False` turns both changes off for that season.
+- When both dates are past, one run moves open → active → closed, in that order.
+- Each change goes through `Season.move_to`. The audit log records it as "Updated" with no actor.
+
 ## What each state allows
 
 | Action (`SeasonAction`) | draft | open | active | closed |

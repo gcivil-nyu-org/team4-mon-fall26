@@ -4,6 +4,11 @@ For each Sport, this makes sure the current semester's season exists (open) and 
 next semester's season exists (draft). New seasons get the default divisions.
 Existing seasons are never changed, so admins can edit them freely.
 
+A new season gets a registration close date REGISTRATION_WEEKS after the semester
+start. advance_season_states makes the season active on the day after that date.
+A season created after that date gets no date, so it stays open until a League
+Admin sets a date or starts the season.
+
 .ebextensions/django.config runs this after seed_league_data on every deploy.
 
 Locally: python manage.py seed_semester_seasons [--today YYYY-MM-DD]
@@ -34,6 +39,15 @@ DEFAULT_DIVISIONS = [
     "Inter-school",
 ]
 
+# Weeks of team registration after the semester start, for new seasons.
+REGISTRATION_WEEKS = 3
+
+
+def default_registration_close(semester, today):
+    """The registration close date for a new season, or None if it is past."""
+    closes = semester.start_date + datetime.timedelta(weeks=REGISTRATION_WEEKS)
+    return closes if closes >= today else None
+
 
 def parse_date(value):
     try:
@@ -63,7 +77,7 @@ class Command(BaseCommand):
                 (current, SeasonState.OPEN),
                 (upcoming, SeasonState.DRAFT),
             ):
-                if self.ensure_season(sport, semester, state):
+                if self.ensure_season(sport, semester, state, today):
                     created += 1
                 else:
                     existing += 1
@@ -71,7 +85,7 @@ class Command(BaseCommand):
             f"Semester seasons: {created} created, {existing} already there."
         )
 
-    def ensure_season(self, sport, semester, state):
+    def ensure_season(self, sport, semester, state, today):
         """Create the season and its divisions if missing. Return True if created."""
         with transaction.atomic():
             season, made = Season.objects.get_or_create(
@@ -81,6 +95,9 @@ class Command(BaseCommand):
                     "name": f"{semester.label} {sport.name}",
                     "start_date": semester.start_date,
                     "end_date": semester.end_date,
+                    "registration_closes_on": default_registration_close(
+                        semester, today
+                    ),
                     "state": state,
                 },
             )
