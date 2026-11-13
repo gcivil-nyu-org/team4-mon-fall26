@@ -85,8 +85,7 @@ class DashboardTests(TestCase):
         self.join(theirs, both)
         self.login()
         context = self.client.get(self.url).context
-        self.assertEqual(context["team_count"], 2)
-        self.assertEqual(context["captain_count"], 1)
+        self.assertEqual(len(context["entries"]), 2)
         self.assertEqual(context["teammate_count"], 2)
         self.assertCountEqual(context["teammates"], [other_cap, both])
 
@@ -115,4 +114,4 @@ class DashboardTests(TestCase):
         self.login()
         response = self.client.get(self.url)
         self.assertNotContains(response, "Strangers")
-        self.assertEqual(response.context["team_count"], 0)
+        self.assertEqual(len(response.context["entries"]), 0)
