@@ -554,8 +554,10 @@ def _season_transitions(season):
 @login_required
 def manage_seasons(request):
     _require_league_admin(request.user)
-    seasons = Season.objects.annotate(team_count=Count("teams")).order_by(
-        "-start_date", "name"
+    seasons = (
+        Season.objects.select_related("sport")
+        .annotate(team_count=Count("teams"))
+        .order_by("-start_date", "name")
     )
     rows = [
         {"season": season, "transitions": _season_transitions(season)}

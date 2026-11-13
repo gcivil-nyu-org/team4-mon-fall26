@@ -97,8 +97,28 @@ class Season(models.Model):
     max_roster_size = models.PositiveSmallIntegerField(
         default=12, help_text="Most players a team in this season can have."
     )
+    # Blank means any sport: custom leagues and seasons made before sports.
+    sport = models.ForeignKey(
+        Sport,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="seasons",
+        help_text="Teams in this season must play this sport. Leave blank for any.",
+    )
+    # Set only on default semester seasons, for example "2026-fall".
+    term = models.CharField(max_length=20, blank=True, editable=False)
 
     objects = SeasonQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sport", "term"],
+                condition=~models.Q(term=""),
+                name="unique_default_season_per_sport_term",
+            )
+        ]
 
     def clean(self):
         if self.start_date:
@@ -112,6 +132,12 @@ class Season(models.Model):
         validate_transition(self.state, target)
         self.state = target
         self.save(update_fields=["state"])
+
+    def sport_mismatch(self, sport_id, subject="Teams", verb="play"):
+        """The error for a team or request of another sport, or None if it fits."""
+        if self.sport_id is None or sport_id is None or sport_id == self.sport_id:
+            return None
+        return f"{subject} in {self.name} must {verb} {self.sport.name}."
 
     def __str__(self):
         return self.name
@@ -189,12 +215,17 @@ class Team(models.Model):
         ]
 
     def clean(self):
+        errors = {}
         if self.division_id and (
             self.season_id is None or self.division.season_id != self.season_id
         ):
-            raise ValidationError(
-                {"division": "Choose a division from this team's season."}
-            )
+            errors["division"] = "Choose a division from this team's season."
+        if self.season_id:
+            mismatch = self.season.sport_mismatch(self.sport_id)
+            if mismatch:
+                errors["sport"] = mismatch
+        if errors:
+            raise ValidationError(errors)
         self._validate_season_change()
 
     def _validate_season_change(self):
@@ -372,10 +403,17 @@ class FreeAgentRequest(models.Model):
         ]
 
     def clean(self):
+        errors = {}
         if self.division_id and self.division.season_id != self.season_id:
-            raise ValidationError(
-                {"division": "Choose a division from the requested season."}
+            errors["division"] = "Choose a division from the requested season."
+        if self.season_id:
+            mismatch = self.season.sport_mismatch(
+                self.sport_id, subject="Free agents", verb="ask for"
             )
+            if mismatch:
+                errors["sport"] = mismatch
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.clean()
