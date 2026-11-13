@@ -119,6 +119,23 @@ Sport icons come from the `sport_icon` filter in `core/templatetags/ui.py`. Add 
 - Grids: cards in `row row-cards` (Tabler's equal-gutter grid). Dashboards use a 12-column grid: stats across the top, the main content in `col-lg-8`, and a side rail in `col-lg-4`.
 - Mobile: everything stacks to one column. Tables scroll horizontally inside `table-responsive`. No horizontal page scroll.
 
+### Navbar
+
+The navbar is in `templates/base.html`. It must fit on one line for a League Admin who is also a Scorekeeper.
+
+- Top-level items for all users: Home, My teams, Free agents, Schedule, Facilities, Forum.
+- Add "My matches" for a Scorekeeper. Add "Overview" and "League setup" for a League Admin.
+- Do not add a top-level item for one admin page. Link the page from League setup and from the Overview quick links.
+- Seasons and Placement are admin pages. They are not top-level items.
+- Set `nav_section` to `"league_setup"` in the view of each admin page. This highlights "League setup".
+- Give the highlighted link `aria-current="page"`.
+- Keep each label on one line. Keep `text-nowrap` on the nav list and on the right-hand group.
+- Use `navbar-expand-xl`. Below 1200px, the items collapse into the toggler menu.
+- Give each item icon `d-xl-none`. Icons show only in the collapsed menu.
+- Show the account name from 1400px (`d-none d-xxl-block`). Keep `text-truncate pn-nav-name` on it. The maximum width is 10rem.
+- Do not shorten a label to make the navbar fit. Move an item into League setup.
+- Check the navbar at 1280px and at 992px after each change. No label wraps. The page does not scroll sideways.
+
 ## 5. Components
 
 Shared partials live in `templates/components/`. Use them with `{% include %}` instead of copying the markup. The markup below is what those partials contain.
@@ -195,7 +212,7 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 ### List rows (rosters, members, activity)
 
-`list-group list-group-flush` inside a card. Each row: avatar `sm` · name (500) with secondary text below · trailing badge or action. Row height around 48px. Destructive row actions are `btn btn-sm btn-ghost-danger` and the label says what they do ("Remove").
+`list-group list-group-flush` inside a card. Each row: avatar `sm` · name (500) with secondary text below · trailing badge or action. Row height around 48px. Destructive row actions are `btn btn-sm btn-ghost-danger` and the label says what they do ("Remove"). The Report action on a forum post is `btn btn-sm btn-ghost-secondary` with `ti-flag`. A reported post shows a `badge bg-yellow-lt` "Reported" in its place.
 
 ### Match rows (schedules)
 
@@ -339,14 +356,15 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Page | Structure |
 |---|---|
 | **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards: next match, record, games played, unread → `col-lg-8`: my teams, upcoming matches, standings (one tab per sport) → `col-lg-4`: matches to score (scorekeepers only), team chat, forum, recent activity, teammates. See the panel rules below. |
-| **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches) → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
+| **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches). Flagged content counts the messages, topics and replies in the moderation queue → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **My matches (scorekeeper)** | Page header → one card per section, in this order: Needs a score, Upcoming, Scored → each card holds match rows with both team logos and its own empty state. Only the first row of Needs a score has the primary button. |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
-| **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body → Replies card: list rows, oldest first, with Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
+| **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body, Report → Replies card: list rows, oldest first, with Report and Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
+| **Moderation queue** | Page header: `subheader` "League Admin", title "Flagged content" → three full-width cards (Messages, Topics, Replies), each with a count and its own empty state → list rows: author avatar `sm`, name, meta line (team or sport · linked topic · time), excerpt, Dismiss (`btn-sm btn-outline-secondary`) and Delete (`btn-sm btn-outline-danger`) |
 | **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
 
 ### Home / dashboard panels
@@ -382,7 +400,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | What | Where |
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
-| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
+| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
 | Template filters (`initials`, `sport_icon`, `control`) | `core/templatetags/ui.py` |
 

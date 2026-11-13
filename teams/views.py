@@ -324,7 +324,11 @@ def manage_free_agents(request):
     seasons = Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS).annotate(
         request_count=Count("free_agent_requests")
     )
-    return render(request, "teams/manage_free_agents.html", {"seasons": seasons})
+    return render(
+        request,
+        "teams/manage_free_agents.html",
+        {"seasons": seasons, "nav_section": "league_setup"},
+    )
 
 
 @login_required
@@ -393,6 +397,7 @@ def manage_season_free_agents(request, season_pk):
             "free_agents": free_agents,
             "teams": teams,
             "available_spots": available_spots,
+            "nav_section": "league_setup",
         },
     )
 
@@ -564,7 +569,9 @@ def manage_seasons(request):
         for season in seasons
     ]
     return render(
-        request, "teams/manage_seasons.html", {"rows": rows, "nav_section": "seasons"}
+        request,
+        "teams/manage_seasons.html",
+        {"rows": rows, "nav_section": "league_setup"},
     )
 
 
@@ -589,7 +596,7 @@ def season_form(request, pk=None):
     return render(
         request,
         "teams/season_form.html",
-        {"form": form, "season": season, "nav_section": "seasons"},
+        {"form": form, "season": season, "nav_section": "league_setup"},
     )
 
 
