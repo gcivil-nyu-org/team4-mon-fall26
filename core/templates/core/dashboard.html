@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load chat_tags %}
 {% block title %}Home · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -26,7 +27,7 @@
 
       {# slot: matches to score (scorekeepers only) #}
 
-      {# slot: team chat #}
+      {% home_chat_panel %}
 
       {# slot: forum #}
 
