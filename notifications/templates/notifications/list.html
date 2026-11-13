@@ -28,7 +28,7 @@
               <div class="small text-secondary">{{ notification.created_at|timesince }} ago</div>
             </div>
             {% if notification.link %}
-              <a class="btn btn-sm btn-outline-secondary" href="{{ notification.link }}">View</a>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'notifications:open' notification.pk %}">View</a>
             {% endif %}
             {% if not notification.is_read %}
               <form method="post" action="{% url 'notifications:mark_read' notification.pk %}">

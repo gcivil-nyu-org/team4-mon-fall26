@@ -12,6 +12,8 @@ receiver also detects score fields if they are ever added to the model.
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import Signal, receiver
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.dateformat import format as date_format
 
 from matches.models import Match
 from teams.models import Roster, Team
@@ -24,6 +26,8 @@ In-app only; no email is sent.
 """
 
 MATCH_SCORE_ATTRS = ("home_score", "away_score")
+MATCH_SCHEDULE_ATTRS = ("starts_at", "ends_at", "facility_id")
+VERB_MAX_LENGTH = 255
 
 
 def _display_name(user):
@@ -44,6 +48,8 @@ def _notify_ids(user_ids, verb, link=""):
     recipients = {uid for uid in user_ids if uid is not None}
     if not recipients or not verb:
         return
+    # Long team and facility names can pass the column limit.
+    verb = verb[:VERB_MAX_LENGTH]
     Notification.objects.bulk_create(
         [Notification(recipient_id=uid, verb=verb, link=link) for uid in recipients]
     )
@@ -74,19 +80,47 @@ def _score_verb(match, home_score=None, away_score=None):
     return f"Score recorded: {match}"
 
 
+def _rescheduled_verb(match):
+    when = date_format(timezone.localtime(match.starts_at), "D M j g:i A")
+    return (
+        f"Match rescheduled: {match.home_team} vs {match.away_team}, "
+        f"{when} at {match.facility}"
+    )
+
+
+def _saved_fields(update_fields):
+    """Names and attnames that this save writes, or None when it writes all."""
+    if update_fields is None:
+        return None
+    names = set(update_fields)
+    return names | {f"{name}_id" for name in names}
+
+
 @receiver(pre_save, sender=Match)
 def match_pre_save(sender, instance, **kwargs):
-    """Stash the stored scores: post_save can no longer see what changed."""
-    if instance.pk is None or _score_values(instance) is None:
+    """Stash the stored row: post_save can no longer see what changed."""
+    instance._pre_save_state = None
+    if instance.pk is None:
         return
-    stored = Match.objects.filter(pk=instance.pk).values(*MATCH_SCORE_ATTRS).first()
-    if stored is None:
-        return
-    instance._pre_save_scores = tuple(stored[attr] for attr in MATCH_SCORE_ATTRS)
+    attrs = MATCH_SCHEDULE_ATTRS + ("status",)
+    if _score_values(instance) is not None:
+        attrs += MATCH_SCORE_ATTRS
+    instance._pre_save_state = (
+        Match.objects.filter(pk=instance.pk).values(*attrs).first()
+    )
+
+
+def _changed(instance, stored, attrs, saved):
+    """True when this save writes a new value for one of ``attrs``."""
+    return any(
+        getattr(instance, attr) != stored[attr]
+        for attr in attrs
+        if saved is None or attr in saved
+    )
 
 
 @receiver(post_save, sender=Match)
-def match_saved(sender, instance, created, **kwargs):
+def match_saved(sender, instance, created, update_fields=None, **kwargs):
     if created:
         if instance.status != Match.Status.SCHEDULED:
             return
@@ -95,11 +129,28 @@ def match_saved(sender, instance, created, **kwargs):
             f"New match scheduled: {instance.home_team} vs {instance.away_team}",
         )
         return
+    stored = getattr(instance, "_pre_save_state", None)
+    if stored is None:
+        return
+    saved = _saved_fields(update_fields)
+    cancelled = Match.Status.CANCELLED
+    if _changed(instance, stored, ("status",), saved) and instance.status == cancelled:
+        # A cancellation replaces every other notice from the same save.
+        _notify_match_teams(
+            instance,
+            f"Match cancelled: {instance.home_team} vs {instance.away_team}",
+        )
+        return
+    if instance.status != cancelled and _changed(
+        instance, stored, MATCH_SCHEDULE_ATTRS, saved
+    ):
+        _notify_match_teams(instance, _rescheduled_verb(instance))
     values = _score_values(instance)
     if values is None or not all(v is not None for v in values):
         return
-    previous = getattr(instance, "_pre_save_scores", (None, None))
-    if any(v is None for v in previous):
+    if saved is not None and not saved.intersection(MATCH_SCORE_ATTRS):
+        return
+    if any(stored[attr] is None for attr in MATCH_SCORE_ATTRS):
         _notify_match_teams(
             instance, _score_verb(instance, *values), _match_link(instance)
         )

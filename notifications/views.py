@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -24,6 +25,22 @@ def notification_list(request):
 def mark_read(request, pk):
     notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
     notification.mark_read()
+    return redirect("notifications:list")
+
+
+@login_required
+def open_notification(request, pk):
+    """Mark the recipient's own notification read, then go to its stored link.
+
+    GET is safe here: the only effect is on the recipient's own row, and the
+    target is the stored link, never a value from the request.
+    """
+    notification = get_object_or_404(Notification, pk=pk, recipient=request.user)
+    notification.mark_read()
+    link = notification.link
+    # Stored links are site paths. Do not follow a link to another host.
+    if link and url_has_allowed_host_and_scheme(link, allowed_hosts=None):
+        return redirect(link)
     return redirect("notifications:list")
 
 
