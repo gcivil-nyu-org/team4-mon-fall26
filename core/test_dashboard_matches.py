@@ -261,7 +261,8 @@ class UpcomingPanelTests(DashboardMatchFixtures):
         response = self.get()
         self.assertContains(response, EMPTY_PANEL[0])
         self.assertNotContains(response, "Recent results")
-        self.assertNotContains(response, "Outsiders")
+        # Only the panel: other panels may mention these teams for other reasons.
+        self.assertNotIn("Outsiders", self.panel(response))
         self.assertIsNone(response.context["next_match"])
         self.assertEqual(response.context["record"]["played"], 0)
 
