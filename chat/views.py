@@ -7,11 +7,11 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
-from forums.selectors import flagged_replies, flagged_topics
 from teams.models import Team
 
 from .forms import MessageForm
 from .models import Message
+from .moderation import flagged_content
 from .unread import mark_thread_read
 
 
@@ -70,16 +70,7 @@ def flag_message(request, team_pk, message_pk):
 @login_required
 def moderation_queue(request):
     _require_league_admin(request.user)
-    flagged = Message.objects.filter(is_flagged=True).select_related("team", "author")
-    return render(
-        request,
-        "chat/moderation_queue.html",
-        {
-            "flagged": flagged,
-            "flagged_topics": flagged_topics(),
-            "flagged_replies": flagged_replies(),
-        },
-    )
+    return render(request, "chat/moderation_queue.html", flagged_content())
 
 
 @login_required
