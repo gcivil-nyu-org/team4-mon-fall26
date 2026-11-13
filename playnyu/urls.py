@@ -31,6 +31,7 @@ urlpatterns = [
     path("matches/", include("matches.urls")),
     path("notifications/", include("notifications.urls")),
     path("chat/", include("chat.urls")),
+    path("forums/", include("forums.urls")),
     path("facilities/", include("facilities.urls")),
     path("", include("core.urls")),
 ]
