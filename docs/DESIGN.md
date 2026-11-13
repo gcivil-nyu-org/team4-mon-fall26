@@ -103,7 +103,7 @@ Sport icons come from the `sport_icon` filter in `core/templatetags/ui.py`. Add 
 
 ## 4. Layout
 
-- Top navbar (horizontal), white, with the brand left, nav center-left, and the user's avatar + menu on the right.
+- Top navbar (horizontal), white, with the brand left, nav center-left, and team chat, the notifications bell and the user's avatar + menu on the right.
 - Content width: `container-xl`. Forms and auth pages: a single card inside `<div class="pn-auth">` (26rem wide, centered).
 - Every page starts with a **page header**: optional `subheader` overline, a plain `<h1>` (no classes; a test relies on this), one `page-meta` line, and at most one primary action on the right:
 
@@ -259,6 +259,11 @@ A warning the user can override (a booking overlap, say) is an `alert alert-warn
 ### Badges
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.
+
+Unread counts are the one number badge. Render nothing when the count is 0.
+
+- In a list row: `<span class="badge bg-primary-lt pn-num">3<span class="visually-hidden"> unread messages</span></span>`, as the trailing item.
+- In the navbar (bell, team chat): `<span class="badge bg-red-lt ms-1 pn-num">3</span>` after the icon. Put the count in the link's `aria-label` ("Team chat, 3 unread").
 
 Season states use `{% include "components/season_state_badge.html" with season=season %}`: Draft and Closed are `bg-secondary-lt`, Open (registration) is `bg-green-lt`, Active (under way, rosters locked) is `bg-yellow-lt`.
 

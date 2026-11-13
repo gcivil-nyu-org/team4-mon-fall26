@@ -24,3 +24,27 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.author} on {self.team}: {self.body[:40]}"
+
+
+class ThreadRead(models.Model):
+    """When one player last read one team's thread."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="chat_thread_reads",
+    )
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="chat_thread_reads"
+    )
+    last_read_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "team"], name="unique_thread_read_per_user_team"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} read {self.team} at {self.last_read_at:%Y-%m-%d %H:%M}"
