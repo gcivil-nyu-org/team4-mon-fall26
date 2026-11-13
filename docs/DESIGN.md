@@ -119,6 +119,23 @@ Sport icons come from the `sport_icon` filter in `core/templatetags/ui.py`. Add 
 - Grids: cards in `row row-cards` (Tabler's equal-gutter grid). Dashboards use a 12-column grid: stats across the top, the main content in `col-lg-8`, and a side rail in `col-lg-4`.
 - Mobile: everything stacks to one column. Tables scroll horizontally inside `table-responsive`. No horizontal page scroll.
 
+### Navbar
+
+The navbar is in `templates/base.html`. It must fit on one line for a League Admin who is also a Scorekeeper.
+
+- Top-level items for all users: Home, My teams, Free agents, Schedule, Facilities, Forum.
+- Add "My matches" for a Scorekeeper. Add "Overview" and "League setup" for a League Admin.
+- Do not add a top-level item for one admin page. Link the page from League setup and from the Overview quick links.
+- Seasons and Placement are admin pages. They are not top-level items.
+- Set `nav_section` to `"league_setup"` in the view of each admin page. This highlights "League setup".
+- Give the highlighted link `aria-current="page"`.
+- Keep each label on one line. Keep `text-nowrap` on the nav list and on the right-hand group.
+- Use `navbar-expand-xl`. Below 1200px, the items collapse into the toggler menu.
+- Give each item icon `d-xl-none`. Icons show only in the collapsed menu.
+- Show the account name from 1400px (`d-none d-xxl-block`). Keep `text-truncate pn-nav-name` on it. The maximum width is 10rem.
+- Do not shorten a label to make the navbar fit. Move an item into League setup.
+- Check the navbar at 1280px and at 992px after each change. No label wraps. The page does not scroll sideways.
+
 ## 5. Components
 
 Shared partials live in `templates/components/`. Use them with `{% include %}` instead of copying the markup. The markup below is what those partials contain.
@@ -383,7 +400,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | What | Where |
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
-| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
+| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
 | Template filters (`initials`, `sport_icon`, `control`) | `core/templatetags/ui.py` |
 

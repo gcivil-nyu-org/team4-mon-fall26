@@ -150,25 +150,22 @@ class ManageSeasonsPermissionTests(TestCase):
         url = reverse("teams:change_season_state", args=[self.season.pk])
         self.assertEqual(self.client.get(url).status_code, 405)
 
-    def test_only_the_seasons_nav_item_is_active_on_seasons_pages(self):
+    def test_league_setup_is_the_active_nav_item_on_seasons_pages(self):
         self.client.force_login(make_admin())
         for url in (reverse("teams:manage_seasons"), reverse("teams:create_season")):
             response = self.client.get(url)
             self.assertContains(response, 'aria-current="page"', count=1)
             self.assertContains(
                 response,
-                f'href="{reverse("teams:manage_seasons")}" aria-current="page"',
+                f'href="{reverse("teams:league_setup")}" aria-current="page"',
             )
 
-    def test_nav_shows_seasons_link_to_admins_only(self):
-        self.client.force_login(make_user("player"))
-        self.assertNotContains(
-            self.client.get(reverse("teams:list")), reverse("teams:manage_seasons")
-        )
-        self.client.force_login(make_admin())
-        self.assertContains(
-            self.client.get(reverse("teams:list")), reverse("teams:manage_seasons")
-        )
+    def test_seasons_is_not_a_top_level_nav_item(self):
+        # #211: the seasons page is reached from League setup and the Overview.
+        seasons_link = f'href="{reverse("teams:manage_seasons")}"'
+        for user in (make_user("player"), make_admin()):
+            self.client.force_login(user)
+            self.assertNotContains(self.client.get(reverse("teams:list")), seasons_link)
 
 
 class ManageSeasonsTests(TestCase):
