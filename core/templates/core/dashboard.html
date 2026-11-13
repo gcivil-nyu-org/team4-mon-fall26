@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load notifications_tags %}
 {% block title %}Home · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -30,7 +31,7 @@
 
       {# slot: forum #}
 
-      {# slot: recent activity (notifications) #}
+      {% home_activity_panel %}
 
       {% include "core/dashboard/_teammates.html" %}
 
