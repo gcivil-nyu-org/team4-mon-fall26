@@ -1,12 +1,17 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.template import Context, Template
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 from teams.models import Roster, Sport, Team
 
 from .models import Message
+from .templatetags.chat_tags import home_chat_rows
 
 
 def make_user(username):
@@ -197,3 +202,145 @@ class ModerationQueueTests(TestCase):
         response = self.client.get(self.queue_url())
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "No flagged messages")
+
+
+class TeamPageChatLinkTests(TestCase):
+    def setUp(self):
+        self.captain = make_user("cap")
+        self.teammate = make_user("mate")
+        self.team = make_team(self.captain)
+        add_player(self.team, self.teammate)
+        self.team_url = reverse("teams:detail", args=[self.team.pk])
+        self.thread_url = reverse("chat:thread", args=[self.team.pk])
+
+    def test_members_see_chat_link(self):
+        for member in (self.captain, self.teammate):
+            self.client.force_login(member)
+            response = self.client.get(self.team_url)
+            self.assertContains(response, f'href="{self.thread_url}"')
+            self.assertContains(response, "Team chat")
+
+    def test_non_member_gets_no_chat_link(self):
+        self.client.force_login(make_user("outsider"))
+        response = self.client.get(self.team_url)
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn(self.thread_url, response.content.decode())
+
+
+class HomeChatPanelTests(TestCase):
+    def setUp(self):
+        self.user = make_user("alex")
+        self.mate = make_user("sam")
+        self.mate.first_name = "Sam"
+        self.mate.save()
+        self.home_url = reverse("core:home")
+
+    def say(self, team, author, body, minutes_ago=0):
+        message = Message.objects.create(team=team, author=author, body=body)
+        if minutes_ago:
+            Message.objects.filter(pk=message.pk).update(
+                created_at=timezone.now() - timedelta(minutes=minutes_ago)
+            )
+            message.refresh_from_db()
+        return message
+
+    def rows(self, user=None):
+        return home_chat_rows(user or self.user)
+
+    def test_dashboard_renders_panel(self):
+        team = make_team(self.user)
+        add_player(team, self.mate)
+        self.say(team, self.mate, "Bring the cones", minutes_ago=5)
+        self.client.force_login(self.user)
+        response = self.client.get(self.home_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "chat/_home_panel.html")
+        self.assertContains(response, "Sam: Bring the cones")
+        self.assertContains(response, "5\xa0minutes ago")
+        self.assertContains(
+            response, f'href="{reverse("chat:thread", args=[team.pk])}"'
+        )
+
+    def test_latest_message_wins(self):
+        team = make_team(self.user)
+        add_player(team, self.mate)
+        self.say(team, self.mate, "Old news", minutes_ago=90)
+        self.say(team, self.user, "Fresh news", minutes_ago=2)
+        (row,) = self.rows()
+        self.assertEqual(row["team"], team)
+        self.assertEqual(row["preview"], "alex: Fresh news")
+        self.assertEqual(row["time_label"], "2\xa0minutes ago")
+
+    def test_new_message_says_just_now(self):
+        team = make_team(self.user)
+        self.say(team, self.user, "Hi")
+        self.assertEqual(self.rows()[0]["time_label"], "Just now")
+
+    def test_long_message_truncated_to_60_characters(self):
+        team = make_team(self.user)
+        add_player(team, self.mate)
+        self.say(team, self.mate, "a" * 61)
+        self.say(make_team(self.mate, name="Exact"), self.mate, "b" * 60)
+        self.assertEqual(self.rows()[0]["preview"], "Sam: " + "a" * 60 + "…")
+        self.assertEqual(self.rows(self.mate)[0]["preview"], "Sam: " + "b" * 60)
+
+    def test_one_row_per_team(self):
+        first = make_team(self.user, name="Violets")
+        second = make_team(self.mate, name="Bobcats")
+        add_player(second, self.user)
+        self.say(first, self.user, "First team")
+        self.say(second, self.mate, "Second team")
+        rows = self.rows()
+        self.assertEqual([row["team"] for row in rows], [second, first])
+        self.assertEqual(
+            [row["preview"] for row in rows],
+            ["Sam: Second team", "alex: First team"],
+        )
+
+    def test_team_without_messages(self):
+        team = make_team(self.user)
+        (row,) = self.rows()
+        self.assertIsNone(row["message"])
+        self.client.force_login(self.user)
+        response = self.client.get(self.home_url)
+        self.assertContains(response, "No messages yet. Say hello.")
+        self.assertContains(
+            response, f'href="{reverse("chat:thread", args=[team.pk])}"'
+        )
+
+    def test_user_without_teams(self):
+        self.assertEqual(self.rows(), [])
+        self.client.force_login(self.user)
+        response = self.client.get(self.home_url)
+        self.assertContains(response, "Join a team to chat with teammates.")
+
+    def test_other_teams_messages_stay_hidden(self):
+        mine = make_team(self.user, name="Violets")
+        theirs = make_team(self.mate, name="Bobcats")
+        self.say(theirs, self.mate, "Secret play")
+        rows = self.rows()
+        self.assertEqual([row["team"] for row in rows], [mine])
+        self.assertIsNone(rows[0]["message"])
+        self.client.force_login(self.user)
+        response = self.client.get(self.home_url)
+        self.assertNotContains(response, "Secret play")
+        self.assertNotContains(response, reverse("chat:thread", args=[theirs.pk]))
+
+    def test_reported_message_still_previewed(self):
+        team = make_team(self.user)
+        message = self.say(team, self.user, "Reported text")
+        message.is_flagged = True
+        message.save(update_fields=["is_flagged"])
+        self.assertEqual(self.rows()[0]["preview"], "alex: Reported text")
+
+    def test_two_queries_for_many_teams(self):
+        for index in range(3):
+            team = make_team(self.mate, name=f"Team {index}")
+            add_player(team, self.user)
+            self.say(team, self.mate, f"Message {index}")
+        with self.assertNumQueries(2):
+            self.assertEqual(len(self.rows()), 3)
+
+    def test_anonymous_renders_nothing(self):
+        html = Template("{% load chat_tags %}{% home_chat_panel %}").render(Context({}))
+        self.assertEqual(html.strip(), "")
