@@ -61,8 +61,8 @@
           {% if user.is_authenticated %}
             {% with namespace=request.resolver_match.namespace %}
               <ul class="navbar-nav">
-                <li class="nav-item{% if namespace == 'core' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'core:home' %}"{% if namespace == 'core' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-layout-dashboard me-2"></i>Home</a>
+                <li class="nav-item{% if namespace == 'core' and nav_section != 'overview' %} active{% endif %}">
+                  <a class="nav-link" href="{% url 'core:home' %}"{% if namespace == 'core' and nav_section != 'overview' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-layout-dashboard me-2"></i>Home</a>
                 </li>
                 <li class="nav-item{% if namespace == 'teams' and nav_section != 'league_setup' and nav_section != 'seasons' %} active{% endif %}">
                   <a class="nav-link" href="{% url 'teams:list' %}"{% if namespace == 'teams' and nav_section != 'league_setup' and nav_section != 'seasons' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-users-group me-2"></i>My teams</a>
@@ -82,6 +82,9 @@
                   </li>
                 {% endif %}
                 {% if user.is_superuser or user|has_account_role:"League Admin" %}
+                  <li class="nav-item{% if nav_section == 'overview' %} active{% endif %}">
+                    <a class="nav-link" href="{% url 'core:overview' %}"{% if nav_section == 'overview' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-chart-bar me-2"></i>Overview</a>
+                  </li>
                   <li class="nav-item{% if nav_section == 'seasons' %} active{% endif %}">
                     <a class="nav-link" href="{% url 'teams:manage_seasons' %}"{% if nav_section == 'seasons' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-calendar-event me-2"></i>Seasons</a>
                   </li>

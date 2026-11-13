@@ -200,6 +200,8 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 `{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
 
+A row can end with one action. Pass `action_url` and `action_label`: `{% include "components/match_row.html" with action_url=url action_label="Record score" %}`. The action renders as `btn btn-sm btn-outline-secondary`.
+
 ### Stat card (dashboards)
 
 ```html
@@ -213,6 +215,8 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 ```
 
 Four across on desktop (`col-6 col-lg-3`). The label is always above the value, and there's at most one trend line.
+
+A stat card that opens its list is one link: `<a class="card card-sm card-link card-link-pop h-100" href="...">` with the same `card-body` inside.
 
 ### Leaderboard / stats table
 
@@ -298,6 +302,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Page | Structure |
 |---|---|
 | **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards → `col-lg-8`: my teams card, upcoming games list, Standings card (one tab per sport, full leaderboard) → `col-lg-4`: teammates avatar group, free agents avatar group |
+| **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches) → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
