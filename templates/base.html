@@ -76,6 +76,9 @@
                 <li class="nav-item{% if namespace == 'facilities' and nav_section != 'league_setup' %} active{% endif %}">
                   <a class="nav-link" href="{% url 'facilities:map' %}"{% if namespace == 'facilities' and nav_section != 'league_setup' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-map-pin me-2"></i>Facilities</a>
                 </li>
+                <li class="nav-item{% if namespace == 'forums' %} active{% endif %}">
+                  <a class="nav-link" href="{% url 'forums:list' %}"{% if namespace == 'forums' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-messages me-2"></i>Forum</a>
+                </li>
                 {% if user|has_account_role:"Scorekeeper" %}
                   <li class="nav-item{% if nav_section == 'my_matches' %} active{% endif %}">
                     <a class="nav-link" href="{% url 'matches:mine' %}"{% if nav_section == 'my_matches' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-clipboard-list me-2"></i>My matches</a>

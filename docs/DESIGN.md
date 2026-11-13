@@ -274,6 +274,24 @@ Season states use `{% include "components/season_state_badge.html" with season=s
 
 Every list and table has one. Say what's missing and what to do next.
 
+### Pagination
+
+A long list shows 20 rows per page. Put the pager in a `card-footer` under the list, and show it only when there is more than one page:
+
+```html
+<div class="card-footer d-flex align-items-center">
+  <p class="m-0 small text-secondary pn-num">Page 2 of 5</p>
+  <nav class="ms-auto" aria-label="Topic pages">
+    <ul class="pagination m-0">
+      <li class="page-item"><a class="page-link" href="?page=1"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</a></li>
+      <li class="page-item disabled"><span class="page-link">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></span></li>
+    </ul>
+  </nav>
+</div>
+```
+
+Use Django's `Paginator`. Keep the list's filter in each page link (`?sport=3&page=2`). A link that has no target is a `<span>` inside `page-item disabled`.
+
 ### Messages
 
 Django messages render once in `base.html` as Tabler alerts (`alert alert-success|danger|warning|info alert-dismissible`). Pages never render their own.
@@ -302,6 +320,8 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
+| **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
+| **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body → Replies card: list rows, oldest first, with Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
 
 ## 7. Images and placeholder data
