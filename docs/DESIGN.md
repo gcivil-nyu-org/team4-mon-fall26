@@ -297,12 +297,26 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 
 | Page | Structure |
 |---|---|
-| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards → `col-lg-8`: my teams card, upcoming games list, Standings card (one tab per sport, full leaderboard) → `col-lg-4`: teammates avatar group, free agents avatar group |
+| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards: next match, record, games played, unread → `col-lg-8`: my teams, upcoming matches, standings (one tab per sport) → `col-lg-4`: matches to score (scorekeepers only), team chat, forum, recent activity, teammates. See the panel rules below. |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
 | **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
+
+### Home / dashboard panels
+
+`core/templates/core/dashboard.html` is the layout only. It holds the page header, the stat row, the main column and the rail.
+
+- Make each panel one card.
+- Keep the panel order from the recipe above.
+- Put a panel that `core` owns in a partial: `core/templates/core/dashboard/_<panel>.html`.
+- Put a panel that a different app owns in an inclusion tag in that app. Follow `notifications/templatetags/notifications_tags.py`.
+- Do not add panel data to the `home` view. The inclusion tag gets its own data.
+- Add the panel to `dashboard.html` with one line. Replace the `{# slot: ... #}` comment for that panel.
+- Keep one blank line above and below each panel line. This prevents merge conflicts.
+- Do not add a margin to a panel card. Each column sets the space with `d-flex flex-column gap-3`.
+- Render nothing when a panel does not apply to the user.
 
 ## 7. Images and placeholder data
 

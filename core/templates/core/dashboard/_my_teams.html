@@ -1,0 +1,29 @@
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">My teams</h3>
+    <div class="card-actions"><a href="{% url 'teams:list' %}">View all</a></div>
+  </div>
+  {% if entries %}
+    <div class="list-group list-group-flush">
+      {% for entry in entries %}
+        <a class="list-group-item list-group-item-action d-flex align-items-center gap-3" href="{% url 'teams:detail' entry.team.pk %}">
+          {% include "components/team_logo.html" with team=entry.team size="md" %}
+          <div class="flex-fill">
+            <div class="fw-medium">{{ entry.team.name }}</div>
+            <div class="small text-secondary">{{ entry.team.sport }}{% if entry.team.season %} · {{ entry.team.season }}{% endif %}</div>
+          </div>
+          {% if entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
+          <i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card-body">
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
+        <p class="empty-title">No teams yet</p>
+        <p class="empty-subtitle text-secondary">Create a team, or ask a captain to add you with your NYU email.</p>
+      </div>
+    </div>
+  {% endif %}
+</div>

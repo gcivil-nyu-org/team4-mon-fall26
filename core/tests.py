@@ -63,6 +63,12 @@ class DashboardTests(TestCase):
         self.assertTemplateUsed(response, "core/home.html")
         self.assertContains(response, "Sign up with your NYU email")
 
+    def test_landing_page_describes_current_features(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, "coming soon")
+        for text in ("Schedules and standings", "Facilities map", "Team chat"):
+            self.assertContains(response, text)
+
     def test_signed_in_sees_dashboard_greeting(self):
         self.login()
         response = self.client.get(self.url)

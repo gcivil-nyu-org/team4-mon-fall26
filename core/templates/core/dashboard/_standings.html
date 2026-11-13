@@ -1,0 +1,81 @@
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Standings</h3>
+      {% if standings_label %}<div class="small text-secondary">{{ standings_label }}</div>{% endif %}
+    </div>
+    <div class="card-actions"><a href="{% url 'matches:standings' %}">Full standings</a></div>
+  </div>
+  {% if standings_tabs %}
+    <div class="card-header">
+      <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap" role="tablist" aria-label="Standings by sport">
+        {% for tab in standings_tabs %}
+          <li class="nav-item" role="presentation">
+            <button class="nav-link{% if forloop.first %} active{% endif %}" id="standings-tab-{{ tab.sport.pk }}" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-{{ tab.sport.pk }}" aria-controls="standings-sport-{{ tab.sport.pk }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"{% if not forloop.first %} tabindex="-1"{% endif %}>
+              {% if tab.is_mine %}<i aria-hidden="true" class="ti ti-star-filled text-primary me-1"></i>{% endif %}{{ tab.sport.name }}{% if tab.is_mine %}<span class="visually-hidden"> (your sport)</span>{% endif %}
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="tab-content">
+      {% for tab in standings_tabs %}
+        <div class="tab-pane{% if forloop.first %} active show{% endif %}" id="standings-sport-{{ tab.sport.pk }}" role="tabpanel" aria-labelledby="standings-tab-{{ tab.sport.pk }}" tabindex="0">
+          {% if tab.rows %}
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table">
+                <thead>
+                  <tr>
+                    <th class="w-1">#</th>
+                    <th>Team</th>
+                    <th class="text-end" title="Played">P</th>
+                    <th class="text-end" title="Won">W</th>
+                    <th class="text-end" title="Drawn">D</th>
+                    <th class="text-end" title="Lost">L</th>
+                    <th class="text-end" title="Points">Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in tab.rows %}
+                    <tr{% if row.is_me %} class="pn-row-me"{% endif %}>
+                      <td class="pn-num text-secondary">{{ forloop.counter }}</td>
+                      <td><div class="d-flex align-items-center gap-2">{% include "components/team_logo.html" with team=row.team size="sm" %}<span class="fw-medium">{{ row.team.name }}</span></div></td>
+                      <td class="text-end pn-num">{{ row.played }}</td>
+                      <td class="text-end pn-num">{{ row.won }}</td>
+                      <td class="text-end pn-num">{{ row.drawn }}</td>
+                      <td class="text-end pn-num">{{ row.lost }}</td>
+                      <td class="text-end pn-num fw-bold">{{ row.points }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="card-footer small">
+              <a href="{% url 'matches:season_standings' tab.season.pk %}">View {{ tab.season.name }} standings</a>
+            </div>
+          {% else %}
+            <div class="card-body">
+              <div class="empty py-3">
+                <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+                <p class="empty-title">No teams yet</p>
+                <p class="empty-subtitle text-secondary">Be the first to play {{ tab.sport.name }} this semester.</p>
+                <div class="empty-action d-flex flex-wrap justify-content-center gap-2">
+                  <a class="btn btn-outline-secondary" href="{% url 'teams:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Create a team</a>
+                  <a class="btn btn-ghost-secondary" href="{% url 'matches:season_standings' tab.season.pk %}">View {{ tab.season.name }} standings</a>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card-body">
+      <div class="empty py-3">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
+        <p class="empty-title">No standings yet</p>
+        <p class="empty-subtitle text-secondary">Leaderboards appear once this semester's seasons open.</p>
+      </div>
+    </div>
+  {% endif %}
+</div>
