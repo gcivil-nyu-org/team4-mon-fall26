@@ -314,6 +314,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 - Put a panel that `core` owns in a partial: `core/templates/core/dashboard/_<panel>.html`.
 - Put a panel that a different app owns in an inclusion tag in that app. Follow `notifications/templatetags/notifications_tags.py`.
 - Do not add panel data to the `home` view. The inclusion tag gets its own data.
+- Exception: when the stat row already loads the data, pass it to the tag as arguments. Example: `{% upcoming_matches_panel upcoming_matches past_matches %}`.
 - Add the panel to `dashboard.html` with one line. Replace the `{# slot: ... #}` comment for that panel.
 - Keep one blank line above and below each panel line. This prevents merge conflicts.
 - Do not add a margin to a panel card. Each column sets the space with `d-flex flex-column gap-3`.

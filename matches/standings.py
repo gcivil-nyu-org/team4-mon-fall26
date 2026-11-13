@@ -70,6 +70,55 @@ def compute_standings(season):
     )
 
 
+def team_records(team_ids):
+    """All-time {team id: record} for the given teams, in one query.
+
+    A record is a dict with played, won, drawn and lost. A match counts by
+    the same rule as the standings: not cancelled, both scores set.
+    """
+    records = {
+        team_id: {"played": 0, "won": 0, "drawn": 0, "lost": 0} for team_id in team_ids
+    }
+    if not records:
+        return records
+    matches = Match.objects.filter(
+        Q(home_team__in=list(records)) | Q(away_team__in=list(records)),
+        status=Match.Status.SCHEDULED,
+        home_score__isnull=False,
+        away_score__isnull=False,
+    ).values_list("home_team_id", "away_team_id", "home_score", "away_score")
+    for home_id, away_id, home_score, away_score in matches:
+        for team_id, scored, conceded in (
+            (home_id, home_score, away_score),
+            (away_id, away_score, home_score),
+        ):
+            record = records.get(team_id)
+            if record is None:
+                continue
+            record["played"] += 1
+            if scored > conceded:
+                record["won"] += 1
+            elif scored < conceded:
+                record["lost"] += 1
+            else:
+                record["drawn"] += 1
+    return records
+
+
+def player_record(team_ids):
+    """The all-time record across the given teams: their team_records, summed."""
+    return total_record(team_records(team_ids))
+
+
+def total_record(records):
+    """One record summing what team_records() returned."""
+    total = {"played": 0, "won": 0, "drawn": 0, "lost": 0}
+    for record in records.values():
+        for key in total:
+            total[key] += record[key]
+    return total
+
+
 def dashboard_standings(user, today):
     """This semester's standings for the dashboard: (semester label, tabs).
 

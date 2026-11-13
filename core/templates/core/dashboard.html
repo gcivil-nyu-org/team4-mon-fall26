@@ -17,7 +17,7 @@
 
       {% include "core/dashboard/_my_teams.html" %}
 
-      {# slot: upcoming matches (matches app) #}
+      {% load matches_tags %}{% upcoming_matches_panel upcoming_matches past_matches %}
 
       {% include "core/dashboard/_standings.html" %}
 
