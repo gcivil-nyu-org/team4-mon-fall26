@@ -255,6 +255,19 @@ Labels above inputs (`form-label`), inputs `form-control` / `form-select`, help 
 
 A warning the user can override (a booking overlap, say) is an `alert alert-warning text-body` with `role="alert"` at the top of the form, not a red error. Keep `text-body`: Tabler's amber alert text is only about 2:1 on its background. Don't use `text-secondary` inside it either, because that sits right at the 4.5:1 limit. It says what's wrong and what to do, and the submit button's label changes to match ("Schedule anyway").
 
+### Dependent selects
+
+Use this when one select limits another, such as season, then sport and division.
+
+- Put the controlling field first.
+- Make the form work with no JavaScript. Group the dependent options in one `<optgroup>` for each parent. Validate the pair on the server.
+- When the parent fixes a field's value, set that value on the server. Ignore the submitted value. A disabled field sends nothing.
+- Add the script as an enhancement. Pass the rules with `json_script`, and put the code in `static/js/`. Do not write inline handlers.
+- On change, the script keeps only the parent's options. It sets and disables a field that the parent fixes.
+- Say the rule in the field's `form-hint`, so the form reads the same with and without the script.
+
+The season fields use `{% include "components/season_fields.html" %}` in `{% block scripts %}`. The form needs `SeasonFieldsMixin` (`teams/forms.py`). The script is `static/js/season_fields.js`.
+
 ### Badges
 
 Role and status only: `badge bg-primary-lt` (Captain), `badge bg-secondary-lt` (neutral state), plus the green/red/yellow `-lt` variants for status. Sentence case, one or two words.
@@ -323,7 +336,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `page-meta`, `min-w-0`, `pn-map`) | `static/css/playnyu.css` |
-| Shared partials (avatar, team logo, match row, form fields, map assets) | `templates/components/` |
+| Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
 | Template filters (`initials`, `sport_icon`, `control`) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)

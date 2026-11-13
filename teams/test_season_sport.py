@@ -83,13 +83,11 @@ class TeamSportRuleTests(SportRuleBase):
                 )
         self.assertEqual(self.any_season.teams.count(), 2)
 
-    def test_form_shows_mismatch_on_sport_field(self):
+    def test_form_replaces_another_sport_with_the_season_sport(self):
+        # The season fixes the sport (#191), so a stale choice gives no error.
         form = self.team_form(self.season, self.soccer)
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["sport"],
-            ["Teams in Fall 2026 Basketball must play Basketball."],
-        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["sport"], self.basketball)
 
     def test_form_allows_matching_sport(self):
         form = self.team_form(self.season, self.basketball)
@@ -99,15 +97,15 @@ class TeamSportRuleTests(SportRuleBase):
         form = self.team_form(self.any_season, self.soccer)
         self.assertTrue(form.is_valid(), form.errors)
 
-    def test_create_view_shows_field_error_and_creates_nothing(self):
+    def test_create_view_saves_the_season_sport(self):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse("teams:create"),
             {"name": "Violets", "sport": self.soccer.pk, "season": self.season.pk},
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "must play Basketball.")
-        self.assertFalse(Team.objects.exists())
+        team = Team.objects.get()
+        self.assertRedirects(response, reverse("teams:detail", args=[team.pk]))
+        self.assertEqual(team.sport, self.basketball)
 
 
 class FreeAgentSportRuleTests(SportRuleBase):
@@ -134,27 +132,23 @@ class FreeAgentSportRuleTests(SportRuleBase):
         )
         self.assertEqual(FreeAgentRequest.objects.count(), 2)
 
-    def test_form_shows_mismatch_on_sport_field(self):
+    def test_form_replaces_another_sport_with_the_season_sport(self):
         form = self.request_form(self.season, self.soccer)
-        self.assertFalse(form.is_valid())
-        self.assertEqual(
-            form.errors["sport"],
-            ["Free agents in Fall 2026 Basketball must ask for Basketball."],
-        )
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["sport"], self.basketball)
 
     def test_form_allows_matching_sport(self):
         self.assertTrue(self.request_form(self.season, self.basketball).is_valid())
         self.assertTrue(self.request_form(self.any_season, self.soccer).is_valid())
 
-    def test_pool_view_shows_field_error_not_a_crash(self):
+    def test_pool_view_saves_the_season_sport(self):
         self.client.force_login(self.user)
         response = self.client.post(
             reverse("teams:free_agent_pool"),
             {"season": self.season.pk, "sport": self.soccer.pk},
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "must ask for Basketball.")
-        self.assertFalse(FreeAgentRequest.objects.exists())
+        self.assertRedirects(response, reverse("teams:free_agent_pool"))
+        self.assertEqual(FreeAgentRequest.objects.get().sport, self.basketball)
 
 
 class SeasonFormSportTests(SportRuleBase):
