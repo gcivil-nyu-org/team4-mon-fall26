@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ team.name }} chat · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div class="d-flex align-items-center gap-3">
+      {% include "components/team_logo.html" with team=team size="xl" %}
+      <div><div class="subheader">Team chat</div><h1>{{ team.name }}</h1><div class="page-meta">{{ team.sport }}{% if team.season %} · {{ team.season }}{% endif %}</div></div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'teams:detail' team.pk %}"><i aria-hidden="true" class="ti ti-arrow-left me-1"></i>Back to team</a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h3 class="card-title">Messages</h3>
+      <div class="card-actions"><span class="text-secondary small pn-num">{{ chat_messages|length }}</span></div>
+    </div>
+    {% if chat_messages %}
+      <div class="list-group list-group-flush">
+        {% for message in chat_messages %}
+          <div class="list-group-item d-flex align-items-start gap-3{% if message.author_id == user.pk %} pn-row-me{% endif %}">
+            {% include "components/avatar.html" with person=message.author size="sm" %}
+            <div class="flex-fill min-w-0">
+              <div class="fw-medium">{{ message.author.get_full_name|default:message.author.email|default:message.author.username }}</div>
+              <div class="small text-secondary">{{ message.created_at|date:"M j, Y g:i a" }}</div>
+              <div class="mt-1">{{ message.body|linebreaksbr }}</div>
+            </div>
+            {% if message.is_flagged %}
+              <span class="badge bg-yellow-lt">Reported</span>
+            {% else %}
+              <form method="post" action="{% url 'chat:flag' team.pk message.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-ghost-danger" type="submit">Report</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i class="ti ti-messages"></i></div>
+        <p class="empty-title">No messages yet</p>
+        <p class="empty-subtitle text-secondary">Say hello to your team below.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" action="{% url 'chat:thread' team.pk %}">
+        {% csrf_token %}
+        {% include "components/form_fields.html" %}
+        <button class="btn btn-primary" type="submit"><i aria-hidden="true" class="ti ti-send me-1"></i>Send</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
