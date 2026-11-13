@@ -296,7 +296,7 @@ class ResultDisplayTests(ScorekeeperFixtures):
         self.client.force_login(self.keeper)
         response = self.client.get(reverse("matches:mine"))
         self.assertContains(response, "3 – 3")
-        self.assertEqual(response.context["matches"][0].pk, scored.pk)
+        self.assertEqual(response.context["groups"]["scored"], [scored])
 
     def test_standings_page_shows_points(self):
         self.client.force_login(self.player)
