@@ -145,3 +145,11 @@ class DashboardStandingsTests(TestCase):
         names = [tab["sport"].name for tab in response.context["standings_tabs"]]
         self.assertIn("Basketball", names)
         self.assertContains(response, "Basketball")
+
+    def test_tab_row_contains_hidden_labels(self):
+        """position-relative keeps visually-hidden tab text inside the scrolling row."""
+        term = current_semester(timezone.localdate()).term
+        Season.objects.filter(sport=self.hoops).update(term=term)
+        self.client.force_login(self.player)
+        response = self.client.get(reverse("core:home"))
+        self.assertContains(response, "text-nowrap position-relative")

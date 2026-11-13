@@ -9,166 +9,31 @@
     <a class="btn btn-primary" href="{% url 'teams:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Create a team</a>
   </div>
 
-  <div class="row row-cards mb-4">
-    <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
-        <div class="subheader">Teams</div>
-        <div class="h1 mb-0 pn-num">{{ team_count }}</div>
-      </div></div>
-    </div>
-    <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
-        <div class="subheader">Captain of</div>
-        <div class="h1 mb-0 pn-num">{{ captain_count }}</div>
-      </div></div>
-    </div>
-    <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
-        <div class="subheader">Teammates</div>
-        <div class="h1 mb-0 pn-num">{{ teammate_count }}</div>
-      </div></div>
-    </div>
-    <div class="col-6 col-lg-3">
-      <div class="card card-sm h-100"><div class="card-body">
-        <div class="subheader">Games played</div>
-        <div class="h1 mb-0 pn-num text-secondary">–</div>
-        <div class="small text-secondary">Scores coming soon</div>
-      </div></div>
-    </div>
-  </div>
+  {# Layout only. Each panel is a partial or an inclusion tag. Replace a slot line with one panel line. #}
+  {% include "core/dashboard/_stats.html" %}
 
   <div class="row row-cards">
-    <div class="col-lg-8">
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title">My teams</h3>
-          <div class="card-actions"><a href="{% url 'teams:list' %}">View all</a></div>
-        </div>
-        {% if entries %}
-          <div class="list-group list-group-flush">
-            {% for entry in entries %}
-              <a class="list-group-item list-group-item-action d-flex align-items-center gap-3" href="{% url 'teams:detail' entry.team.pk %}">
-                {% include "components/team_logo.html" with team=entry.team size="md" %}
-                <div class="flex-fill">
-                  <div class="fw-medium">{{ entry.team.name }}</div>
-                  <div class="small text-secondary">{{ entry.team.sport }}{% if entry.team.season %} · {{ entry.team.season }}{% endif %}</div>
-                </div>
-                {% if entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
-                <i aria-hidden="true" class="ti ti-chevron-right text-secondary"></i>
-              </a>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="card-body">
-            <div class="empty">
-              <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
-              <p class="empty-title">No teams yet</p>
-              <p class="empty-subtitle text-secondary">Create a team, or ask a captain to add you with your NYU email.</p>
-            </div>
-          </div>
-        {% endif %}
-      </div>
+    <div class="col-lg-8 d-flex flex-column gap-3">
 
-      <div class="card mt-3">
-        <div class="card-header">
-          <div>
-            <h3 class="card-title">Standings</h3>
-            {% if standings_label %}<div class="small text-secondary">{{ standings_label }}</div>{% endif %}
-          </div>
-          <div class="card-actions"><a href="{% url 'matches:standings' %}">Full standings</a></div>
-        </div>
-        {% if standings_tabs %}
-          <div class="card-header">
-            <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap" role="tablist" aria-label="Standings by sport">
-              {% for tab in standings_tabs %}
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link{% if forloop.first %} active{% endif %}" id="standings-tab-{{ tab.sport.pk }}" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-{{ tab.sport.pk }}" aria-controls="standings-sport-{{ tab.sport.pk }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"{% if not forloop.first %} tabindex="-1"{% endif %}>
-                    {% if tab.is_mine %}<i aria-hidden="true" class="ti ti-star-filled text-primary me-1"></i>{% endif %}{{ tab.sport.name }}{% if tab.is_mine %}<span class="visually-hidden"> (your sport)</span>{% endif %}
-                  </button>
-                </li>
-              {% endfor %}
-            </ul>
-          </div>
-          <div class="tab-content">
-            {% for tab in standings_tabs %}
-              <div class="tab-pane{% if forloop.first %} active show{% endif %}" id="standings-sport-{{ tab.sport.pk }}" role="tabpanel" aria-labelledby="standings-tab-{{ tab.sport.pk }}" tabindex="0">
-                {% if tab.rows %}
-                  <div class="table-responsive">
-                    <table class="table table-vcenter card-table">
-                      <thead>
-                        <tr>
-                          <th class="w-1">#</th>
-                          <th>Team</th>
-                          <th class="text-end" title="Played">P</th>
-                          <th class="text-end" title="Won">W</th>
-                          <th class="text-end" title="Drawn">D</th>
-                          <th class="text-end" title="Lost">L</th>
-                          <th class="text-end" title="Points">Pts</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for row in tab.rows %}
-                          <tr{% if row.is_me %} class="pn-row-me"{% endif %}>
-                            <td class="pn-num text-secondary">{{ forloop.counter }}</td>
-                            <td><div class="d-flex align-items-center gap-2">{% include "components/team_logo.html" with team=row.team size="sm" %}<span class="fw-medium">{{ row.team.name }}</span></div></td>
-                            <td class="text-end pn-num">{{ row.played }}</td>
-                            <td class="text-end pn-num">{{ row.won }}</td>
-                            <td class="text-end pn-num">{{ row.drawn }}</td>
-                            <td class="text-end pn-num">{{ row.lost }}</td>
-                            <td class="text-end pn-num fw-bold">{{ row.points }}</td>
-                          </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div class="card-footer small">
-                    <a href="{% url 'matches:season_standings' tab.season.pk %}">View {{ tab.season.name }} standings</a>
-                  </div>
-                {% else %}
-                  <div class="card-body">
-                    <div class="empty py-3">
-                      <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
-                      <p class="empty-title">No teams yet</p>
-                      <p class="empty-subtitle text-secondary">Be the first to play {{ tab.sport.name }} this semester.</p>
-                      <div class="empty-action d-flex flex-wrap justify-content-center gap-2">
-                        <a class="btn btn-outline-secondary" href="{% url 'teams:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Create a team</a>
-                        <a class="btn btn-ghost-secondary" href="{% url 'matches:season_standings' tab.season.pk %}">View {{ tab.season.name }} standings</a>
-                      </div>
-                    </div>
-                  </div>
-                {% endif %}
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <div class="card-body">
-            <div class="empty py-3">
-              <div class="empty-icon"><i aria-hidden="true" class="ti ti-trophy"></i></div>
-              <p class="empty-title">No standings yet</p>
-              <p class="empty-subtitle text-secondary">Leaderboards appear once this semester's seasons open.</p>
-            </div>
-          </div>
-        {% endif %}
-      </div>
+      {% include "core/dashboard/_my_teams.html" %}
+
+      {# slot: upcoming matches (matches app) #}
+
+      {% include "core/dashboard/_standings.html" %}
+
     </div>
+    <div class="col-lg-4 d-flex flex-column gap-3">
 
-    <div class="col-lg-4">
-      <div class="card">
-        <div class="card-header"><h3 class="card-title">Teammates</h3></div>
-        <div class="card-body">
-          {% if teammates %}
-            <div class="avatar-list">
-              {% for mate in teammates %}{% include "components/avatar.html" with person=mate size="sm" labelled=True %}{% endfor %}
-              {% if teammate_count > 5 %}<span class="avatar avatar-sm rounded-circle pn-num" aria-label="and {{ teammate_count|add:'-5' }} more">+{{ teammate_count|add:"-5" }}</span>{% endif %}
-            </div>
-          {% else %}
-            <div class="empty py-2">
-              <div class="empty-icon"><i aria-hidden="true" class="ti ti-users"></i></div>
-              <p class="empty-subtitle text-secondary">Your teammates will show up here once you join a team.</p>
-            </div>
-          {% endif %}
-        </div>
-      </div>
+      {# slot: matches to score (scorekeepers only) #}
+
+      {# slot: team chat #}
+
+      {# slot: forum #}
+
+      {# slot: recent activity (notifications) #}
+
+      {% include "core/dashboard/_teammates.html" %}
+
     </div>
   </div>
 {% endblock %}

@@ -164,10 +164,10 @@ Use tabs to switch one card between parallel views of the same thing, such as on
     <div class="card-actions"><a href="...">Full standings</a></div>
   </div>
   <div class="card-header">
-    <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap" role="tablist" aria-label="Standings by sport">
+    <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap position-relative" role="tablist" aria-label="Standings by sport">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="standings-tab-1" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#standings-sport-1" aria-controls="standings-sport-1" aria-selected="true">
-          <i aria-hidden="true" class="ti ti-star-filled text-primary me-1"></i>Soccer<span class="visually-hidden"> (your sport)</span>
+          <i aria-hidden="true" class="ti ti-star text-primary me-1"></i>Soccer<span class="visually-hidden"> (your sport)</span>
         </button>
       </li>
       <li class="nav-item" role="presentation">
@@ -187,8 +187,9 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 - Make the first tab active. Give only the active tab `aria-selected="true"`. Give the other tabs `tabindex="-1"`.
 - Build ids from a primary key: `standings-tab-{{ pk }}` and `standings-sport-{{ pk }}`. Ids must be unique on the page.
 - Keep the tab row on one line. `flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap` scrolls it inside the card on narrow screens.
+- Add `position-relative` to the tab row. Without it, `visually-hidden` text in a tab escapes the row and makes the page scroll sideways.
 - Keep `overflow-y-hidden`. Without it, the active tab's 1px overlap adds a vertical scrollbar.
-- Mark the user's own items with a star before the label: `ti ti-star-filled text-primary` and `aria-hidden="true"`.
+- Mark the user's own items with a star before the label: `ti ti-star text-primary` and `aria-hidden="true"`.
 - Add the star's meaning as text for screen readers: `<span class="visually-hidden"> (your sport)</span>`.
 - Put the user's own items first. Give each pane its own empty state.
 
@@ -332,7 +333,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 
 | Page | Structure |
 |---|---|
-| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards → `col-lg-8`: my teams card, upcoming games list, Standings card (one tab per sport, full leaderboard) → `col-lg-4`: teammates avatar group, free agents avatar group |
+| **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards: next match, record, games played, unread → `col-lg-8`: my teams, upcoming matches, standings (one tab per sport) → `col-lg-4`: matches to score (scorekeepers only), team chat, forum, recent activity, teammates. See the panel rules below. |
 | **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches) → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
@@ -341,6 +342,20 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
 | **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body → Replies card: list rows, oldest first, with Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
+
+### Home / dashboard panels
+
+`core/templates/core/dashboard.html` is the layout only. It holds the page header, the stat row, the main column and the rail.
+
+- Make each panel one card.
+- Keep the panel order from the recipe above.
+- Put a panel that `core` owns in a partial: `core/templates/core/dashboard/_<panel>.html`.
+- Put a panel that a different app owns in an inclusion tag in that app. Follow `notifications/templatetags/notifications_tags.py`.
+- Do not add panel data to the `home` view. The inclusion tag gets its own data.
+- Add the panel to `dashboard.html` with one line. Replace the `{# slot: ... #}` comment for that panel.
+- Keep one blank line above and below each panel line. This prevents merge conflicts.
+- Do not add a margin to a panel card. Each column sets the space with `d-flex flex-column gap-3`.
+- Render nothing when a panel does not apply to the user.
 
 ## 7. Images and placeholder data
 
