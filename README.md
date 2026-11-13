@@ -48,7 +48,7 @@ python manage.py test
 
 ## CI and deployment (Travis CI)
 
-Every push and pull request runs `flake8`, the tests and a coverage check (`.travis.yml`).
+Every push and pull request runs `black --check`, `flake8`, the tests and a coverage check (`.travis.yml`).
 When the build passes, a push to `testing` deploys to the testing environment and a push to
 `main` deploys to production (`playnyu-prod`, us-east-2). Pull request builds never deploy.
 
@@ -56,6 +56,7 @@ Run the same checks locally:
 
 ```bash
 pip install -r requirements-dev.txt
+black --check .
 flake8 .
 coverage run manage.py test && coverage report
 ```
@@ -80,10 +81,19 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 | `TEST_PLAYER_EMAIL`, `TEST_PLAYER_PASSWORD` | unset | Regular player account created on each deploy (testing site only) |
 | `DEMO_USERS_PASSWORD` | unset | Password for the demo players created on each deploy (`demo.captain1@nyu.edu` to `demo.captain4@nyu.edu`, `demo.player1@nyu.edu` to `demo.player10@nyu.edu`; testing site only). Locally: `DEMO_USERS_PASSWORD=... python manage.py seed_demo_users` |
 | `SEED_DEMO_LEAGUE` | unset | Set to any value on the testing site only. Each deploy then runs `seed_demo_league`, which adds demo teams and matches to this semester's seasons. Never set it on production |
+| `SEED_DEMO_SEASON` | unset | Retired. It does nothing: `seed_league_data` no longer creates the plain "Fall 2026" season. Remove it with `eb setenv SEED_DEMO_SEASON=` |
 
-Each deploy also runs `seed_league_data` (sports) and then `seed_semester_seasons` (this and next semester's season for every sport). Run them locally in that order: `python manage.py seed_league_data && python manage.py seed_semester_seasons`. Add `--today YYYY-MM-DD` to `seed_semester_seasons` to try another date.
+Each deploy also runs `seed_league_data` (sports) and then `seed_semester_seasons` (this and next semester's season for every sport). Run them locally in that order: `python manage.py seed_league_data && python manage.py seed_semester_seasons`. Add `--today YYYY-MM-DD` to `seed_semester_seasons` to try another date. `seed_league_data --demo-season` is retired and does nothing. No seed command changes or deletes an existing plain "Fall 2026" season.
 
-`seed_demo_league` puts four demo teams ("Demo Violets", "Demo Bobcats", "Demo Torches", "Demo Arches") in each of this semester's seasons, with demo players as captains and roster members. It then schedules a round-robin: half the matches are played with scores, half are upcoming. It only adds what is missing and never changes existing teams or matches. It needs the demo players, the seasons and the facilities, so run it last. Locally, use `--force` in place of the variable: `python manage.py seed_demo_league --force`. It also takes `--today YYYY-MM-DD`.
+Each deploy then runs `advance_season_states`. It makes an open season active on the day after its "Registration closes on" date, and an active season closed on the day after its end date. It skips draft seasons, seasons with no such date, and seasons with automatic state changes off. A deploy does not happen every day, so run the command daily on the server to change states on time. A cron example for the Elastic Beanstalk instance (not installed by this repo), at 05:10 UTC:
+
+```
+10 5 * * * root cd /var/app/current && set -a && . /opt/elasticbeanstalk/deployment/env && set +a && /var/app/venv/*/bin/python manage.py advance_season_states >> /var/log/advance_season_states.log 2>&1
+```
+
+Locally: `python manage.py advance_season_states --dry-run` lists the changes and saves nothing. It also takes `--today YYYY-MM-DD`.
+
+`seed_demo_league` puts four demo teams ("Demo Violets", "Demo Bobcats", "Demo Torches", "Demo Arches") in each of this semester's seasons, with demo players as captains and roster members. It then schedules a round-robin: half the matches are played with scores, half are upcoming. It only adds what is missing and never changes existing teams or matches. Its demo rows create no notifications and no audit log rows. It needs the demo players, the seasons and the facilities, so run it last. Locally, use `--force` in place of the variable: `python manage.py seed_demo_league --force`. It also takes `--today YYYY-MM-DD`.
 
 ## Project layout
 

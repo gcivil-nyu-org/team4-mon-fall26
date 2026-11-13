@@ -288,7 +288,7 @@ Use this when one select limits another, such as season, then sport and division
 - On change, the script keeps only the parent's options. It sets and disables a field that the parent fixes.
 - Say the rule in the field's `form-hint`, so the form reads the same with and without the script.
 
-The season fields use `{% include "components/season_fields.html" %}` in `{% block scripts %}`. The form needs `SeasonFieldsMixin` (`teams/forms.py`). The script is `static/js/season_fields.js`.
+The season fields use `{% include "components/season_fields.html" %}` in `{% block scripts %}`. The form needs `SeasonFieldsMixin` (`teams/forms.py`). The script is `static/js/season_fields.js`. A form with no sport field works too: the script then narrows only the divisions.
 
 ### Badges
 
@@ -360,8 +360,9 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **My matches (scorekeeper)** | Page header → one card per section, in this order: Needs a score, Upcoming, Scored → each card holds match rows with both team logos and its own empty state. Only the first row of Needs a score has the primary button. |
+| **Generate a round-robin (League Admin)** | Page header with Back to matches (ghost) → `col-lg-4`: form card (season, division, first date, time, match length, days between rounds, facilities) → `col-lg-8`: Preview card: counts in `card-actions`, the overlap warning (`alert alert-warning text-body`), then one `subheader` and one list of match rows for each round, with an `Overlap` badge (`bg-yellow-lt`) on a row that clashes → `card-footer` with the primary action. Before a preview, the primary action is "Preview schedule". After it, the primary action is "Create N matches" ("... anyway" with overlaps) and the form button becomes "Update preview" (outline). |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
-| **Leaderboard** | Page header with a season `form-select` on the right → one full-width leaderboard table |
+| **Leaderboard** | Page header with a season `form-select` on the right, and a division `form-select` beside it only if the season has divisions → one full-width leaderboard table. All divisions: each team shows its division in `small text-secondary` under its name. One division: only its teams, and a `card-footer` line says that records count all season matches. |
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
 | **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body, Report → Replies card: list rows, oldest first, with Report and Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Moderation queue** | Page header: `subheader` "League Admin", title "Flagged content" → three full-width cards (Messages, Topics, Replies), each with a count and its own empty state → list rows: author avatar `sm`, name, meta line (team or sport · linked topic · time), excerpt, Dismiss (`btn-sm btn-outline-secondary`) and Delete (`btn-sm btn-outline-danger`) |

@@ -263,18 +263,58 @@ class SeasonForm(forms.ModelForm):
         empty_label="Any sport",
         help_text="Teams in this season must play this sport. Leave blank for any.",
     )
+    # A select, not a checkbox: a POST without the field keeps the current value.
+    auto_state = forms.TypedChoiceField(
+        label="Automatic state changes",
+        choices=[
+            ("on", "On: change state by date"),
+            ("off", "Off: only a League Admin changes the state"),
+        ],
+        coerce=lambda value: value == "on",
+        empty_value=None,
+        required=False,
+        help_text=(
+            "When on, the season becomes active on the day after registration "
+            "closes, and closed on the day after the end date. Draft seasons "
+            "never change."
+        ),
+    )
 
     class Meta:
         model = Season
-        fields = ["name", "sport", "start_date", "end_date", "max_roster_size"]
+        fields = [
+            "name",
+            "sport",
+            "start_date",
+            "registration_closes_on",
+            "end_date",
+            "max_roster_size",
+            "auto_state",
+        ]
         widgets = {
             "start_date": forms.DateInput(attrs={"type": "date"}),
+            "registration_closes_on": forms.DateInput(attrs={"type": "date"}),
             "end_date": forms.DateInput(attrs={"type": "date"}),
         }
-        help_texts = {"end_date": "Optional. Can be the same day as the start."}
+        labels = {"registration_closes_on": "Registration closes on"}
+        help_texts = {
+            "end_date": "Optional. Can be the same day as the start.",
+            "registration_closes_on": (
+                "Optional. Teams can register until this date. "
+                "On the next day the season becomes active."
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial["auto_state"] = "on" if self.instance.auto_state else "off"
 
     def clean_name(self):
         return " ".join(self.cleaned_data["name"].split())
+
+    def clean_auto_state(self):
+        value = self.cleaned_data.get("auto_state")
+        return self.instance.auto_state if value is None else value
 
     def clean_sport(self):
         sport = self.cleaned_data.get("sport")

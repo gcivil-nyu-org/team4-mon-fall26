@@ -98,7 +98,7 @@ Do not close issues or move cards to Done unless your user asks. Done needs the 
 [docs/WORKFLOW.md](docs/WORKFLOW.md) has the full workflow. These are the main rules:
 
 - Every page extends `templates/base.html`. Do not add another layout.
-- Before you open a PR, run the CI commands: `flake8 .`, `coverage run manage.py test`, `coverage report --fail-under=80`.
+- Before you open a PR, run the CI commands: `black --check .`, `flake8 .`, `coverage run manage.py test`, `coverage report --fail-under=80`.
 - Format code with black.
 
 The [README](README.md#docs) lists all shared docs.

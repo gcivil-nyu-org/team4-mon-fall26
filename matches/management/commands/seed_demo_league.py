@@ -11,6 +11,9 @@ It only adds what is missing and never changes existing teams or matches:
 - A demo match is a match between two demo teams. A pairing that already has a
   match (even a cancelled one) gets no new one.
 
+Demo rows create no notifications and no audit log rows: the writes run inside
+notifications.signals.muted() and audit.signals.muted(). Validation still runs.
+
 Locally: python manage.py seed_demo_league --force [--today YYYY-MM-DD]
 """
 
@@ -23,8 +26,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.management.commands.seed_demo_users import DEMO_USERS
+from audit import signals as audit_signals
 from facilities.models import Facility
 from matches.models import Match
+from notifications import signals as notification_signals
 from teams.management.commands.seed_semester_seasons import (
     current_semester,
     parse_date,
@@ -130,11 +135,13 @@ class Command(BaseCommand):
             term=current_semester(today).term, sport__isnull=False
         ).order_by("name", "pk")
         teams_created = matches_created = 0
-        for number, season in enumerate(seasons):
-            with transaction.atomic():
-                teams, created = self.ensure_teams(season)
-                teams_created += created
-                matches_created += self.ensure_matches(season, teams, today, number)
+        # Demo data is not league activity: no notifications, no audit rows.
+        with notification_signals.muted(), audit_signals.muted():
+            for number, season in enumerate(seasons):
+                with transaction.atomic():
+                    teams, created = self.ensure_teams(season)
+                    teams_created += created
+                    matches_created += self.ensure_matches(season, teams, today, number)
         self.stdout.write(
             f"Demo league: {teams_created} teams and {matches_created} matches "
             f"created in {len(seasons)} seasons."

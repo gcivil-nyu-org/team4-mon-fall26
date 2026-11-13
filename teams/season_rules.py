@@ -72,6 +72,40 @@ def validate_season_dates(start_date, end_date):
         )
 
 
+def validate_registration_date(registration_closes_on, end_date):
+    if (
+        registration_closes_on is not None
+        and end_date is not None
+        and registration_closes_on > end_date
+    ):
+        raise ValidationError(
+            {"registration_closes_on": "Registration can't close after the end date."}
+        )
+
+
+def automatic_states(state, auto_state, registration_closes_on, end_date, today):
+    """The states a season moves through on `today`, in order. Empty if none.
+
+    Open becomes active on the day after registration closes, not on the start
+    date: default semester seasons are created open with a start date that is
+    already past. Active becomes closed on the day after the end date. Draft
+    and closed seasons never change, and a missing date never triggers a change.
+    """
+    steps = []
+    if not auto_state:
+        return steps
+    if (
+        state == SeasonState.OPEN
+        and registration_closes_on is not None
+        and today > registration_closes_on
+    ):
+        state = SeasonState.ACTIVE
+        steps.append(state)
+    if state == SeasonState.ACTIVE and end_date is not None and today > end_date:
+        steps.append(SeasonState.CLOSED)
+    return steps
+
+
 def state_from_legacy_is_active(is_active):
     return SeasonState.OPEN if is_active else SeasonState.CLOSED
 

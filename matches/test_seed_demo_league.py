@@ -8,7 +8,11 @@ from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from accounts.management.commands.seed_demo_users import DEMO_USERS
+from audit import signals as audit_signals
+from audit.models import AuditLog
 from facilities.models import Facility
+from notifications import signals as notification_signals
+from notifications.models import Notification
 from teams.models import Roster, Season, Sport, Team
 from teams.season_rules import SeasonState
 
@@ -292,3 +296,81 @@ class SeedDemoLeagueTests(TestCase):
         get_user_model().objects.all().delete()
         self.assertEqual(seed(), "No demo players; run seed_demo_users first.")
         self.assertFalse(Team.objects.exists())
+
+
+class SeedDemoLeagueIsQuietTests(TestCase):
+    """Demo rows notify nobody and leave no audit rows (#212)."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.soccer = Sport.objects.create(name="Soccer")
+        call_command("seed_semester_seasons", "--today", TODAY, stdout=StringIO())
+        with mock.patch.dict("os.environ", {"DEMO_USERS_PASSWORD": "demo-pass-123"}):
+            call_command("seed_demo_users", stdout=StringIO())
+        cls.field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
+        cls.field.sports.add(cls.soccer)
+        cls.season = Season.objects.get(sport=cls.soccer, term="2026-fall")
+
+    def setUp(self):
+        # The setup rows above are audited; each test starts clean.
+        AuditLog.objects.all().delete()
+        Notification.objects.all().delete()
+
+    def assert_not_muted(self):
+        self.assertFalse(notification_signals.is_muted())
+        self.assertFalse(audit_signals.is_muted())
+
+    @mock.patch.dict("os.environ", ENV, clear=True)
+    def test_seeding_creates_no_notifications_and_no_audit_rows(self):
+        self.assertEqual(
+            seed(), "Demo league: 4 teams and 6 matches created in 1 seasons."
+        )
+        self.assertEqual(Roster.objects.count(), 12)
+        self.assertEqual(Notification.objects.count(), 0)
+        self.assertEqual(AuditLog.objects.count(), 0)
+        self.assert_not_muted()
+
+    @mock.patch.dict("os.environ", ENV, clear=True)
+    def test_a_later_run_that_fills_a_gap_is_quiet_too(self):
+        seed()
+        with audit_signals.muted(), notification_signals.muted():
+            Match.objects.first().delete()
+        self.assertIn("0 teams and 1 matches", seed())
+        self.assertEqual(Notification.objects.count(), 0)
+        self.assertEqual(AuditLog.objects.count(), 0)
+
+    @mock.patch.dict("os.environ", ENV, clear=True)
+    def test_saves_after_seeding_notify_and_audit_again(self):
+        seed()
+        team = Team.objects.get(season=self.season, name="Demo Violets")
+        newcomer = get_user_model().objects.get(username="demo.player9@nyu.edu")
+        Roster(team=team, player=newcomer).save()
+        # The three seeded members and the newcomer.
+        self.assertEqual(Notification.objects.count(), 4)
+        self.assertTrue(Notification.objects.filter(recipient=newcomer).exists())
+        team.name = "Demo Violets B"
+        team.save()
+        entry = AuditLog.objects.get()
+        self.assertEqual(
+            (entry.object_type, entry.object_id, entry.action),
+            ("Team", str(team.pk), "updated"),
+        )
+
+    @mock.patch.dict("os.environ", ENV, clear=True)
+    def test_mute_ends_when_seeding_fails(self):
+        with mock.patch.object(Match, "full_clean", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                seed()
+        self.assert_not_muted()
+        # The failed season was rolled back, and nothing leaked out of it.
+        self.assertFalse(Team.objects.exists())
+        self.assertEqual(Notification.objects.count(), 0)
+        self.assertEqual(AuditLog.objects.count(), 0)
+        Sport.objects.create(name="Cricket")
+        self.assertEqual(AuditLog.objects.count(), 1)
+
+    @mock.patch.dict("os.environ", ENV, clear=True)
+    def test_seeding_still_validates(self):
+        with mock.patch.object(Match, "full_clean") as full_clean:
+            seed()
+        self.assertEqual(full_clean.call_count, 6)

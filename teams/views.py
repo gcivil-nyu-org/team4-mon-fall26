@@ -6,6 +6,7 @@ from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.dateformat import format as date_format
 from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
@@ -556,6 +557,26 @@ def _season_transitions(season):
     ]
 
 
+def _season_hints(season):
+    """What advance_season_states does next to this season, for the seasons list."""
+    if not season.auto_state:
+        return []
+    hints = []
+    registers = season.state in (SeasonState.DRAFT, SeasonState.OPEN)
+    if registers and season.registration_closes_on:
+        closes = date_format(season.registration_closes_on, "M j, Y")
+        hints.append(f"Registration closes {closes}")
+    # An open season with no registration date never becomes active, so it
+    # never closes by date either.
+    if season.end_date and (
+        season.state == SeasonState.ACTIVE
+        or (registers and season.registration_closes_on)
+    ):
+        ends = date_format(season.end_date, "M j, Y")
+        hints.append(f"Closes automatically after {ends}")
+    return hints
+
+
 @login_required
 def manage_seasons(request):
     _require_league_admin(request.user)
@@ -565,7 +586,11 @@ def manage_seasons(request):
         .order_by("-start_date", "name")
     )
     rows = [
-        {"season": season, "transitions": _season_transitions(season)}
+        {
+            "season": season,
+            "transitions": _season_transitions(season),
+            "hints": _season_hints(season),
+        }
         for season in seasons
     ]
     return render(
