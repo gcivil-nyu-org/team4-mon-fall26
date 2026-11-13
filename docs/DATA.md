@@ -40,7 +40,7 @@ Deliberately excluded: baseball (`ADULT_BASEBALL`, little-league flags, `T_BALL`
 
 Sports are linked by name and never created: run `seed_league_data` first. Values with no matching Sport link nothing. Today that drops `Squash`, `Swimming` and `Fitness` on NYU venue rows, which is intended: PlayNYU doesn't offer those sports.
 
-Load order locally and on deploy: `seed_league_data` → `seed_semester_seasons` → `seed_facilities`.
+Load order locally and on deploy: `seed_league_data` → `seed_semester_seasons` → `seed_facilities` → `seed_demo_league` (testing site only, when `SEED_DEMO_LEAGUE` is set; it also needs `seed_demo_users`).
 
 ## Data dictionary (#11)
 
