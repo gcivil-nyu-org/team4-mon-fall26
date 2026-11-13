@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
+from forums.selectors import flagged_replies, flagged_topics
 from teams.models import Team
 
 from .forms import MessageForm
@@ -63,7 +64,15 @@ def flag_message(request, team_pk, message_pk):
 def moderation_queue(request):
     _require_league_admin(request.user)
     flagged = Message.objects.filter(is_flagged=True).select_related("team", "author")
-    return render(request, "chat/moderation_queue.html", {"flagged": flagged})
+    return render(
+        request,
+        "chat/moderation_queue.html",
+        {
+            "flagged": flagged,
+            "flagged_topics": flagged_topics(),
+            "flagged_replies": flagged_replies(),
+        },
+    )
 
 
 @login_required

@@ -14,4 +14,16 @@ urlpatterns = [
         views.reply_delete,
         name="delete_reply",
     ),
+    path("<int:pk>/report/", views.topic_report, name="report_topic"),
+    path(
+        "<int:pk>/replies/<int:reply_pk>/report/",
+        views.reply_report,
+        name="report_reply",
+    ),
+    path("moderation/topics/<int:pk>/", views.topic_moderate, name="moderate_topic"),
+    path(
+        "moderation/replies/<int:reply_pk>/",
+        views.reply_moderate,
+        name="moderate_reply",
+    ),
 ]

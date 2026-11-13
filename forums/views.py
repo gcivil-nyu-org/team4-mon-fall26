@@ -10,7 +10,7 @@ from audit.models import AuditLog
 from teams.models import Sport
 
 from .forms import ReplyForm, TopicForm
-from .models import Topic
+from .models import Reply, Topic
 from .selectors import topics_with_reply_counts
 
 TOPICS_PER_PAGE = 20
@@ -25,11 +25,14 @@ def can_moderate(user):
 
 def _require_league_admin(user):
     if not can_moderate(user):
-        raise PermissionDenied("Only League Admins can delete forum posts.")
+        raise PermissionDenied("Only League Admins can moderate forum posts.")
 
 
-def _log_delete(request, instance):
-    """Forum posts are not audit-watched models, so log each admin delete here."""
+def _delete_post(request, instance):
+    """Delete a topic or reply for a League Admin and write the audit row.
+
+    Forum posts are not audit-watched models, so each admin delete logs here.
+    """
     AuditLog.objects.create(
         actor=request.user,
         action=AuditLog.Action.DELETED,
@@ -37,6 +40,30 @@ def _log_delete(request, instance):
         object_id=str(instance.pk),
         object_repr=str(instance)[:200],
     )
+    instance.delete()
+
+
+def _report(request, instance, label):
+    """Flag a post for review. A second report changes nothing."""
+    if not instance.is_flagged:
+        instance.is_flagged = True
+        instance.save(update_fields=["is_flagged"])
+    messages.success(request, f"{label} reported for League Admin review.")
+
+
+def _moderate(request, instance, label):
+    """Run the queue action from the POST: dismiss the report or delete the post."""
+    action = request.POST.get("action")
+    if action == "dismiss":
+        instance.is_flagged = False
+        instance.save(update_fields=["is_flagged"])
+        messages.success(request, "Report dismissed.")
+    elif action == "delete":
+        _delete_post(request, instance)
+        messages.success(request, f"{label} deleted.")
+    else:
+        messages.error(request, "Choose dismiss or delete.")
+    return redirect("chat:moderation_queue")
 
 
 @login_required
@@ -110,8 +137,7 @@ def topic_detail(request, pk):
 def topic_delete(request, pk):
     _require_league_admin(request.user)
     topic = get_object_or_404(Topic, pk=pk)
-    _log_delete(request, topic)
-    topic.delete()
+    _delete_post(request, topic)
     messages.success(request, "Topic deleted.")
     return redirect("forums:list")
 
@@ -122,7 +148,37 @@ def reply_delete(request, pk, reply_pk):
     _require_league_admin(request.user)
     topic = get_object_or_404(Topic, pk=pk)
     reply = get_object_or_404(topic.replies, pk=reply_pk)
-    _log_delete(request, reply)
-    reply.delete()
+    _delete_post(request, reply)
     messages.success(request, "Reply deleted.")
     return redirect("forums:detail", pk=topic.pk)
+
+
+@login_required
+@require_POST
+def topic_report(request, pk):
+    topic = get_object_or_404(Topic, pk=pk)
+    _report(request, topic, "Topic")
+    return redirect("forums:detail", pk=topic.pk)
+
+
+@login_required
+@require_POST
+def reply_report(request, pk, reply_pk):
+    topic = get_object_or_404(Topic, pk=pk)
+    reply = get_object_or_404(topic.replies, pk=reply_pk)
+    _report(request, reply, "Reply")
+    return redirect("forums:detail", pk=topic.pk)
+
+
+@login_required
+@require_POST
+def topic_moderate(request, pk):
+    _require_league_admin(request.user)
+    return _moderate(request, get_object_or_404(Topic, pk=pk), "Topic")
+
+
+@login_required
+@require_POST
+def reply_moderate(request, reply_pk):
+    _require_league_admin(request.user)
+    return _moderate(request, get_object_or_404(Reply, pk=reply_pk), "Reply")
