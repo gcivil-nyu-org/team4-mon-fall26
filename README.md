@@ -95,6 +95,12 @@ Locally: `python manage.py advance_season_states --dry-run` lists the changes an
 
 `seed_demo_league` puts four demo teams ("Demo Violets", "Demo Bobcats", "Demo Torches", "Demo Arches") in each of this semester's seasons, with demo players as captains and roster members. It then schedules a round-robin: half the matches are played with scores, half are upcoming. It only adds what is missing and never changes existing teams or matches. Its demo rows create no notifications and no audit log rows. It needs the demo players, the seasons and the facilities, so run it last. Locally, use `--force` in place of the variable: `python manage.py seed_demo_league --force`. It also takes `--today YYYY-MM-DD`.
 
+### Class league
+
+`seed_class_league --roster PATH` creates a class league from a roster JSON file. The file format is in the docstring of `matches/management/commands/seed_class_league.py`. The command creates teams, placeholder players and a half-played double round-robin in this semester's seasons. The `leader` team is first in every sport. It sends no email, creates no notifications or audit rows, and a second run creates nothing new. It is not in `.ebextensions`: run it once by hand. Add `--dry-run` to see what it would create, and `--today YYYY-MM-DD` to try another date.
+
+The roster file holds real names and emails. Keep it out of the repo: `.gitignore` lists `class-league-roster*.json`. See [docs/DATABASE.md](docs/DATABASE.md#class-league-on-elastic-beanstalk) to run it on Elastic Beanstalk.
+
 ## Project layout
 
 ```
