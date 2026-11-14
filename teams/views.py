@@ -15,6 +15,7 @@ from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
 from matches.standings import compute_standings
 
+from .default_seasons import created_seasons_message, ensure_default_seasons
 from .forms import (
     AddPlayerForm,
     DivisionCreateForm,
@@ -507,8 +508,10 @@ def manage_sports(request):
 
     form = SportForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Sport added successfully.")
+        with transaction.atomic():
+            sport = form.save()
+            seasons = ensure_default_seasons(sport)
+        messages.success(request, created_seasons_message(seasons))
         return redirect("teams:manage_sports")
 
     sports = Sport.objects.annotate(event_type_count=Count("event_types")).order_by(
