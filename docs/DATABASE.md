@@ -43,7 +43,27 @@ Never put the connection string or password in the repo, a PR, an issue or a cha
 - **Accounts:**
   - `DJANGO_SUPERUSER_*` only creates the admin on the first deploy. Changing the password variable later has no effect. Use `python manage.py changepassword` or the admin site instead.
   - `TEST_PLAYER_*` and `DEMO_USERS_PASSWORD` accounts have their password and active status reset on every deploy. Their teams and other data stay.
-- **Seed data:** `seed_league_data` only adds sports when they are missing. It creates no season: `--demo-season` and `SEED_DEMO_SEASON` are retired and do nothing. No seed command changes or deletes an existing plain "Fall 2026" season. `seed_semester_seasons` only adds this and next semester's season for each sport when they are missing; it never changes existing seasons or their divisions. A new season gets a registration close date three weeks after the semester start, or no date when that day is already past. `advance_season_states` then changes season states by date (see the README); it never changes a draft season, a season with no date, or a season with automatic state changes off. `seed_facilities` updates the seeded facilities on every deploy, so admin changes to them (for example, deactivating one) are undone at the next deploy. `seed_demo_league` (only when `SEED_DEMO_LEAGUE` is set) only adds demo teams and matches that are missing; it never changes existing teams or matches. Its rows create no notifications and no audit log rows.
+- **Seed data:** `seed_league_data` only adds sports when they are missing. It creates no season: `--demo-season` and `SEED_DEMO_SEASON` are retired and do nothing. No seed command changes or deletes an existing plain "Fall 2026" season. `seed_semester_seasons` only adds this and next semester's season for each sport when they are missing; it never changes existing seasons or their divisions. A new season gets a registration close date three weeks after the semester start, or no date when that day is already past. `advance_season_states` then changes season states by date (see the README); it never changes a draft season, a season with no date, or a season with automatic state changes off. `seed_facilities` updates the seeded facilities on every deploy, so admin changes to them (for example, deactivating one) are undone at the next deploy. `seed_demo_league` (only when `SEED_DEMO_LEAGUE` is set) only adds demo teams and matches that are missing; it never changes existing teams or matches. Its rows create no notifications and no audit log rows. `seed_class_league` runs only by hand; it only adds teams, players and matches that are missing.
+
+## Class league on Elastic Beanstalk
+
+`seed_class_league` writes to the database once. Set `DATABASE_URL` on the environment first, or the next deploy loses the league with the SQLite file.
+
+1. Connect: `eb ssh <environment>`.
+2. Make the roster file outside the app folder: `cat > /tmp/class-league-roster.json`, paste the JSON, then press Ctrl-D.
+3. Load the app and its environment:
+
+   ```bash
+   source /var/app/venv/*/bin/activate
+   cd /var/app/current
+   export $(sudo /opt/elasticbeanstalk/bin/get-config --output YAML environment | sed -r 's/: /=/' | xargs)
+   ```
+
+4. Check: `python manage.py seed_class_league --roster /tmp/class-league-roster.json --dry-run`.
+5. Run: `python manage.py seed_class_league --roster /tmp/class-league-roster.json`.
+6. Delete the roster file: `rm /tmp/class-league-roster.json`.
+
+Do not commit the roster file. It holds real names and emails, and the repo is public.
 
 ## Go back to SQLite
 
