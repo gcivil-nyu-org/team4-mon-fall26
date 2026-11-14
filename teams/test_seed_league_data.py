@@ -10,12 +10,25 @@ from django.urls import reverse
 from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 
 from .management.commands.seed_league_data import SPORTS
-from .models import Season, Sport, Team
+from .models import Roster, Season, Sport, Team
 from .season_rules import SeasonState
 
 
 def seed(*args):
-    call_command("seed_league_data", *args, stdout=StringIO())
+    out = StringIO()
+    call_command("seed_league_data", *args, stdout=out)
+    return out.getvalue()
+
+
+def snapshot(model_or_queryset):
+    queryset = getattr(model_or_queryset, "objects", model_or_queryset)
+    return list(queryset.order_by("pk").values())
+
+
+def open_season():
+    return Season.objects.create(
+        name="Fall 2026", start_date="2026-09-01", state=SeasonState.OPEN
+    )
 
 
 def make_user(username):
@@ -41,28 +54,57 @@ class SeedLeagueDataTests(TestCase):
     def test_no_season_without_the_flag(self):
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SEED_DEMO_SEASON", None)
-            seed()
+            output = seed()
         self.assertFalse(Season.objects.exists())
+        self.assertNotIn("retired", output)
 
-    def test_demo_season_is_open_and_created_once(self):
-        seed("--demo-season")
-        seed("--demo-season")
-        season = Season.objects.get()
-        self.assertEqual((season.name, season.state), ("Fall 2026", SeasonState.OPEN))
+    def test_demo_season_flag_creates_no_season(self):
+        output = seed("--demo-season")
+        self.assertFalse(Season.objects.exists())
+        self.assertIn("--demo-season is retired and does nothing", output)
+        self.assertEqual(Sport.objects.count(), len(SPORTS))
 
-    def test_demo_season_from_environment(self):
+    def test_demo_season_variable_creates_no_season(self):
         with mock.patch.dict(os.environ, {"SEED_DEMO_SEASON": "1"}):
-            seed()
-        self.assertTrue(Season.objects.filter(name="Fall 2026").exists())
+            output = seed()
+        self.assertFalse(Season.objects.exists())
+        self.assertIn("SEED_DEMO_SEASON is retired and does nothing", output)
+        self.assertEqual(Sport.objects.count(), len(SPORTS))
 
-    def test_existing_demo_season_keeps_its_state(self):
-        Season.objects.create(
+    def test_existing_plain_season_with_teams_is_not_touched(self):
+        season = Season.objects.create(
             name="Fall 2026",
             start_date="2026-09-01",
+            end_date="2026-12-15",
             state=SeasonState.ACTIVE,
         )
-        seed("--demo-season")
-        self.assertEqual(Season.objects.get().state, SeasonState.ACTIVE)
+        team = Team.objects.create(
+            name="Violets",
+            sport=Sport.objects.create(name="Soccer"),
+            season=season,
+            captain=make_user("cap"),
+        )
+        Roster.objects.create(team=team, player=team.captain)
+        before = (snapshot(Season), snapshot(Team), snapshot(Roster))
+        variables = {
+            "SEED_DEMO_SEASON": "1",
+            "SEED_DEMO_LEAGUE": "1",
+            "DEMO_USERS_PASSWORD": "demo-pass-123",
+        }
+        with mock.patch.dict(os.environ, variables):
+            seed("--demo-season")
+            self.assertEqual((snapshot(Season), snapshot(Team)), before[:2])
+            # The other seed commands, in deploy order.
+            for command in (
+                "seed_demo_users",
+                "seed_semester_seasons",
+                "seed_demo_league",
+            ):
+                call_command(command, stdout=StringIO())
+        plain = Season.objects.filter(name="Fall 2026")
+        self.assertEqual(snapshot(plain), before[0])
+        self.assertEqual(snapshot(Team.objects.filter(season=season)), before[1])
+        self.assertEqual(snapshot(Roster.objects.filter(team=team)), before[2])
 
 
 class CreateTeamGuidanceTests(TestCase):
@@ -88,13 +130,15 @@ class CreateTeamGuidanceTests(TestCase):
         self.assertContains(response, "No season is open for registration")
 
     def test_no_notes_once_sports_and_an_open_season_exist(self):
-        seed("--demo-season")
+        seed()
+        open_season()
         response = self.client.get(self.url)
         self.assertNotContains(response, "No sports have been added yet")
         self.assertNotContains(response, "No season is open for registration")
 
     def test_seeded_data_lets_a_player_create_a_team(self):
-        seed("--demo-season")
+        seed()
+        open_season()
         response = self.client.post(
             self.url,
             {

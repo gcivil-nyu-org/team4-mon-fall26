@@ -9,7 +9,9 @@ from profiles.forms import NET_ID_RE
 from profiles.models import PlayerProfile
 
 from .emails import send_verification_email
-from .forms import LoginForm, ResendVerificationForm, SignUpForm
+from .forms import ClaimAccountForm, LoginForm, ResendVerificationForm, SignUpForm
+from .models import PendingAccount
+from .placeholders import is_placeholder
 from .roles import CASUAL_PLAYER_ROLE, assign_role
 from .rate_limits import (
     clear_login_failures,
@@ -58,32 +60,75 @@ def check_email(request):
     )
 
 
-def verify(request, uidb64, token):
-    """Screen 2 when the link is good, screen 3 when it is expired, used or broken."""
+def _link_user(uidb64, token, *, lock=False):
+    """The inactive user this link is for, or None when the link is not good."""
+    users = get_user_model().objects.all()
+    if lock:
+        users = users.select_for_update()
     try:
-        user = get_user_model().objects.get(pk=force_str(urlsafe_base64_decode(uidb64)))
+        user = users.get(pk=force_str(urlsafe_base64_decode(uidb64)))
     except (ValueError, OverflowError, get_user_model().DoesNotExist):
-        user = None
+        return None
+    if user.is_active or not email_verification_token.check_token(user, token):
+        return None
+    placeholder = is_placeholder(user)
+    # Only a placeholder may lack a password: its owner sets one on the claim page.
+    if not placeholder and not user.has_usable_password():
+        return None
+    user.is_placeholder = placeholder
+    return user
 
-    if (
-        user is None
-        or user.is_active
-        or not email_verification_token.check_token(user, token)
-    ):
-        return render(
-            request,
-            "accounts/link_invalid.html",
-            {"form": ResendVerificationForm()},
-            status=400,
-        )
+
+def _link_invalid(request):
+    return render(
+        request,
+        "accounts/link_invalid.html",
+        {"form": ResendVerificationForm()},
+        status=400,
+    )
+
+
+def _activate(user):
+    """Call inside a transaction. Activation also makes the link stop working."""
+    user.is_active = True
+    user.save()
+    # The placeholder is now claimed.
+    PendingAccount.objects.filter(user=user).delete()
+    PlayerProfile.objects.get_or_create(
+        user=user, defaults={"net_id": _net_id_from_email(user.email)}
+    )
+    assign_role(user, CASUAL_PLAYER_ROLE)
+
+
+def verify(request, uidb64, token):
+    """Screen 2 when the link is good, screen 3 when it is expired, used or broken.
+
+    For a placeholder, the link opens a claim page first. The account becomes
+    active only when the inbox owner sets a password there.
+    """
+    user = _link_user(uidb64, token)
+    if user is None:
+        return _link_invalid(request)
+
+    if not user.is_placeholder:
+        with transaction.atomic():
+            _activate(user)
+        return render(request, "accounts/verified.html", {"verified_user": user})
+
+    if request.method != "POST":
+        form = ClaimAccountForm(user)
+        return render(request, "accounts/claim.html", {"form": form})
 
     with transaction.atomic():
-        user.is_active = True
-        user.save(update_fields=["is_active"])
-        PlayerProfile.objects.get_or_create(
-            user=user, defaults={"net_id": _net_id_from_email(user.email)}
-        )
-        assign_role(user, CASUAL_PLAYER_ROLE)
+        # Lock and check the token again, so two posts can't both claim.
+        user = _link_user(uidb64, token, lock=True)
+        if user is None or not user.is_placeholder:
+            return _link_invalid(request)
+        form = ClaimAccountForm(user, request.POST)
+        if not form.is_valid():
+            return render(request, "accounts/claim.html", {"form": form})
+        form.save()
+        _activate(user)
     return render(request, "accounts/verified.html", {"verified_user": user})
 
 
@@ -108,7 +153,10 @@ def resend_verification(request):
             .objects.filter(email__iexact=email, is_active=False)
             .first()
         )
-        if user and decision.allowed:
+        # A user with no password can't be activated by a link, unless it is a
+        # placeholder: its link opens the claim page for the inbox owner.
+        sendable = user and (user.has_usable_password() or is_placeholder(user))
+        if sendable and decision.allowed:
             send_verification_email(request, user)
         # Same screen either way, so this form doesn't reveal which emails have accounts.
         request.session["verification_email"] = email

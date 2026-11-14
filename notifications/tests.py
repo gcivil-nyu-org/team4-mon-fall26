@@ -1,4 +1,5 @@
 import datetime
+import threading
 import unittest
 from zoneinfo import ZoneInfo
 
@@ -14,7 +15,7 @@ from teams.models import Roster, Season, Sport, Team
 from teams.season_rules import SeasonState
 
 from .models import Notification
-from .signals import score_recorded
+from .signals import is_muted, muted, score_recorded
 
 NY = ZoneInfo("America/New_York")
 
@@ -582,3 +583,45 @@ class HomeActivityPanelTests(NotificationFixtures):
             "{% load notifications_tags %}{% home_activity_panel %}"
         ).render(Context({}))
         self.assertEqual(rendered.strip(), "")
+
+
+class MutedTests(NotificationFixtures):
+    def test_nothing_is_created_inside_the_block(self):
+        with muted():
+            entry = Roster.objects.create(team=self.home, player=self.cara)
+            match = self.make_match()
+            score_recorded.send(sender=Match, match=match, home_score=1, away_score=0)
+            match.status = Match.Status.CANCELLED
+            match.save()
+            entry.delete()
+        self.assertEqual(Notification.objects.count(), 0)
+
+    def test_saves_outside_the_block_still_notify(self):
+        with muted():
+            pass
+        self.assertFalse(is_muted())
+        Roster.objects.create(team=self.home, player=self.cara)
+        self.assertEqual(len(self.verbs_for(self.cara)), 1)
+
+    def test_mute_ends_after_an_exception(self):
+        with self.assertRaises(ValueError):
+            with muted():
+                raise ValueError("boom")
+        self.assertFalse(is_muted())
+        self.make_match()
+        self.assertEqual(len(self.verbs_for(self.alice)), 1)
+
+    def test_nested_blocks_stay_muted_until_the_outer_one_ends(self):
+        with muted():
+            with muted():
+                pass
+            self.assertTrue(is_muted())
+        self.assertFalse(is_muted())
+
+    def test_mute_does_not_reach_another_thread(self):
+        seen = []
+        with muted():
+            thread = threading.Thread(target=lambda: seen.append(is_muted()))
+            thread.start()
+            thread.join()
+        self.assertEqual(seen, [False])

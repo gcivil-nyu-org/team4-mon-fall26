@@ -12,6 +12,7 @@ install:
   - pip install -r requirements-dev.txt
 
 script:
+  - black --check .
   - flake8 .
   - coverage run manage.py test
   - coverage report --fail-under=80

@@ -26,7 +26,7 @@
 - Title: what it does, with card numbers if any ("Cards 3-5: roster rules, remove player, leave team").
 - Description: what changed and why, any migrations, how you tested it (commands and manual steps), and screenshots for UI changes.
 - Reviewed and approved by someone other than the author before merging.
-- Before opening, run what Travis CI runs on every push and PR: `flake8 .`, `coverage run manage.py test` and `coverage report --fail-under=80` (`pip install -r requirements-dev.txt` first). Format with black.
+- Before opening, run what Travis CI runs on every push and PR: `black --check .`, `flake8 .`, `coverage run manage.py test` and `coverage report --fail-under=80` (`pip install -r requirements-dev.txt` first). Format with `black .` (the version in `requirements-dev.txt`).
 
 ## Issues and ZenHub
 

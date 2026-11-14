@@ -1,0 +1,26 @@
+{% if show %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Forum</h3>
+    <div class="card-actions"><a href="{% url 'forums:list' %}">All topics</a></div>
+  </div>
+  {% if topics %}
+    <div class="list-group list-group-flush">
+      {% for topic in topics %}
+        <a class="list-group-item list-group-item-action" href="{% url 'forums:detail' topic.pk %}">
+          <div class="fw-medium text-truncate">{{ topic.title }}</div>
+          <div class="small text-secondary text-truncate">{{ topic.sport_label }} · <span class="pn-num">{{ topic.reply_count }}</span> repl{{ topic.reply_count|pluralize:"y,ies" }} · <time datetime="{{ topic.last_activity_at|date:'c' }}" title="{{ topic.last_activity_at|date:'M j, Y g:i a' }}">{{ topic.time_label }}</time></div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card-body">
+      <div class="empty py-2">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-messages"></i></div>
+        <p class="empty-subtitle text-secondary">No topics yet. Start the first one.</p>
+        <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'forums:create' %}">Start a topic</a></div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endif %}

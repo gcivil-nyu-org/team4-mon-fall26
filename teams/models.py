@@ -5,7 +5,9 @@ from django.db import models, transaction
 from .catalog_rules import name_key, validate_catalog_name
 from .season_rules import (
     SeasonState,
+    automatic_states,
     season_allows,
+    validate_registration_date,
     validate_season_dates,
     validate_transition,
 )
@@ -94,6 +96,22 @@ class Season(models.Model):
     state = models.CharField(
         max_length=10, choices=SeasonState.choices, default=SeasonState.DRAFT
     )
+    registration_closes_on = models.DateField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Teams can register until this date. "
+            "On the next day the season becomes active."
+        ),
+    )
+    auto_state = models.BooleanField(
+        default=True,
+        verbose_name="Change state automatically by date",
+        help_text=(
+            "The season becomes active after registration closes, "
+            "and closed after the end date."
+        ),
+    )
     max_roster_size = models.PositiveSmallIntegerField(
         default=12, help_text="Most players a team in this season can have."
     )
@@ -123,6 +141,17 @@ class Season(models.Model):
     def clean(self):
         if self.start_date:
             validate_season_dates(self.start_date, self.end_date)
+        validate_registration_date(self.registration_closes_on, self.end_date)
+
+    def automatic_states(self, today):
+        """The states advance_season_states moves this season through on `today`."""
+        return automatic_states(
+            self.state,
+            self.auto_state,
+            self.registration_closes_on,
+            self.end_date,
+            today,
+        )
 
     def allows(self, action):
         return season_allows(self.state, action)

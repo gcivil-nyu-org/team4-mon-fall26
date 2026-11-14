@@ -12,15 +12,21 @@ WIN_POINTS = 3
 DRAW_POINTS = 1
 
 
-def compute_standings(season):
+def compute_standings(season, division=None):
     """One row per team of the season, ordered like the leaderboard.
 
     Each row is a dict with the team, P/W/D/L and Pts. Teams with no
     recorded matches still appear, with zeros.
+
+    With a division, only that division's teams are listed, ranked among
+    themselves. Their records still count every match they played in the
+    season, including the ones against other divisions.
     """
     from teams.models import Team
 
-    teams = list(Team.objects.filter(season=season).order_by("name"))
+    teams = list(
+        Team.objects.filter(season=season).select_related("division").order_by("name")
+    )
     rows = {
         team.pk: {
             "team": team,
@@ -64,8 +70,11 @@ def compute_standings(season):
             away["drawn"] += 1
             home["points"] += DRAW_POINTS
             away["points"] += DRAW_POINTS
+    listed = rows.values()
+    if division is not None:
+        listed = [row for row in listed if row["team"].division_id == division.pk]
     return sorted(
-        rows.values(),
+        listed,
         key=lambda row: (-row["points"], -row["won"], row["team"].name),
     )
 

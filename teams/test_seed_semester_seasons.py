@@ -64,6 +64,11 @@ class SeedSemesterSeasonsTests(TestCase):
         self.basketball = Sport.objects.create(name="Basketball")
         self.soccer = Sport.objects.create(name="Soccer")
 
+    def test_already_there_counts_seasons_that_exist(self):
+        seed()
+        Season.objects.filter(sport=self.soccer, term="2027-spring").delete()
+        self.assertEqual(seed(), "Semester seasons: 1 created, 3 already there.")
+
     def test_creates_open_current_and_draft_next_per_sport(self):
         self.assertEqual(seed(), "Semester seasons: 4 created, 0 already there.")
         self.assertEqual(

@@ -256,16 +256,24 @@ def standings_seasons(request):
 
 @login_required
 def season_standings(request, pk):
-    """The season's leaderboard: P/W/D/L/Pts from recorded scores."""
+    """The season's leaderboard, optionally for one division."""
     season = get_object_or_404(seasons_visible_to(request.user), pk=pk)
     seasons = seasons_visible_to(request.user).order_by("-start_date", "name")
+    divisions = season.divisions.all()
+    division_id = request.GET.get("division", "")
+    # A value that isn't one of this season's divisions just shows every team.
+    division = (
+        divisions.filter(pk=division_id).first() if division_id.isdecimal() else None
+    )
     return render(
         request,
         "matches/season_standings.html",
         {
             "season": season,
             "seasons": seasons,
-            "rows": compute_standings(season),
+            "divisions": divisions,
+            "division": division,
+            "rows": compute_standings(season, division),
             "nav_section": "schedule",
         },
     )

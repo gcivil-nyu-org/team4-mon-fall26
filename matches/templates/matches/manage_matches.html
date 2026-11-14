@@ -8,7 +8,10 @@
       <div class="page-meta">Schedule matches while a season is open or active. Times are New York time.</div>
     </div>
     {% if can_schedule %}
-      <a class="btn btn-primary" href="{% url 'matches:create' %}{% if season_is_schedulable %}?season={{ season.pk }}{% endif %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Schedule a match</a>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="{% url 'matches:round_robin' %}{% if season_is_schedulable %}?season={{ season.pk }}{% endif %}"><i aria-hidden="true" class="ti ti-calendar-plus me-1"></i>Generate a round-robin</a>
+        <a class="btn btn-primary" href="{% url 'matches:create' %}{% if season_is_schedulable %}?season={{ season.pk }}{% endif %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Schedule a match</a>
+      </div>
     {% endif %}
   </div>
 

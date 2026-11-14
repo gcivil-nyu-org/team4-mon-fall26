@@ -46,6 +46,15 @@ Nothing else. `closed` is final. Moving a season to the state it is already in i
 
 **Who:** only League Admins and superusers create or edit seasons and change their state.
 
+**By date:** the `advance_season_states` command also changes states (rule: `automatic_states` in `teams/season_rules.py`). It runs on every deploy; the README says how to run it daily.
+
+- open → active on the day after `Season.registration_closes_on`. The start date does not trigger this: default semester seasons are created open after their start date.
+- active → closed on the day after `Season.end_date`.
+- A draft season never changes. A missing date never triggers a change.
+- `Season.auto_state = False` turns both changes off for that season.
+- When both dates are past, one run moves open → active → closed, in that order.
+- Each change goes through `Season.move_to`. The audit log records it as "Updated" with no actor.
+
 ## What each state allows
 
 | Action (`SeasonAction`) | draft | open | active | closed |
@@ -59,6 +68,8 @@ Nothing else. `closed` is final. Moving a season to the state it is already in i
 | `schedule_match` (E4, #131) | no | yes | yes | no |
 
 Rosters are locked once a season is `active`: players can still be added (by the captain or by free-agent matching), but nobody can leave or be removed, so no one switches teams mid-season. The existing one-team-per-season rule already stops a player joining a second team.
+
+A captain adds a player by any `@nyu.edu` email (#219). With no account for that email, the site creates a placeholder: an inactive user with an unusable password and an `accounts.PendingAccount` row. The site emails the new placeholder once. One inviter can make 30 add-player attempts in 24 hours (`INVITE_RATE_LIMIT_ATTEMPTS`). Every attempt with an `@nyu.edu` email counts, so the limit error does not show whether an account exists. Sign-up with that email only sends a confirmation link and changes nothing. The link opens a page where the inbox owner sets the name and password. That form activates the same user. Use `accounts.placeholders.placeholder_for` to make placeholders.
 
 Ask with `season_allows(season.state, action)`. It returns `False` for an unknown state. Don't compare state strings in views or forms.
 

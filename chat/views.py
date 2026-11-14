@@ -11,6 +11,7 @@ from teams.models import Team
 
 from .forms import MessageForm
 from .models import Message
+from .moderation import flagged_content
 from .unread import mark_thread_read
 
 
@@ -69,8 +70,7 @@ def flag_message(request, team_pk, message_pk):
 @login_required
 def moderation_queue(request):
     _require_league_admin(request.user)
-    flagged = Message.objects.filter(is_flagged=True).select_related("team", "author")
-    return render(request, "chat/moderation_queue.html", {"flagged": flagged})
+    return render(request, "chat/moderation_queue.html", flagged_content())
 
 
 @login_required

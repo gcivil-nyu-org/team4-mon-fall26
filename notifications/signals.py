@@ -7,7 +7,12 @@ Contract for score recording: whoever records a score sends
 ``score_recorded`` with ``match=`` (a matches.Match) and, when known,
 ``home_score=`` / ``away_score=``. As a fallback the Match post-save
 receiver also detects score fields if they are ever added to the model.
+
+Bulk seed scripts wrap their writes in ``muted()`` so demo data notifies nobody.
 """
+
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import Signal, receiver
@@ -29,6 +34,27 @@ MATCH_SCORE_ATTRS = ("home_score", "away_score")
 MATCH_SCHEDULE_ATTRS = ("starts_at", "ends_at", "facility_id")
 VERB_MAX_LENGTH = 255
 
+# A ContextVar, so a mute in one thread or task never silences another.
+_muted = ContextVar("notifications_muted", default=False)
+
+
+@contextmanager
+def muted():
+    """Create no notifications inside this block. For seed scripts only.
+
+    Only the current thread or async task is muted, and the previous state
+    comes back on exit, also after an exception.
+    """
+    token = _muted.set(True)
+    try:
+        yield
+    finally:
+        _muted.reset(token)
+
+
+def is_muted():
+    return _muted.get()
+
 
 def _display_name(user):
     return user.get_full_name() or user.username
@@ -45,6 +71,8 @@ def _team_member_ids(team):
 def _notify_ids(user_ids, verb, link=""):
     from .models import Notification
 
+    if _muted.get():
+        return
     recipients = {uid for uid in user_ids if uid is not None}
     if not recipients or not verb:
         return

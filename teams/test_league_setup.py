@@ -223,7 +223,8 @@ class ManageSportsFlowTests(TestCase):
         response = self.client.post(self.url, {"name": "  Ultimate   Frisbee "})
 
         self.assertRedirects(response, self.url)
-        self.assertIn("Sport added successfully.", message_texts(response))
+        [message] = message_texts(response)
+        self.assertTrue(message.startswith("Sport added with "), message)
         self.assertTrue(Sport.objects.filter(name="Ultimate Frisbee").exists())
 
     def test_duplicate_ignoring_case_and_spaces_shows_a_field_error(self):

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Generate a round-robin · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>Generate a round-robin</h1>
+      <div class="page-meta">Every pair of teams meets once. Pairs that already have a match in the season are skipped.</div>
+    </div>
+    <a class="btn btn-ghost-secondary" href="{% url 'matches:manage' %}">Back to matches</a>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <form id="round-robin-form" method="post" novalidate>
+            {% csrf_token %}
+            {% include "components/form_fields.html" %}
+            {% if plan.matches %}
+              <button class="btn btn-outline-secondary" type="submit">Update preview</button>
+            {% else %}
+              <button class="btn btn-primary" type="submit">Preview schedule</button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Preview</h3>
+          {% if plan %}
+            <div class="card-actions"><span class="text-secondary small pn-num">{{ plan.matches|length }} to create · {{ plan.skipped }} skipped as already scheduled</span></div>
+          {% endif %}
+        </div>
+        {% if plan.matches %}
+          {% if plan.overlap_count %}
+            <div class="card-body pb-0">
+              <div class="alert alert-warning text-body mb-0" role="alert">
+                <div class="fw-medium"><i aria-hidden="true" class="ti ti-alert-triangle me-1"></i>{{ plan.overlap_count }} planned match{{ plan.overlap_count|pluralize:"es" }} overlap{{ plan.overlap_count|pluralize:"s," }} an existing booking</div>
+                <div class="small">Change the time or the facilities and update the preview, or create the matches anyway.</div>
+              </div>
+            </div>
+          {% endif %}
+          {% for round in plan.rounds %}
+            <div class="card-body py-2 border-bottom">
+              <div class="subheader">Round <span class="pn-num">{{ round.number }}</span> · <span class="pn-num">{{ round.date|date:"D M j" }}</span></div>
+            </div>
+            <div class="list-group list-group-flush border-bottom">
+              {% for planned in round.matches %}
+                <div class="list-group-item">
+                  {% include "matches/_match_teams.html" with match=planned.match %}
+                  <div class="small text-secondary"><span class="pn-num">{{ planned.match.starts_at|date:"D M j, g:i A" }} – {{ planned.match.ends_at|date:"g:i A" }}</span> · {{ planned.match.facility.name }}</div>
+                  {% for overlap in planned.overlaps %}
+                    <div class="small mt-1"><span class="badge bg-yellow-lt me-1">Overlap</span>{{ overlap.home_team.name }} vs {{ overlap.away_team.name }}, <span class="pn-num">{{ overlap.starts_at|date:"g:i A" }} – {{ overlap.ends_at|date:"g:i A" }}</span></div>
+                  {% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          <div class="card-footer">
+            <button class="btn btn-primary" form="round-robin-form" name="{{ confirm_field }}" type="submit" value="{{ plan.token }}">Create {{ plan.matches|length }} match{{ plan.matches|length|pluralize:"es" }}{% if plan.overlap_count %} anyway{% endif %}</button>
+          </div>
+        {% elif plan %}
+          <div class="empty">
+            <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-check"></i></div>
+            <p class="empty-title">Nothing to create</p>
+            <p class="empty-subtitle text-secondary">Every pair of these teams already has a match in {{ plan.season.name }}.</p>
+          </div>
+        {% else %}
+          <div class="empty">
+            <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-plus"></i></div>
+            <p class="empty-title">No preview yet</p>
+            <p class="empty-subtitle text-secondary">Fill in the form and preview the schedule. Nothing is saved until you create the matches.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  {% include "components/season_fields.html" %}
+{% endblock %}

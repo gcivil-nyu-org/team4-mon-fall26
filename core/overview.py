@@ -4,7 +4,7 @@ from django.db.models import Count
 from django.urls import reverse
 
 from audit.models import AuditLog
-from chat.models import Message
+from chat.moderation import flagged_total
 from facilities.models import Facility
 from matches.schedule import schedule_matches
 from teams.models import FreeAgentRequest, Season, Team
@@ -40,11 +40,6 @@ def pending_request_count():
     ).count()
 
 
-def flagged_message_count():
-    """The same messages the moderation queue lists."""
-    return Message.objects.filter(is_flagged=True).count()
-
-
 def season_state_counts():
     """One {label, count} per season state, in lifecycle order."""
     found = dict(
@@ -76,7 +71,7 @@ def overview_context(now):
         "counts": {
             "pending_requests": pending_request_count(),
             "needs_score": needs_score.count(),
-            "flagged": flagged_message_count(),
+            "flagged": flagged_total(),
             "upcoming_matches": upcoming.count(),
             "teams": Team.objects.count(),
             "active_facilities": Facility.objects.filter(is_active=True).count(),

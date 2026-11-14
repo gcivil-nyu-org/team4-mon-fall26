@@ -6,14 +6,17 @@ from django.db.models import Count
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.dateformat import format as date_format
 from django.views.decorators.http import require_POST
 
+from accounts.placeholders import placeholder_for, send_invite_email_safely
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
 from matches.standings import compute_standings
 
+from .default_seasons import created_seasons_message, ensure_default_seasons
 from .forms import (
     AddPlayerForm,
     DivisionCreateForm,
@@ -163,7 +166,7 @@ def add_player(request, pk):
         messages.info(request, f"The roster is full ({team.max_roster_size} players).")
         return redirect("teams:detail", pk=team.pk)
 
-    form = AddPlayerForm(request.POST or None, team=team)
+    form = AddPlayerForm(request.POST or None, team=team, inviter=request.user)
     if request.method == "POST":
         with transaction.atomic():
             season = None
@@ -177,15 +180,31 @@ def add_player(request, pk):
                 added = False
             if added:
                 # TODO: players are added without consent; replace with an invite/accept flow later.
+                player = form.player
+                if player is None:
+                    player, created = placeholder_for(
+                        form.cleaned_data["email"], invited_by=request.user
+                    )
+                    if created:
+                        transaction.on_commit(
+                            lambda: send_invite_email_safely(
+                                request, player, team, request.user
+                            )
+                        )
                 if team.season_id:
                     FreeAgentRequest.objects.filter(
-                        player=form.player, season_id=team.season_id
+                        player=player, season_id=team.season_id
                     ).delete()
-                Roster.objects.create(
-                    team=team, player=form.player, role=Roster.Role.PLAYER
-                )
+                Roster.objects.create(team=team, player=player, role=Roster.Role.PLAYER)
         if added:
-            messages.success(request, f"Added {form.player.email} to {team.name}.")
+            if player.is_active:
+                message = f"Added {player.email} to {team.name}."
+            else:
+                message = (
+                    f"Added {player.email} to {team.name}. They'll see the team "
+                    "when they sign up with that email."
+                )
+            messages.success(request, message)
             return redirect("teams:detail", pk=team.pk)
     return render(request, "teams/add_player.html", {"form": form, "team": team})
 
@@ -324,7 +343,11 @@ def manage_free_agents(request):
     seasons = Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS).annotate(
         request_count=Count("free_agent_requests")
     )
-    return render(request, "teams/manage_free_agents.html", {"seasons": seasons})
+    return render(
+        request,
+        "teams/manage_free_agents.html",
+        {"seasons": seasons, "nav_section": "league_setup"},
+    )
 
 
 @login_required
@@ -393,6 +416,7 @@ def manage_season_free_agents(request, season_pk):
             "free_agents": free_agents,
             "teams": teams,
             "available_spots": available_spots,
+            "nav_section": "league_setup",
         },
     )
 
@@ -501,8 +525,10 @@ def manage_sports(request):
 
     form = SportForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Sport added successfully.")
+        with transaction.atomic():
+            sport = form.save()
+            seasons = ensure_default_seasons(sport)
+        messages.success(request, created_seasons_message(seasons))
         return redirect("teams:manage_sports")
 
     sports = Sport.objects.annotate(event_type_count=Count("event_types")).order_by(
@@ -551,6 +577,26 @@ def _season_transitions(season):
     ]
 
 
+def _season_hints(season):
+    """What advance_season_states does next to this season, for the seasons list."""
+    if not season.auto_state:
+        return []
+    hints = []
+    registers = season.state in (SeasonState.DRAFT, SeasonState.OPEN)
+    if registers and season.registration_closes_on:
+        closes = date_format(season.registration_closes_on, "M j, Y")
+        hints.append(f"Registration closes {closes}")
+    # An open season with no registration date never becomes active, so it
+    # never closes by date either.
+    if season.end_date and (
+        season.state == SeasonState.ACTIVE
+        or (registers and season.registration_closes_on)
+    ):
+        ends = date_format(season.end_date, "M j, Y")
+        hints.append(f"Closes automatically after {ends}")
+    return hints
+
+
 @login_required
 def manage_seasons(request):
     _require_league_admin(request.user)
@@ -560,11 +606,17 @@ def manage_seasons(request):
         .order_by("-start_date", "name")
     )
     rows = [
-        {"season": season, "transitions": _season_transitions(season)}
+        {
+            "season": season,
+            "transitions": _season_transitions(season),
+            "hints": _season_hints(season),
+        }
         for season in seasons
     ]
     return render(
-        request, "teams/manage_seasons.html", {"rows": rows, "nav_section": "seasons"}
+        request,
+        "teams/manage_seasons.html",
+        {"rows": rows, "nav_section": "league_setup"},
     )
 
 
@@ -589,7 +641,7 @@ def season_form(request, pk=None):
     return render(
         request,
         "teams/season_form.html",
-        {"form": form, "season": season, "nav_section": "seasons"},
+        {"form": form, "season": season, "nav_section": "league_setup"},
     )
 
 

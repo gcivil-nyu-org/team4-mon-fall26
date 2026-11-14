@@ -83,6 +83,8 @@
 
 /* Navbar: the active item uses the brand color, not just the underline. */
 .navbar .nav-item.active .nav-link { color: var(--tblr-primary); }
+/* Navbar: a long account name truncates, so the right-hand group stays inside the container. */
+.pn-nav-name { max-width: 10rem; }
 
 /* Card titles are 600 (Tabler default is 500). */
 .card-title { font-weight: 600; }

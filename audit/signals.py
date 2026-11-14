@@ -2,7 +2,12 @@
 
 The actor comes from AuditMiddleware's thread-local: web changes are
 attributed to the signed-in user, shell and seed-script changes log None.
+
+Bulk seed scripts wrap their writes in ``muted()`` so demo data logs nothing.
 """
+
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from django.db.models.signals import post_delete, post_save
 
@@ -15,8 +20,31 @@ from .models import AuditLog
 
 WATCHED_MODELS = (Team, Season, Sport, Match, Facility)
 
+# A ContextVar, so a mute in one thread or task never silences another.
+_muted = ContextVar("audit_muted", default=False)
+
+
+@contextmanager
+def muted():
+    """Write no audit rows inside this block. For seed scripts only.
+
+    Only the current thread or async task is muted, and the previous state
+    comes back on exit, also after an exception.
+    """
+    token = _muted.set(True)
+    try:
+        yield
+    finally:
+        _muted.reset(token)
+
+
+def is_muted():
+    return _muted.get()
+
 
 def _log(instance, action):
+    if _muted.get():
+        return
     actor = get_current_user()
     AuditLog.objects.create(
         actor=actor if actor is not None and actor.pk else None,

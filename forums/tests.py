@@ -428,6 +428,297 @@ class TopicDetailTests(TestCase):
         self.assertNotContains(response, "<script>alert(1)</script>")
         self.assertContains(response, "&lt;script&gt;alert(1)&lt;/script&gt;")
 
-    def test_no_report_ui_yet(self):
-        Reply.objects.create(topic=self.topic, author=self.author, body="One")
-        self.assertNotContains(self.client.get(self.url), "Report")
+    def test_report_buttons_for_topic_and_each_reply(self):
+        reply = Reply.objects.create(topic=self.topic, author=self.author, body="One")
+        response = self.client.get(self.url)
+        self.assertContains(
+            response, reverse("forums:report_topic", args=[self.topic.pk])
+        )
+        self.assertContains(
+            response, reverse("forums:report_reply", args=[self.topic.pk, reply.pk])
+        )
+        self.assertContains(response, "btn-ghost-secondary", count=2)
+        self.assertNotContains(response, "Reported")
+        self.assertContains(response, "btn-primary", count=1)
+
+    def test_reported_posts_show_a_badge_in_place_of_the_button(self):
+        Topic.objects.filter(pk=self.topic.pk).update(is_flagged=True)
+        reply = Reply.objects.create(
+            topic=self.topic, author=self.author, body="One", is_flagged=True
+        )
+        response = self.client.get(self.url)
+        self.assertContains(response, "Reported", count=2)
+        self.assertNotContains(
+            response, reverse("forums:report_topic", args=[self.topic.pk])
+        )
+        self.assertNotContains(
+            response, reverse("forums:report_reply", args=[self.topic.pk, reply.pk])
+        )
+
+
+class ReportTests(TestCase):
+    def setUp(self):
+        self.author = make_user("author")
+        self.user = make_user("player")
+        self.topic = make_topic(self.author)
+        self.reply = Reply.objects.create(
+            topic=self.topic, author=self.author, body="I am in"
+        )
+        self.detail_url = reverse("forums:detail", args=[self.topic.pk])
+        self.topic_url = reverse("forums:report_topic", args=[self.topic.pk])
+        self.reply_url = reverse(
+            "forums:report_reply", args=[self.topic.pk, self.reply.pk]
+        )
+
+    def test_signed_in_user_reports_a_topic(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.topic_url, follow=True)
+        self.assertRedirects(response, self.detail_url)
+        self.assertContains(response, "Topic reported for League Admin review.")
+        self.topic.refresh_from_db()
+        self.reply.refresh_from_db()
+        self.assertTrue(self.topic.is_flagged)
+        self.assertFalse(self.reply.is_flagged)
+
+    def test_signed_in_user_reports_a_reply(self):
+        self.client.force_login(self.user)
+        response = self.client.post(self.reply_url, follow=True)
+        self.assertRedirects(response, self.detail_url)
+        self.assertContains(response, "Reply reported for League Admin review.")
+        self.topic.refresh_from_db()
+        self.reply.refresh_from_db()
+        self.assertTrue(self.reply.is_flagged)
+        self.assertFalse(self.topic.is_flagged)
+
+    def test_report_does_not_bump_the_topic(self):
+        old = timezone.now() - timedelta(days=3)
+        Topic.objects.filter(pk=self.topic.pk).update(last_activity_at=old)
+        self.client.force_login(self.user)
+        self.client.post(self.topic_url)
+        self.client.post(self.reply_url)
+        self.topic.refresh_from_db()
+        self.assertEqual(self.topic.last_activity_at, old)
+
+    def test_reporting_twice_is_harmless(self):
+        self.client.force_login(self.user)
+        for url in (self.topic_url, self.reply_url):
+            with self.subTest(url=url):
+                self.client.post(url)
+                self.assertRedirects(self.client.post(url), self.detail_url)
+        self.topic.refresh_from_db()
+        self.reply.refresh_from_db()
+        self.assertTrue(self.topic.is_flagged)
+        self.assertTrue(self.reply.is_flagged)
+
+    def test_author_can_report_their_own_post(self):
+        self.client.force_login(self.author)
+        self.client.post(self.topic_url)
+        self.client.post(self.reply_url)
+        self.assertTrue(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.assertTrue(Reply.objects.get(pk=self.reply.pk).is_flagged)
+
+    def test_anonymous_cannot_report(self):
+        for url in (self.topic_url, self.reply_url):
+            with self.subTest(url=url):
+                response = self.client.post(url)
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("/accounts/login/", response["Location"])
+        self.assertFalse(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.assertFalse(Reply.objects.get(pk=self.reply.pk).is_flagged)
+
+    def test_report_needs_post(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(self.topic_url).status_code, 405)
+        self.assertEqual(self.client.get(self.reply_url).status_code, 405)
+        self.assertFalse(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.assertFalse(Reply.objects.get(pk=self.reply.pk).is_flagged)
+
+    def test_missing_post_is_404(self):
+        elsewhere = make_topic(self.author, "Another topic")
+        self.client.force_login(self.user)
+        urls = [
+            reverse("forums:report_topic", args=[elsewhere.pk + 1]),
+            reverse("forums:report_reply", args=[self.topic.pk, self.reply.pk + 1]),
+            # A reply is reported through its own topic only.
+            reverse("forums:report_reply", args=[elsewhere.pk, self.reply.pk]),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertFalse(Reply.objects.get(pk=self.reply.pk).is_flagged)
+
+
+class ModerationQueueTests(TestCase):
+    def setUp(self):
+        self.admin = make_admin()
+        self.author = make_user("author")
+        self.sport = Sport.objects.create(name="Soccer")
+        self.topic = make_topic(
+            self.author, "Flagged topic", sport=self.sport, is_flagged=True
+        )
+        self.clean_topic = make_topic(self.author, "Clean topic")
+        self.reply = Reply.objects.create(
+            topic=self.clean_topic,
+            author=self.author,
+            body="Flagged reply",
+            is_flagged=True,
+        )
+        self.clean_reply = Reply.objects.create(
+            topic=self.topic, author=self.author, body="Clean reply"
+        )
+        self.queue_url = reverse("chat:moderation_queue")
+        self.topic_url = reverse("forums:moderate_topic", args=[self.topic.pk])
+        self.reply_url = reverse("forums:moderate_reply", args=[self.reply.pk])
+
+    def test_queue_lists_only_flagged_topics_and_replies(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(self.queue_url)
+        self.assertEqual(list(response.context["flagged_topics"]), [self.topic])
+        self.assertEqual(list(response.context["flagged_replies"]), [self.reply])
+        self.assertContains(response, "Flagged topic")
+        self.assertContains(response, "Flagged reply")
+        self.assertNotContains(response, "Clean reply")
+        self.assertContains(response, "author@nyu.edu")
+        # Each row names its sport and links to its topic.
+        self.assertContains(response, "Soccer ·")
+        self.assertContains(response, "General ·")
+        self.assertContains(response, reverse("forums:detail", args=[self.topic.pk]))
+        self.assertContains(
+            response, reverse("forums:detail", args=[self.clean_topic.pk])
+        )
+        self.assertContains(response, self.topic_url, count=2)
+        self.assertContains(response, self.reply_url, count=2)
+        # Flagged chat messages keep their own section beside the forum ones.
+        self.assertContains(response, "No flagged messages")
+        self.assertNotContains(response, "btn-primary")
+
+    def test_queue_shows_an_excerpt_of_a_long_post(self):
+        Topic.objects.filter(pk=self.topic.pk).update(body="t" * 500)
+        Reply.objects.filter(pk=self.reply.pk).update(body="r" * 500)
+        self.client.force_login(self.admin)
+        response = self.client.get(self.queue_url)
+        self.assertContains(response, "t" * 199 + "…")
+        self.assertNotContains(response, "t" * 200)
+        self.assertContains(response, "r" * 199 + "…")
+        self.assertNotContains(response, "r" * 200)
+
+    def test_queue_escapes_post_text(self):
+        Reply.objects.filter(pk=self.reply.pk).update(body="<script>alert(1)</script>")
+        self.client.force_login(self.admin)
+        response = self.client.get(self.queue_url)
+        self.assertNotContains(response, "<script>alert(1)</script>")
+        self.assertContains(response, "&lt;script&gt;alert(1)&lt;/script&gt;")
+
+    def test_queue_empty_states(self):
+        Topic.objects.update(is_flagged=False)
+        Reply.objects.update(is_flagged=False)
+        self.client.force_login(self.admin)
+        response = self.client.get(self.queue_url)
+        self.assertContains(response, "No flagged topics")
+        self.assertContains(response, "No flagged replies")
+        self.assertContains(response, "No flagged messages")
+        self.assertContains(response, 'class="empty"', count=3)
+
+    def test_non_admin_cannot_see_the_queue(self):
+        self.client.force_login(self.author)
+        self.assertEqual(self.client.get(self.queue_url).status_code, 403)
+
+    def test_admin_dismisses_a_topic_report(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(self.topic_url, {"action": "dismiss"}, follow=True)
+        self.assertRedirects(response, self.queue_url)
+        self.assertContains(response, "Report dismissed.")
+        self.assertNotContains(response, "Flagged topic")
+        self.assertFalse(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.assertTrue(Reply.objects.get(pk=self.reply.pk).is_flagged)
+        self.assertFalse(AuditLog.objects.filter(object_type="Topic").exists())
+
+    def test_admin_dismisses_a_reply_report(self):
+        old = timezone.now() - timedelta(days=3)
+        Topic.objects.filter(pk=self.clean_topic.pk).update(last_activity_at=old)
+        self.client.force_login(self.admin)
+        response = self.client.post(self.reply_url, {"action": "dismiss"})
+        self.assertRedirects(response, self.queue_url)
+        self.assertFalse(Reply.objects.get(pk=self.reply.pk).is_flagged)
+        self.assertTrue(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.clean_topic.refresh_from_db()
+        self.assertEqual(self.clean_topic.last_activity_at, old)
+
+    def test_admin_deletes_a_topic_with_its_replies_and_an_audit_row(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(self.topic_url, {"action": "delete"}, follow=True)
+        self.assertRedirects(response, self.queue_url)
+        self.assertContains(response, "Topic deleted.")
+        self.assertFalse(Topic.objects.filter(pk=self.topic.pk).exists())
+        self.assertFalse(Reply.objects.filter(pk=self.clean_reply.pk).exists())
+        self.assertTrue(Topic.objects.filter(pk=self.clean_topic.pk).exists())
+        entry = AuditLog.objects.get(object_type="Topic")
+        self.assertEqual(entry.actor, self.admin)
+        self.assertEqual(entry.action, AuditLog.Action.DELETED)
+        self.assertEqual(entry.object_id, str(self.topic.pk))
+
+    def test_admin_deletes_a_reply_and_keeps_its_topic(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(self.reply_url, {"action": "delete"}, follow=True)
+        self.assertRedirects(response, self.queue_url)
+        self.assertContains(response, "Reply deleted.")
+        self.assertFalse(Reply.objects.filter(pk=self.reply.pk).exists())
+        self.assertTrue(Topic.objects.filter(pk=self.clean_topic.pk).exists())
+        entry = AuditLog.objects.get(object_type="Reply")
+        self.assertEqual(entry.actor, self.admin)
+        self.assertEqual(entry.object_id, str(self.reply.pk))
+
+    def test_superuser_can_moderate(self):
+        root = get_user_model().objects.create_superuser(
+            username="root", email="root@nyu.edu", password="pass12345!"
+        )
+        self.client.force_login(root)
+        self.client.post(self.topic_url, {"action": "dismiss"})
+        self.assertFalse(Topic.objects.get(pk=self.topic.pk).is_flagged)
+
+    def test_non_admin_gets_403_even_as_the_author(self):
+        for user in (self.author, make_user("other")):
+            for url in (self.topic_url, self.reply_url):
+                for action in ("dismiss", "delete"):
+                    with self.subTest(user=user.username, url=url, action=action):
+                        self.client.force_login(user)
+                        response = self.client.post(url, {"action": action})
+                        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.assertTrue(Reply.objects.get(pk=self.reply.pk).is_flagged)
+        self.assertFalse(AuditLog.objects.filter(object_type="Topic").exists())
+
+    def test_anonymous_redirected_to_login(self):
+        for url in (self.topic_url, self.reply_url):
+            with self.subTest(url=url):
+                response = self.client.post(url, {"action": "delete"})
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("/accounts/login/", response["Location"])
+        self.assertEqual(Topic.objects.count(), 2)
+        self.assertEqual(Reply.objects.count(), 2)
+
+    def test_moderation_needs_post(self):
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(self.topic_url).status_code, 405)
+        self.assertEqual(self.client.get(self.reply_url).status_code, 405)
+
+    def test_unknown_action_changes_nothing(self):
+        self.client.force_login(self.admin)
+        for url in (self.topic_url, self.reply_url):
+            with self.subTest(url=url):
+                response = self.client.post(url, {"action": "nonsense"}, follow=True)
+                self.assertRedirects(response, self.queue_url)
+                self.assertContains(response, "Choose dismiss or delete.")
+        self.assertTrue(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.assertTrue(Reply.objects.get(pk=self.reply.pk).is_flagged)
+
+    def test_missing_post_is_404(self):
+        self.client.force_login(self.admin)
+        urls = [
+            reverse("forums:moderate_topic", args=[self.clean_topic.pk + 1]),
+            reverse("forums:moderate_reply", args=[self.clean_reply.pk + 1]),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                response = self.client.post(url, {"action": "dismiss"})
+                self.assertEqual(response.status_code, 404)

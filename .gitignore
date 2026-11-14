@@ -31,3 +31,6 @@ media/
 
 # Coverage
 .coverage
+
+# Class league roster: real names and emails, never commit
+class-league-roster*.json

@@ -74,7 +74,8 @@ class SeasonEndToEndTests(TestCase):
 
         # 1. Sport.
         response = admin.post(reverse("teams:manage_sports"), {"name": "Soccer"})
-        self.assertIn("Sport added successfully.", message_texts(response))
+        [message] = message_texts(response)
+        self.assertTrue(message.startswith("Sport added with "), message)
         self.sport = Sport.objects.get(name="Soccer")
 
         # 2. Season starts as a draft that players can't use.

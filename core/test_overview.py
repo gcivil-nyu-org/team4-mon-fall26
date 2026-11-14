@@ -8,7 +8,9 @@ from django.utils import timezone
 
 from audit.models import AuditLog
 from chat.models import Message
+from chat.moderation import flagged_total
 from facilities.models import Facility
+from forums.models import Reply, Topic
 from matches.models import Match
 from matches.tests import make_user
 from teams.models import FreeAgentRequest, Season, Sport, Team
@@ -251,20 +253,58 @@ class OverviewContentTests(OverviewFixtures):
         self.assertContains(response, 'id="needs-a-score"')
         self.assertContains(response, "card-link-pop", count=4)
 
-    def test_flagged_count_matches_the_moderation_queue(self):
+    def make_flagged_content(self, messages=0, topics=0, replies=0):
+        """The given number of flagged rows of each kind, plus one clean row each."""
         team = Team.objects.create(
             name="Violets", sport=self.soccer, captain=self.player
         )
-        for body, flagged in (("Bad", True), ("Worse", True), ("Fine", False)):
+        home = Topic.objects.create(author=self.player, title="Clean", body="Fine")
+        for number in range(messages + 1):
             Message.objects.create(
-                team=team, author=self.player, body=body, is_flagged=flagged
+                team=team, author=self.player, body="Hi", is_flagged=number < messages
             )
-        response = self.get()
-        queue = self.client.get(reverse("chat:moderation_queue"))
-        self.assertEqual(response.context["counts"]["flagged"], 2)
-        self.assertEqual(
-            response.context["counts"]["flagged"], len(queue.context["flagged"])
+        for number in range(topics):
+            Topic.objects.create(
+                author=self.player, title=f"Bad {number}", body="Bad", is_flagged=True
+            )
+        for number in range(replies + 1):
+            Reply.objects.create(
+                topic=home, author=self.player, body="Hi", is_flagged=number < replies
+            )
+
+    def queue_row_count(self):
+        context = self.client.get(reverse("chat:moderation_queue")).context
+        return sum(
+            len(context[name])
+            for name in ("flagged", "flagged_topics", "flagged_replies")
         )
+
+    def test_flagged_count_matches_the_moderation_queue(self):
+        self.make_flagged_content(messages=2, topics=3, replies=4)
+        response = self.get()
+        self.assertEqual(response.context["counts"]["flagged"], 9)
+        self.assertEqual(response.context["counts"]["flagged"], self.queue_row_count())
+        self.assertContains(
+            response, "Messages, topics and replies in the moderation queue"
+        )
+
+    def test_flagged_count_includes_forum_topics_and_replies(self):
+        self.make_flagged_content(topics=1, replies=2)
+        self.assertEqual(self.get().context["counts"]["flagged"], 3)
+        self.assertEqual(self.queue_row_count(), 3)
+
+    def test_unflagged_content_is_not_counted(self):
+        self.make_flagged_content()
+        self.assertEqual(Message.objects.count(), 1)
+        self.assertEqual(Topic.objects.count(), 1)
+        self.assertEqual(Reply.objects.count(), 1)
+        self.assertEqual(self.get().context["counts"]["flagged"], 0)
+        self.assertEqual(self.queue_row_count(), 0)
+
+    def test_flagged_count_takes_one_query_per_kind(self):
+        self.make_flagged_content(messages=2, topics=2, replies=2)
+        with self.assertNumQueries(3):
+            self.assertEqual(flagged_total(), 6)
 
     def test_seasons_list_leaves_out_closed_seasons(self):
         # "Recent changes" would also name the closed season.

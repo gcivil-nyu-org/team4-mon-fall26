@@ -17,16 +17,16 @@
 </head>
 <body>
   <div class="page">
-    <header class="navbar navbar-expand-md d-print-none">
+    <header class="navbar navbar-expand-xl d-print-none">
       <div class="container-xl">
         {% if user.is_authenticated %}
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#pn-nav" aria-controls="pn-nav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
           </button>
         {% endif %}
-        <a class="navbar-brand pn-brand-mark me-md-4" href="{% url 'core:home' %}">PlayNYU</a>
+        <a class="navbar-brand pn-brand-mark me-xl-4" href="{% url 'core:home' %}">PlayNYU</a>
 
-        <div class="navbar-nav flex-row order-md-last">
+        <div class="navbar-nav flex-row flex-nowrap text-nowrap order-xl-last">
           {% if user.is_authenticated %}
             {% chat_nav as pn_chat %}
             <div class="nav-item">
@@ -43,8 +43,8 @@
             <div class="nav-item dropdown">
               <a href="#" class="nav-link d-flex lh-1 p-0 px-2" data-bs-toggle="dropdown" aria-label="Open user menu">
                 {% include "components/avatar.html" with person=user size="sm" %}
-                <div class="d-none d-xl-block ps-2">
-                  <div class="fw-medium">{{ user.get_full_name|default:"My account" }}</div>
+                <div class="d-none d-xxl-block ps-2">
+                  <div class="fw-medium text-truncate pn-nav-name">{{ user.get_full_name|default:"My account" }}</div>
                 </div>
               </a>
               <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
@@ -66,42 +66,37 @@
         <div class="collapse navbar-collapse" id="pn-nav">
           {% if user.is_authenticated %}
             {% with namespace=request.resolver_match.namespace %}
-              <ul class="navbar-nav">
+              {# Labels stay on one line. Icons show only in the collapsed menu. See docs/DESIGN.md, "Navbar". #}
+              <ul class="navbar-nav text-nowrap">
                 <li class="nav-item{% if namespace == 'core' and nav_section != 'overview' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'core:home' %}"{% if namespace == 'core' and nav_section != 'overview' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-layout-dashboard me-2"></i>Home</a>
+                  <a class="nav-link" href="{% url 'core:home' %}"{% if namespace == 'core' and nav_section != 'overview' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-layout-dashboard me-2 d-xl-none"></i>Home</a>
                 </li>
-                <li class="nav-item{% if namespace == 'teams' and nav_section != 'league_setup' and nav_section != 'seasons' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'teams:list' %}"{% if namespace == 'teams' and nav_section != 'league_setup' and nav_section != 'seasons' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-users-group me-2"></i>My teams</a>
+                <li class="nav-item{% if namespace == 'teams' and nav_section != 'league_setup' %} active{% endif %}">
+                  <a class="nav-link" href="{% url 'teams:list' %}"{% if namespace == 'teams' and nav_section != 'league_setup' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-users-group me-2 d-xl-none"></i>My teams</a>
                 </li>
                 <li class="nav-item{% if request.resolver_match.url_name == 'free_agent_pool' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'teams:free_agent_pool' %}"{% if request.resolver_match.url_name == 'free_agent_pool' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-user-search me-2"></i>Free agents</a>
+                  <a class="nav-link" href="{% url 'teams:free_agent_pool' %}"{% if request.resolver_match.url_name == 'free_agent_pool' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-user-search me-2 d-xl-none"></i>Free agents</a>
                 </li>
                 <li class="nav-item{% if nav_section == 'schedule' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'matches:schedule_seasons' %}"{% if nav_section == 'schedule' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-calendar me-2"></i>Schedule</a>
+                  <a class="nav-link" href="{% url 'matches:schedule_seasons' %}"{% if nav_section == 'schedule' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-calendar me-2 d-xl-none"></i>Schedule</a>
                 </li>
                 <li class="nav-item{% if namespace == 'facilities' and nav_section != 'league_setup' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'facilities:map' %}"{% if namespace == 'facilities' and nav_section != 'league_setup' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-map-pin me-2"></i>Facilities</a>
+                  <a class="nav-link" href="{% url 'facilities:map' %}"{% if namespace == 'facilities' and nav_section != 'league_setup' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-map-pin me-2 d-xl-none"></i>Facilities</a>
                 </li>
                 <li class="nav-item{% if namespace == 'forums' %} active{% endif %}">
-                  <a class="nav-link" href="{% url 'forums:list' %}"{% if namespace == 'forums' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-messages me-2"></i>Forum</a>
+                  <a class="nav-link" href="{% url 'forums:list' %}"{% if namespace == 'forums' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-messages me-2 d-xl-none"></i>Forum</a>
                 </li>
                 {% if user|has_account_role:"Scorekeeper" %}
                   <li class="nav-item{% if nav_section == 'my_matches' %} active{% endif %}">
-                    <a class="nav-link" href="{% url 'matches:mine' %}"{% if nav_section == 'my_matches' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-clipboard-list me-2"></i>My matches</a>
+                    <a class="nav-link" href="{% url 'matches:mine' %}"{% if nav_section == 'my_matches' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-clipboard-list me-2 d-xl-none"></i>My matches</a>
                   </li>
                 {% endif %}
                 {% if user.is_superuser or user|has_account_role:"League Admin" %}
                   <li class="nav-item{% if nav_section == 'overview' %} active{% endif %}">
-                    <a class="nav-link" href="{% url 'core:overview' %}"{% if nav_section == 'overview' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-chart-bar me-2"></i>Overview</a>
-                  </li>
-                  <li class="nav-item{% if nav_section == 'seasons' %} active{% endif %}">
-                    <a class="nav-link" href="{% url 'teams:manage_seasons' %}"{% if nav_section == 'seasons' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-calendar-event me-2"></i>Seasons</a>
-                  </li>
-                  <li class="nav-item{% if 'manage_free_agents' in request.resolver_match.url_name %} active{% endif %}">
-                    <a class="nav-link" href="{% url 'teams:manage_free_agents' %}"{% if 'manage_free_agents' in request.resolver_match.url_name %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-arrows-shuffle me-2"></i>Placement</a>
+                    <a class="nav-link" href="{% url 'core:overview' %}"{% if nav_section == 'overview' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-chart-bar me-2 d-xl-none"></i>Overview</a>
                   </li>
                   <li class="nav-item{% if nav_section == 'league_setup' %} active{% endif %}">
-                    <a class="nav-link" href="{% url 'teams:league_setup' %}"{% if nav_section == 'league_setup' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-settings me-2"></i>League setup</a>
+                    <a class="nav-link" href="{% url 'teams:league_setup' %}"{% if nav_section == 'league_setup' %} aria-current="page"{% endif %}><i aria-hidden="true" class="ti ti-settings me-2 d-xl-none"></i>League setup</a>
                   </li>
                 {% endif %}
               </ul>
