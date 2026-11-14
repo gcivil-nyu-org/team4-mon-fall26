@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Finish signing up · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <h1>Finish signing up</h1>
+          <div class="page-meta">You're already on a team. Choose your name and password to activate your account.</div>
+        </div>
+        {% if form.errors %}
+          <div class="alert alert-danger" role="alert">Your account is not active yet. Fix the errors below and submit again.</div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <button class="btn btn-primary w-100" type="submit">Activate account</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

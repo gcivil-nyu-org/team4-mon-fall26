@@ -45,9 +45,15 @@
             <div class="list-group-item d-flex align-items-center gap-3{% if entry.player_id == user.pk %} pn-row-me{% endif %}">
               {% include "components/avatar.html" with person=entry.player size="sm" %}
               <div class="flex-fill min-w-0">
-                <a class="text-reset fw-medium" href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
+                {# Players who haven't signed up have no profile page. #}
+                {% if entry.player.is_active %}
+                  <a class="text-reset fw-medium" href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
+                {% else %}
+                  <span class="fw-medium">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</span>
+                {% endif %}
                 {% if entry.player_id == user.pk %}<span class="small text-secondary ms-1">(you)</span>{% endif %}
               </div>
+              {% if not entry.player.is_active %}<span class="badge bg-secondary-lt">Not signed up yet</span>{% endif %}
               {% if entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
               {% if is_captain and can_remove and entry.role == "player" %}
                 <form method="post" action="{% url 'teams:remove_player' team.pk entry.pk %}" onsubmit="return confirm('Remove {{ entry.player.get_full_name|default:entry.player.email|escapejs }} from {{ team.name|escapejs }}?');">
