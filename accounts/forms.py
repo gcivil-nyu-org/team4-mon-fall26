@@ -1,6 +1,10 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm,
+    SetPasswordMixin,
+    UserCreationForm,
+)
 from django.db.models import Q
 
 from .placeholders import is_placeholder
@@ -50,14 +54,12 @@ class SignUpForm(UserCreationForm):
 
     def save(self, commit=True):
         placeholder = getattr(self, "placeholder", None)
-        if placeholder is None:
-            user = super().save(commit=False)
-        else:
-            # Same user, so teams and match history stay with the person.
-            user = placeholder
-            user.first_name = self.cleaned_data["first_name"]
-            user.last_name = self.cleaned_data["last_name"]
-            user.set_password(self.cleaned_data["password1"])
+        if placeholder is not None:
+            # Don't change the placeholder here: anyone can type this email.
+            # The person who opens the email link sets the password and names
+            # (ClaimAccountForm), so the account stays with the inbox owner.
+            return placeholder
+        user = super().save(commit=False)
         user.username = user.email = self.cleaned_data["email"]
         user.is_active = False  # becomes active when the email link is opened
 
@@ -65,6 +67,33 @@ class SignUpForm(UserCreationForm):
             user.save()
 
         return user
+
+
+class ClaimAccountForm(SetPasswordMixin, forms.Form):
+    """Shown from the email link for a placeholder: the inbox owner sets the
+    names and password, then the account becomes active."""
+
+    first_name = forms.CharField(max_length=150)
+    last_name = forms.CharField(max_length=150)
+    password1, password2 = SetPasswordMixin.create_password_fields()
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        kwargs.setdefault(
+            "initial", {"first_name": user.first_name, "last_name": user.last_name}
+        )
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        self.validate_passwords()
+        self.user.first_name = self.cleaned_data.get("first_name", "")
+        self.user.last_name = self.cleaned_data.get("last_name", "")
+        self.validate_password_for_user(self.user)
+        return super().clean()
+
+    def save(self):
+        """Set names and password. The caller activates the user."""
+        return self.set_password_and_save(self.user, commit=False)
 
 
 class LoginForm(AuthenticationForm):

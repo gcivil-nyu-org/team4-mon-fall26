@@ -69,7 +69,7 @@ Nothing else. `closed` is final. Moving a season to the state it is already in i
 
 Rosters are locked once a season is `active`: players can still be added (by the captain or by free-agent matching), but nobody can leave or be removed, so no one switches teams mid-season. The existing one-team-per-season rule already stops a player joining a second team.
 
-A captain adds a player by any `@nyu.edu` email (#219). With no account for that email, the site creates a placeholder: an inactive user with an unusable password and an `accounts.PendingAccount` row. The site emails the new placeholder once. Sign-up with that email claims the same user, and the email link completes the claim. Use `accounts.placeholders.placeholder_for` to make placeholders.
+A captain adds a player by any `@nyu.edu` email (#219). With no account for that email, the site creates a placeholder: an inactive user with an unusable password and an `accounts.PendingAccount` row. The site emails the new placeholder once. One inviter can make 20 new placeholders in 24 hours (`INVITE_RATE_LIMIT_ATTEMPTS`). Sign-up with that email only sends a confirmation link and changes nothing. The link opens a page where the inbox owner sets the name and password. That form activates the same user. Use `accounts.placeholders.placeholder_for` to make placeholders.
 
 Ask with `season_allows(season.state, action)`. It returns `False` for an unknown state. Don't compare state strings in views or forms.
 

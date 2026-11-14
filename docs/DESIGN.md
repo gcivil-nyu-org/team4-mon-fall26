@@ -368,7 +368,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
 | **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body, Report → Replies card: list rows, oldest first, with Report and Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Moderation queue** | Page header: `subheader` "League Admin", title "Flagged content" → three full-width cards (Messages, Topics, Replies), each with a count and its own empty state → list rows: author avatar `sm`, name, meta line (team or sport · linked topic · time), excerpt, Dismiss (`btn-sm btn-outline-secondary`) and Delete (`btn-sm btn-outline-danger`) |
-| **Auth (sign up, log in, verify)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
+| **Auth (sign up, log in, verify, claim a placeholder)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
 
 ### Home / dashboard panels
 
