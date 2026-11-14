@@ -53,18 +53,23 @@ def ensure_season(sport, semester, state, today):
     return season if made else None
 
 
+def default_semesters(today):
+    """Return (semester, state) for each default season: this one open, next draft."""
+    current = current_semester(today)
+    return [
+        (current, SeasonState.OPEN),
+        (next_semester(current), SeasonState.DRAFT),
+    ]
+
+
 def ensure_default_seasons(sport, today=None):
     """Make sure `sport` has this semester's season (open) and next (draft).
 
     Existing seasons are never changed. Return the list of seasons created.
     """
     today = today or datetime.date.today()
-    current = current_semester(today)
     created = []
-    for semester, state in (
-        (current, SeasonState.OPEN),
-        (next_semester(current), SeasonState.DRAFT),
-    ):
+    for semester, state in default_semesters(today):
         season = ensure_season(sport, semester, state, today)
         if season is not None:
             created.append(season)

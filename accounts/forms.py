@@ -5,9 +5,8 @@ from django.contrib.auth.forms import (
     SetPasswordMixin,
     UserCreationForm,
 )
-from django.db.models import Q
 
-from .placeholders import is_placeholder
+from .placeholders import find_user_by_email, is_placeholder, normalize_email
 
 NYU_DOMAIN = "@nyu.edu"
 UNVERIFIED_MESSAGE = (
@@ -30,15 +29,12 @@ class SignUpForm(UserCreationForm):
         fields = ["email", "first_name", "last_name"]
 
     def clean_email(self):
-        email = self.cleaned_data["email"].strip().lower()
+        email = normalize_email(self.cleaned_data["email"])
 
         if not email.endswith(NYU_DOMAIN):
             raise forms.ValidationError("Please use your NYU ID (an @nyu.edu email).")
 
-        User = get_user_model()
-        existing = User.objects.filter(
-            Q(email__iexact=email) | Q(username__iexact=email)
-        ).first()
+        existing = find_user_by_email(email)
 
         # A placeholder (someone added this email to a team) can be claimed.
         # The claim completes only when the email link is opened.

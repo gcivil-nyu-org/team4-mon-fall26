@@ -18,32 +18,25 @@ Locally: python manage.py seed_semester_seasons [--today YYYY-MM-DD]
 """
 
 import datetime
-from django.core.management.base import BaseCommand, CommandError
+
+from django.core.management.base import BaseCommand
 
 from teams.default_seasons import (  # noqa: F401 (other code imports these from here)
     DEFAULT_DIVISIONS,
     REGISTRATION_WEEKS,
     default_registration_close,
+    default_semesters,
     ensure_default_seasons,
 )
-from teams.models import Sport
+from teams.models import Season, Sport
 from teams.semesters import (  # noqa: F401 (tests import these from here)
     SEMESTERS,
     Semester,
     current_semester,
     next_semester,
+    parse_date,
     semesters_in_year,
 )
-
-# Seasons that ensure_default_seasons makes for each sport.
-SEASONS_PER_SPORT = 2
-
-
-def parse_date(value):
-    try:
-        return datetime.date.fromisoformat(value)
-    except ValueError:
-        raise CommandError(f"--today must be YYYY-MM-DD, not {value!r}.")
 
 
 class Command(BaseCommand):
@@ -58,11 +51,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         today = options["today"] or datetime.date.today()
+        terms = [semester.term for semester, _ in default_semesters(today)]
         created = existing = 0
         for sport in Sport.objects.order_by("name"):
             made = len(ensure_default_seasons(sport, today))
             created += made
-            existing += SEASONS_PER_SPORT - made
+            total = Season.objects.filter(sport=sport, term__in=terms).count()
+            existing += total - made
         self.stdout.write(
             f"Semester seasons: {created} created, {existing} already there."
         )

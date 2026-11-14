@@ -5,6 +5,8 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.core.mail import BadHeaderError
+from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -14,7 +16,8 @@ from profiles.models import PlayerProfile
 from teams.models import Roster, Sport, Team
 
 from .models import PendingAccount
-from .placeholders import placeholder_for, send_invite_email
+from . import placeholders
+from .placeholders import find_user_by_email, placeholder_for, send_invite_email
 from .tokens import email_verification_token
 
 NEW = "np1234@nyu.edu"
@@ -79,6 +82,51 @@ class PlaceholderForTests(TestCase):
         self.assertFalse(created)
         self.assertEqual(first.pk, second.pk)
         self.assertEqual(PendingAccount.objects.count(), 1)
+
+    def test_lost_create_race_returns_the_other_user(self):
+        # Another request creates the user between the lookup and the create.
+        real_find = placeholders.find_user_by_email
+        calls = []
+
+        def find(email):
+            calls.append(email)
+            if len(calls) == 1:
+                make_user(NEW, first_name="Racer")
+                return None
+            return real_find(email)
+
+        with mock.patch.object(placeholders, "find_user_by_email", find):
+            user, created = placeholder_for(NEW, first_name="Late")
+        self.assertFalse(created)
+        self.assertEqual(user.first_name, "Racer")
+        self.assertFalse(PendingAccount.objects.exists())
+        # The savepoint keeps the surrounding transaction usable.
+        self.assertEqual(get_user_model().objects.filter(email=NEW).count(), 1)
+
+    def test_create_error_without_a_user_is_raised(self):
+        with mock.patch.object(
+            get_user_model(), "save", side_effect=IntegrityError("boom")
+        ):
+            with self.assertRaises(IntegrityError):
+                placeholder_for(NEW)
+
+    def test_find_user_by_email_matches_email_or_username(self):
+        user = make_user(NEW)
+        self.assertEqual(find_user_by_email("  NP1234@NYU.edu "), user)
+        other = get_user_model().objects.create_user(
+            username="ab1@nyu.edu", email="", password="x"
+        )
+        self.assertEqual(find_user_by_email("AB1@nyu.edu"), other)
+        self.assertIsNone(find_user_by_email("nobody@nyu.edu"))
+
+    def test_invite_subject_has_no_newline(self):
+        captain = make_user("cap@nyu.edu")
+        team = make_team(captain, name="Evil\r\nBcc: x@nyu.edu")
+        user, _ = placeholder_for(NEW)
+        send_invite_email("https://play.example.com", user, team, captain)
+        self.assertEqual(
+            mail.outbox[0].subject, "You were added to Evil Bcc: x@nyu.edu on PlayNYU"
+        )
 
     def test_invite_email_with_base_url(self):
         captain = make_user("cap@nyu.edu", first_name="Cam", last_name="Lee")
@@ -149,22 +197,58 @@ class AddPlayerByEmailTests(TestCase):
             self.assertEqual(response.status_code, 302)
 
     @override_settings(INVITE_RATE_LIMIT_ATTEMPTS=2)
-    def test_new_placeholders_are_rate_limited_per_inviter(self):
-        with self.captureOnCommitCallbacks(execute=True):
-            for n in range(2):
-                self.client.post(self.url, {"email": f"new{n}@nyu.edu"})
-            response = self.client.post(self.url, {"email": "new2@nyu.edu"})
-        self.assertContains(
-            response,
-            "You&#x27;ve invited a lot of new players today. Try again tomorrow.",
-        )
-        self.assertFalse(get_user_model().objects.filter(email="new2@nyu.edu").exists())
-        self.assertEqual(len(mail.outbox), 2)
-        # Existing users don't count and still get added.
+    def test_every_add_counts_toward_the_rate_limit(self):
         existing = make_user("known@nyu.edu")
-        response = self.client.post(self.url, {"email": "known@nyu.edu"})
-        self.assertEqual(response.status_code, 302)
+        later = make_user("later@nyu.edu")
+        with self.captureOnCommitCallbacks(execute=True):
+            # An existing user and a new email each use one slot.
+            self.client.post(self.url, {"email": "known@nyu.edu"})
+            self.client.post(self.url, {"email": "new0@nyu.edu"})
+            responses = [
+                self.client.post(self.url, {"email": email})
+                for email in ("later@nyu.edu", "new1@nyu.edu")
+            ]
         self.assertTrue(Roster.objects.filter(team=self.team, player=existing).exists())
+        self.assertEqual(len(mail.outbox), 1)
+        # After the limit, both get the same error, so it can't reveal an account.
+        error = "You&#x27;ve added a lot of players today. Try again tomorrow."
+        for response in responses:
+            self.assertContains(response, error)
+        self.assertEqual(
+            responses[0].context["form"].errors, responses[1].context["form"].errors
+        )
+        self.assertFalse(Roster.objects.filter(team=self.team, player=later).exists())
+        self.assertFalse(get_user_model().objects.filter(email="new1@nyu.edu").exists())
+
+    @override_settings(INVITE_RATE_LIMIT_ATTEMPTS=1)
+    def test_non_nyu_email_does_not_count(self):
+        self.client.post(self.url, {"email": "someone@example.com"})
+        response = self.client.post(self.url, {"email": NEW})
+        self.assertEqual(response.status_code, 302)
+
+    def test_smtp_failure_is_logged_and_add_still_succeeds(self):
+        with mock.patch(
+            "accounts.placeholders.send_mail", side_effect=OSError("smtp down")
+        ):
+            with self.assertLogs("accounts.placeholders", "ERROR") as logs:
+                with self.captureOnCommitCallbacks(execute=True):
+                    response = self.client.post(self.url, {"email": NEW}, follow=True)
+        self.assertRedirects(response, reverse("teams:detail", args=[self.team.pk]))
+        self.assertContains(response, "sign up with that email")
+        user = get_user_model().objects.get(email=NEW)
+        self.assertTrue(Roster.objects.filter(team=self.team, player=user).exists())
+        message = logs.records[0].getMessage()
+        self.assertEqual(message, f"Invite email failed for user {user.pk}")
+
+    def test_bad_header_is_logged_and_add_still_succeeds(self):
+        with mock.patch(
+            "accounts.placeholders.send_mail", side_effect=BadHeaderError("newline")
+        ):
+            with self.assertLogs("accounts.placeholders", "ERROR"):
+                with self.captureOnCommitCallbacks(execute=True):
+                    response = self.client.post(self.url, {"email": NEW})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(get_user_model().objects.filter(email=NEW).exists())
 
     def test_full_roster_rejects_new_email_without_creating_user(self):
         with mock.patch.object(Team, "DEFAULT_MAX_ROSTER_SIZE", 1):

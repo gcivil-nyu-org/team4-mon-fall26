@@ -303,6 +303,35 @@ class SeedClassLeagueTests(TestCase):
         # No facility hosts two matches at once.
         self.assertEqual(len(slots), 90)
 
+    def test_early_semester_plays_no_round_before_the_start_date(self):
+        # Fall 2026 starts on 2026-09-01. Two days later, two rounds fit.
+        output = self.seed(today="2026-09-03")
+        start = timezone.make_aware(datetime.datetime(2026, 9, 1))
+        now = timezone.make_aware(datetime.datetime(2026, 9, 3))
+        for sport in SPORTS:
+            season = self.season(sport)
+            self.assertEqual(season.start_date, datetime.date(2026, 9, 1))
+            matches = list(Match.objects.filter(season=season))
+            self.assertEqual(len(matches), 30)
+            self.assertTrue(all(match.starts_at >= start for match in matches))
+            played = [match for match in matches if match.has_result]
+            self.assertEqual(len(played), 6)
+            self.assertTrue(all(match.ends_at < now for match in played))
+            days = {timezone.localtime(match.starts_at).date() for match in played}
+            self.assertEqual(
+                days, {datetime.date(2026, 9, 1), datetime.date(2026, 9, 2)}
+            )
+        self.assertIn("(6 played, 24 upcoming)", output)
+
+    def test_on_the_start_date_no_round_is_played(self):
+        output = self.seed(today="2026-09-01")
+        start = timezone.make_aware(datetime.datetime(2026, 9, 1))
+        matches = Match.objects.filter(season__term="2026-fall")
+        self.assertTrue(matches.exists())
+        self.assertFalse(matches.filter(home_score__isnull=False).exists())
+        self.assertFalse(matches.filter(starts_at__lt=start).exists())
+        self.assertNotIn("not first", output)
+
     def test_upcoming_matches_stay_before_the_season_end(self):
         season = self.season("Basketball")
         season.end_date = datetime.date(2026, 11, 20)

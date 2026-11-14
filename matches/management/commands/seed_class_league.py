@@ -35,7 +35,9 @@ For each sport the command:
 - Gets each member with placeholder_for: an existing user, or a new
   placeholder. A member already on another team in the season is skipped.
 - Creates a double round robin. About 60% of the rounds are played before
-  today, with scores. The other rounds are upcoming, up to the season end.
+  today, with scores, but never before the season start date: early in the
+  semester fewer rounds are played. The other rounds are upcoming, up to the
+  season end.
   A (home, away) pair that has a match in the season gets no new match.
 
 Each sport runs in one transaction. --dry-run rolls back every transaction.
@@ -59,12 +61,9 @@ from matches.models import Match
 from matches.round_robin import pairings
 from matches.standings import compute_standings
 from notifications import signals as notification_signals
-from teams.management.commands.seed_semester_seasons import (
-    current_semester,
-    parse_date,
-)
 from teams.models import Roster, Season, Team
 from teams.season_rules import SeasonState
+from teams.semesters import current_semester, parse_date
 
 PLAYED_SHARE = 0.6
 DAYS_BETWEEN_ROUNDS = 4
@@ -161,22 +160,32 @@ def double_round_robin(teams):
 
 
 def round_dates(today, round_count, played, sport_number, season):
-    """The date of each round.
+    """Return (the date of each round, the number of played rounds).
 
     Played rounds end 1 to 3 days before today. Upcoming rounds start 1 to 3
     days after today. Rounds are DAYS_BETWEEN_ROUNDS apart, or closer when the
     season dates leave less room. An upcoming round past the season end gets
     None.
+
+    Played rounds never fall before the season start_date. When they don't
+    fit one a day, the last played round moves to the day before today. When
+    they still don't fit, fewer rounds are played: the first starts on the
+    start_date, and the rest become upcoming.
     """
     offset = 1 + sport_number % 3
     last_played = today - datetime.timedelta(days=offset)
     first_upcoming = today + datetime.timedelta(days=offset)
+    start = season.start_date
+    if start and played:
+        if (last_played - start).days + 1 < played:
+            last_played = today - datetime.timedelta(days=1)
+        played = min(played, max(0, (last_played - start).days + 1))
     upcoming = round_count - played
 
     gap_back = DAYS_BETWEEN_ROUNDS
-    if played > 1 and season.start_date:
-        room = (last_played - season.start_date).days
-        gap_back = max(1, min(gap_back, room // (played - 1)))
+    if played > 1 and start:
+        room = (last_played - start).days
+        gap_back = min(gap_back, room // (played - 1))
     end = season.end_date or current_semester(today).end_date
     gap_ahead = DAYS_BETWEEN_ROUNDS
     if upcoming > 1:
@@ -196,7 +205,7 @@ def round_dates(today, round_count, played, sport_number, season):
             if day > end:
                 day = None
         dates.append(day)
-    return dates
+    return dates, played
 
 
 def slot_window(day, slot):
@@ -361,7 +370,11 @@ class Command(BaseCommand):
     def seed_sport(self, data, sport, season, today, number):
         teams, leader, counts = self.ensure_teams(data, sport, season)
         created = self.ensure_matches(sport, season, teams, leader, today, number)
-        if leader is not None:
+        # With no played matches (early in the season), nobody leads yet.
+        has_results = Match.objects.filter(
+            season=season, home_score__isnull=False
+        ).exists()
+        if leader is not None and has_results:
             if ensure_leader_first(season, leader, created):
                 self.stdout.write(f"{sport}: changed scores so the leader is first.")
             rows = compute_standings(season)
@@ -464,8 +477,9 @@ class Command(BaseCommand):
         rounds = double_round_robin(teams)
         if not rounds:
             return []
-        played = played_count(len(rounds))
-        dates = round_dates(today, len(rounds), played, number, season)
+        dates, played = round_dates(
+            today, len(rounds), played_count(len(rounds)), number, season
+        )
         existing = set(
             Match.objects.filter(season=season).values_list(
                 "home_team_id", "away_team_id"

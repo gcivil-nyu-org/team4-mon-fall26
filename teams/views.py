@@ -9,8 +9,7 @@ from django.utils import timezone
 from django.utils.dateformat import format as date_format
 from django.views.decorators.http import require_POST
 
-from accounts.placeholders import placeholder_for, send_invite_email
-from accounts.rate_limits import consume_invite_request
+from accounts.placeholders import placeholder_for, send_invite_email_safely
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
@@ -167,7 +166,7 @@ def add_player(request, pk):
         messages.info(request, f"The roster is full ({team.max_roster_size} players).")
         return redirect("teams:detail", pk=team.pk)
 
-    form = AddPlayerForm(request.POST or None, team=team)
+    form = AddPlayerForm(request.POST or None, team=team, inviter=request.user)
     if request.method == "POST":
         with transaction.atomic():
             season = None
@@ -179,15 +178,6 @@ def add_player(request, pk):
             if added and season and not season.allows(SeasonAction.ADD_PLAYER):
                 form.add_error(None, "This season isn't accepting new players.")
                 added = False
-            if added and form.player is None:
-                # Each new placeholder sends an email, so limit them per inviter.
-                if not consume_invite_request(request.user).allowed:
-                    form.add_error(
-                        "email",
-                        "You've invited a lot of new players today. "
-                        "Try again tomorrow.",
-                    )
-                    added = False
             if added:
                 # TODO: players are added without consent; replace with an invite/accept flow later.
                 player = form.player
@@ -197,7 +187,7 @@ def add_player(request, pk):
                     )
                     if created:
                         transaction.on_commit(
-                            lambda: send_invite_email(
+                            lambda: send_invite_email_safely(
                                 request, player, team, request.user
                             )
                         )

@@ -30,12 +30,9 @@ from audit import signals as audit_signals
 from facilities.models import Facility
 from matches.models import Match
 from notifications import signals as notification_signals
-from teams.management.commands.seed_semester_seasons import (
-    current_semester,
-    parse_date,
-)
 from teams.models import Roster, Season, Team
 from teams.season_rules import SeasonAction
+from teams.semesters import current_semester, parse_date
 
 # (team name, division name, member emails). The first member is the captain.
 # A player can be on one team per season, so no email appears twice.
