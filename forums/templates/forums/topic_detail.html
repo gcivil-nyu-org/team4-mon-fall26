@@ -22,6 +22,14 @@
         <div class="small text-secondary">{{ topic.created_at|date:"M j, Y g:i a" }}</div>
         <div class="mt-2 text-break">{{ topic.body|linebreaksbr }}</div>
       </div>
+      {% if topic.is_flagged %}
+        <span class="badge bg-yellow-lt">Reported</span>
+      {% else %}
+        <form method="post" action="{% url 'forums:report_topic' topic.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report</button>
+        </form>
+      {% endif %}
     </div>
   </div>
 
@@ -40,12 +48,22 @@
               <div class="small text-secondary">{{ reply.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1 text-break">{{ reply.body|linebreaksbr }}</div>
             </div>
-            {% if can_moderate %}
-              <form method="post" action="{% url 'forums:delete_reply' topic.pk reply.pk %}" onsubmit="return confirm('Delete this reply?');">
-                {% csrf_token %}
-                <button class="btn btn-sm btn-ghost-danger" type="submit">Delete</button>
-              </form>
-            {% endif %}
+            <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+              {% if reply.is_flagged %}
+                <span class="badge bg-yellow-lt">Reported</span>
+              {% else %}
+                <form method="post" action="{% url 'forums:report_reply' topic.pk reply.pk %}">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report</button>
+                </form>
+              {% endif %}
+              {% if can_moderate %}
+                <form method="post" action="{% url 'forums:delete_reply' topic.pk reply.pk %}" onsubmit="return confirm('Delete this reply?');">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-ghost-danger" type="submit">Delete</button>
+                </form>
+              {% endif %}
+            </div>
           </div>
         {% endfor %}
       </div>

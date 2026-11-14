@@ -1,5 +1,7 @@
 from django import forms
-from django.contrib.auth import get_user_model
+
+from accounts.placeholders import find_user_by_email, normalize_email
+from accounts.rate_limits import consume_invite_request
 
 from .catalog_rules import name_key, validate_catalog_name
 from .models import (
@@ -177,30 +179,49 @@ class DivisionCreateForm(forms.ModelForm):
 
 
 class AddPlayerForm(forms.Form):
-    email = forms.EmailField(label="Player's NYU email")
+    """Any @nyu.edu email can be added, with or without an account.
 
-    def __init__(self, *args, team, **kwargs):
+    When no user has the email, `player` is None and the view creates a
+    placeholder account (accounts/placeholders.py). The errors never say
+    whether an account exists.
+
+    Every add with an @nyu.edu email counts toward the inviter's rate limit,
+    before the account lookup. So the limit error doesn't say whether an
+    account exists either.
+    """
+
+    email = forms.EmailField(
+        label="Player's NYU email",
+        help_text="They don't need an account yet. We'll email them to sign up.",
+    )
+
+    def __init__(self, *args, team, inviter, **kwargs):
         super().__init__(*args, **kwargs)
         self.team = team
+        self.inviter = inviter
+        self.player = None
 
     def clean_email(self):
-        email = self.cleaned_data["email"].strip().lower()
+        email = normalize_email(self.cleaned_data["email"])
         if not email.endswith(NYU_DOMAIN):
             raise forms.ValidationError("Only @nyu.edu emails can be added.")
+        # New placeholders get an invite email, so limit adds per inviter.
+        if not consume_invite_request(self.inviter).allowed:
+            raise forms.ValidationError(
+                "You've added a lot of players today. Try again tomorrow."
+            )
 
-        # Unverified accounts are inactive, so this only finds verified players.
-        # TODO(T25): this error reveals whether an account exists; rate-limit this endpoint.
-        user = (
-            get_user_model().objects.filter(email__iexact=email, is_active=True).first()
-        )
-        if user is None:
-            raise forms.ValidationError("No PlayNYU account with that email.")
-        if Roster.objects.filter(team=self.team, player=user).exists():
+        # Active or not: unverified sign-ups and placeholders can be added too.
+        user = find_user_by_email(email)
+        # A new placeholder can't be on any team yet, so only the size check applies.
+        if user and Roster.objects.filter(team=self.team, player=user).exists():
             raise forms.ValidationError("That player is already on this team.")
         if self.team.is_full():
             raise forms.ValidationError(
                 f"The roster is full ({self.team.max_roster_size} players)."
             )
+        if user is None:
+            return email
         current = season_team_for(user, self.team.season)
         if current is not None:
             # Don't name the other team: the captain may not be allowed to see it.
@@ -263,18 +284,58 @@ class SeasonForm(forms.ModelForm):
         empty_label="Any sport",
         help_text="Teams in this season must play this sport. Leave blank for any.",
     )
+    # A select, not a checkbox: a POST without the field keeps the current value.
+    auto_state = forms.TypedChoiceField(
+        label="Automatic state changes",
+        choices=[
+            ("on", "On: change state by date"),
+            ("off", "Off: only a League Admin changes the state"),
+        ],
+        coerce=lambda value: value == "on",
+        empty_value=None,
+        required=False,
+        help_text=(
+            "When on, the season becomes active on the day after registration "
+            "closes, and closed on the day after the end date. Draft seasons "
+            "never change."
+        ),
+    )
 
     class Meta:
         model = Season
-        fields = ["name", "sport", "start_date", "end_date", "max_roster_size"]
+        fields = [
+            "name",
+            "sport",
+            "start_date",
+            "registration_closes_on",
+            "end_date",
+            "max_roster_size",
+            "auto_state",
+        ]
         widgets = {
             "start_date": forms.DateInput(attrs={"type": "date"}),
+            "registration_closes_on": forms.DateInput(attrs={"type": "date"}),
             "end_date": forms.DateInput(attrs={"type": "date"}),
         }
-        help_texts = {"end_date": "Optional. Can be the same day as the start."}
+        labels = {"registration_closes_on": "Registration closes on"}
+        help_texts = {
+            "end_date": "Optional. Can be the same day as the start.",
+            "registration_closes_on": (
+                "Optional. Teams can register until this date. "
+                "On the next day the season becomes active."
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial["auto_state"] = "on" if self.instance.auto_state else "off"
 
     def clean_name(self):
         return " ".join(self.cleaned_data["name"].split())
+
+    def clean_auto_state(self):
+        value = self.cleaned_data.get("auto_state")
+        return self.instance.auto_state if value is None else value
 
     def clean_sport(self):
         sport = self.cleaned_data.get("sport")

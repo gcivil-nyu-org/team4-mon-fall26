@@ -1,7 +1,9 @@
-"""Fall and Spring semester dates, shared by the seed command and the dashboard."""
+"""Fall and Spring semester dates, shared by the seed commands and the dashboard."""
 
 import datetime
 from typing import NamedTuple
+
+from django.core.management.base import CommandError
 
 # (term, label, start (month, day), end (month, day)), in calendar order.
 SEMESTERS = [
@@ -41,3 +43,11 @@ def current_semester(today):
 def next_semester(semester):
     """Return the semester that starts after `semester`."""
     return current_semester(semester.end_date + datetime.timedelta(days=1))
+
+
+def parse_date(value):
+    """Parse a --today YYYY-MM-DD value for a management command."""
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        raise CommandError(f"--today must be YYYY-MM-DD, not {value!r}.")

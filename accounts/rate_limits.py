@@ -45,9 +45,11 @@ def _bucket_key(scope, identifier):
 
 
 def _status(key, max_attempts, window_seconds, now):
-    bucket = RateLimitBucket.objects.filter(pk=key).only(
-        "count", "window_started_at"
-    ).first()
+    bucket = (
+        RateLimitBucket.objects.filter(pk=key)
+        .only("count", "window_started_at")
+        .first()
+    )
     if bucket is None or bucket.count < max_attempts:
         return RateLimitDecision(allowed=True)
 
@@ -192,3 +194,15 @@ def clear_login_failures(email, request):
     if email:
         keys.append(_bucket_key("login-email", email))
     RateLimitBucket.objects.filter(pk__in=keys).delete()
+
+
+def consume_invite_request(inviter):
+    """Limit add-player attempts per inviter. New placeholders get an invite email."""
+    now = timezone.now()
+    _prune_stale_buckets(now)
+    return _consume(
+        _bucket_key("invite-user", str(inviter.pk)),
+        settings.INVITE_RATE_LIMIT_ATTEMPTS,
+        settings.INVITE_RATE_LIMIT_WINDOW_SECONDS,
+        now,
+    )

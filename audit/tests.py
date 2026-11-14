@@ -1,3 +1,4 @@
+import threading
 from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
@@ -7,6 +8,7 @@ from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 from audit.models import AuditLog
+from audit.signals import is_muted, muted
 from facilities.models import Facility
 from matches.models import Match
 from teams.models import Season, Sport, Team
@@ -87,3 +89,43 @@ class AuditSignalTests(TestCase):
         entry = AuditLog.objects.get(object_type="Sport", object_id=str(sport.pk))
         self.assertEqual(entry.action, "created")
         self.assertEqual(entry.actor, admin)
+
+
+class MutedTests(TestCase):
+    def test_nothing_is_logged_inside_the_block(self):
+        with muted():
+            sport = Sport.objects.create(name="Soccer")
+            sport.name = "Soccer Club"
+            sport.save()
+            sport.delete()
+        self.assertEqual(AuditLog.objects.count(), 0)
+
+    def test_saves_outside_the_block_are_still_logged(self):
+        with muted():
+            pass
+        self.assertFalse(is_muted())
+        Sport.objects.create(name="Soccer")
+        self.assertEqual(AuditLog.objects.count(), 1)
+
+    def test_mute_ends_after_an_exception(self):
+        with self.assertRaises(ValueError):
+            with muted():
+                raise ValueError("boom")
+        self.assertFalse(is_muted())
+        Sport.objects.create(name="Soccer")
+        self.assertEqual(AuditLog.objects.count(), 1)
+
+    def test_nested_blocks_stay_muted_until_the_outer_one_ends(self):
+        with muted():
+            with muted():
+                pass
+            self.assertTrue(is_muted())
+        self.assertFalse(is_muted())
+
+    def test_mute_does_not_reach_another_thread(self):
+        seen = []
+        with muted():
+            thread = threading.Thread(target=lambda: seen.append(is_muted()))
+            thread.start()
+            thread.join()
+        self.assertEqual(seen, [False])

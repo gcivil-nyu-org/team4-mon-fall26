@@ -4,12 +4,18 @@ from django.utils.http import base36_to_int
 
 
 class EmailVerificationTokenGenerator(PasswordResetTokenGenerator):
-    """Single use: the token stops working once the account is active."""
+    """Single use: the token stops working once the account is active.
+
+    The password hash is part of the value, so a password change makes older
+    links stop working. A sign-up for a placeholder does not change the
+    placeholder. The claim page sets the password and activates the account,
+    so the link stops working after the claim.
+    """
 
     key_salt = "playnyu.accounts.EmailVerificationTokenGenerator"
 
     def _make_hash_value(self, user, timestamp):
-        return f"{user.pk}{user.email}{user.is_active}{timestamp}"
+        return f"{user.pk}{user.email}{user.password}{user.is_active}{timestamp}"
 
     def check_token(self, user, token):
         if not super().check_token(user, token):

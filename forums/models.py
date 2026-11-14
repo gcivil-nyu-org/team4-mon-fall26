@@ -28,7 +28,7 @@ class Topic(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     # Set on create and moved forward by each reply. Lists sort on it.
     last_activity_at = models.DateTimeField(default=timezone.now, db_index=True)
-    # Reporting and the moderation queue use this flag in a later change.
+    # Set by a user's report. A League Admin clears it in the moderation queue.
     is_flagged = models.BooleanField(default=False)
 
     class Meta:

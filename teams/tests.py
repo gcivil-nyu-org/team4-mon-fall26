@@ -88,9 +88,12 @@ class AddPlayerTests(TestCase):
         self.assertContains(response, "Only @nyu.edu emails can be added.")
         self.assertEqual(self.team.roster.count(), 1)
 
-    def test_unknown_email_rejected(self):
+    def test_unknown_email_adds_a_placeholder(self):
         response = self.client.post(self.url, {"email": "nobody@nyu.edu"})
-        self.assertContains(response, "No PlayNYU account with that email.")
+        self.assertRedirects(response, reverse("teams:detail", args=[self.team.pk]))
+        nobody = get_user_model().objects.get(email="nobody@nyu.edu")
+        self.assertFalse(nobody.is_active)
+        self.assertTrue(Roster.objects.filter(team=self.team, player=nobody).exists())
 
     def test_duplicate_rejected(self):
         Roster.objects.create(team=self.team, player=self.player)
