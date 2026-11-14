@@ -199,8 +199,8 @@ VERIFICATION_EMAIL_RATE_LIMIT_IP_ATTEMPTS = int(
 VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS = int(
     os.environ.get("VERIFICATION_EMAIL_RATE_LIMIT_WINDOW_SECONDS", "3600")
 )
-# New placeholder players (and their invite emails) that one person can add.
-INVITE_RATE_LIMIT_ATTEMPTS = int(os.environ.get("INVITE_RATE_LIMIT_ATTEMPTS", "20"))
+# Add-player attempts that one person can make. New players get an invite email.
+INVITE_RATE_LIMIT_ATTEMPTS = int(os.environ.get("INVITE_RATE_LIMIT_ATTEMPTS", "30"))
 INVITE_RATE_LIMIT_WINDOW_SECONDS = int(
     os.environ.get("INVITE_RATE_LIMIT_WINDOW_SECONDS", str(60 * 60 * 24))
 )

@@ -1,6 +1,7 @@
 from django import forms
-from django.contrib.auth import get_user_model
-from django.db.models import Q
+
+from accounts.placeholders import find_user_by_email, normalize_email
+from accounts.rate_limits import consume_invite_request
 
 from .catalog_rules import name_key, validate_catalog_name
 from .models import (
@@ -183,6 +184,10 @@ class AddPlayerForm(forms.Form):
     When no user has the email, `player` is None and the view creates a
     placeholder account (accounts/placeholders.py). The errors never say
     whether an account exists.
+
+    Every add with an @nyu.edu email counts toward the inviter's rate limit,
+    before the account lookup. So the limit error doesn't say whether an
+    account exists either.
     """
 
     email = forms.EmailField(
@@ -190,22 +195,24 @@ class AddPlayerForm(forms.Form):
         help_text="They don't need an account yet. We'll email them to sign up.",
     )
 
-    def __init__(self, *args, team, **kwargs):
+    def __init__(self, *args, team, inviter, **kwargs):
         super().__init__(*args, **kwargs)
         self.team = team
+        self.inviter = inviter
         self.player = None
 
     def clean_email(self):
-        email = self.cleaned_data["email"].strip().lower()
+        email = normalize_email(self.cleaned_data["email"])
         if not email.endswith(NYU_DOMAIN):
             raise forms.ValidationError("Only @nyu.edu emails can be added.")
+        # New placeholders get an invite email, so limit adds per inviter.
+        if not consume_invite_request(self.inviter).allowed:
+            raise forms.ValidationError(
+                "You've added a lot of players today. Try again tomorrow."
+            )
 
         # Active or not: unverified sign-ups and placeholders can be added too.
-        user = (
-            get_user_model()
-            .objects.filter(Q(email__iexact=email) | Q(username__iexact=email))
-            .first()
-        )
+        user = find_user_by_email(email)
         # A new placeholder can't be on any team yet, so only the size check applies.
         if user and Roster.objects.filter(team=self.team, player=user).exists():
             raise forms.ValidationError("That player is already on this team.")

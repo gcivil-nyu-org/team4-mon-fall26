@@ -197,7 +197,7 @@ def clear_login_failures(email, request):
 
 
 def consume_invite_request(inviter):
-    """Limit new placeholder players (each gets an invite email) per inviter."""
+    """Limit add-player attempts per inviter. New placeholders get an invite email."""
     now = timezone.now()
     _prune_stale_buckets(now)
     return _consume(
