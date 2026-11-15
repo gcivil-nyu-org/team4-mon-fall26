@@ -30,7 +30,7 @@
           {% if user.is_authenticated %}
             {% chat_nav as pn_chat %}
             <div class="nav-item">
-              <a class="nav-link px-2" href="{{ pn_chat.url }}" aria-label="Team chat{% if pn_chat.unread %}, {{ pn_chat.unread }} unread{% endif %}">
+              <a class="nav-link px-2" href="{{ pn_chat.url }}" aria-label="Chat{% if pn_chat.unread %}, {{ pn_chat.unread }} unread{% endif %}">
                 <i aria-hidden="true" class="ti ti-messages"></i>{% if pn_chat.unread %}<span class="badge bg-red-lt ms-1 pn-num">{{ pn_chat.unread }}</span>{% endif %}
               </a>
             </div>

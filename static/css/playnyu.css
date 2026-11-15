@@ -110,3 +110,7 @@
   height: 420px;
   border-radius: inherit;
 }
+
+/* Chat inbox */
+.pn-chat-messages { max-height: 60vh; overflow-y: auto; }
+.pn-chat-list .list-group-item[aria-current="page"] { background: var(--pn-primary-tint); }
