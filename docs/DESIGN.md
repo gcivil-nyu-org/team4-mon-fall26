@@ -218,6 +218,8 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 `{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
 
+On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
+
 A row can end with one action. Pass `action_url` and `action_label`: `{% include "components/match_row.html" with action_url=url action_label="Record score" %}`. The action renders as `btn btn-sm btn-outline-secondary`.
 
 ### Stat card (dashboards)
@@ -334,6 +336,12 @@ A long list shows 20 rows per page. Put the pager in a `card-footer` under the l
 
 Use Django's `Paginator`. Keep the list's filter in each page link (`?sport=3&page=2`). A link that has no target is a `<span>` inside `page-item disabled`.
 
+Render the pager with `{% include "components/pager.html" with page_obj=page label="Free agent pages" %}`. It takes `page_obj`, `querystring` and `label`:
+
+- `querystring` is the urlencoded filter without `page`, or empty. Build it in the view: `request.GET.copy()`, pop `page`, then `.urlencode()`.
+- `label` is the `aria-label` of the `<nav>`.
+- The partial renders nothing when there is only one page.
+
 ### Messages
 
 Django messages render once in `base.html` as Tabler alerts (`alert alert-success|danger|warning|info alert-dismissible`). Pages never render their own.
@@ -363,8 +371,10 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **My matches (scorekeeper)** | Page header → one card per section, in this order: Needs a score, Upcoming, Scored → each card holds match rows with both team logos and its own empty state. Only the first row of Needs a score has the primary button. |
 | **Generate a round-robin (League Admin)** | Page header with Back to matches (ghost) → `col-lg-4`: form card (season, division, first date, time, match length, days between rounds, facilities) → `col-lg-8`: Preview card: counts in `card-actions`, the overlap warning (`alert alert-warning text-body`), then one `subheader` and one list of match rows for each round, with an `Overlap` badge (`bg-yellow-lt`) on a row that clashes → `card-footer` with the primary action. Before a preview, the primary action is "Preview schedule". After it, the primary action is "Create N matches" ("... anyway" with overlaps) and the form button becomes "Update preview" (outline). |
+| **Facility** | Page header → three stat cards (Next game, Upcoming, This semester; `col-6 col-lg-4`). The Next game value is a date, so it uses `h3` in place of `h1` to fit at phone width → `col-lg-8`: Upcoming games grouped by day (`subheader` per day, match rows with `facility_page=True`, pager), Recent results, map → `col-lg-4`: Sports with games by sport |
 | **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
 | **Leaderboard** | Page header with a season `form-select` on the right, and a division `form-select` beside it only if the season has divisions → one full-width leaderboard table. All divisions: each team shows its division in `small text-secondary` under its name. One division: only its teams, and a `card-footer` line says that records count all season matches. |
+| **Free agents** | Page header → Request placement and Your requests cards → full-width Free agents card: GET filter (season, sport, division), list rows (avatar `sm`, linked name, sport · division · requested date), own row `pn-row-me`, pager in `card-footer` |
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
 | **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body, Report → Replies card: list rows, oldest first, with Report and Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Moderation queue** | Page header: `subheader` "League Admin", title "Flagged content" → three full-width cards (Messages, Topics, Replies), each with a count and its own empty state → list rows: author avatar `sm`, name, meta line (team or sport · linked topic · time), excerpt, Dismiss (`btn-sm btn-outline-secondary`) and Delete (`btn-sm btn-outline-danger`) |
