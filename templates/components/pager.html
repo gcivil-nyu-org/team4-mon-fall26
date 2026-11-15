@@ -1,0 +1,20 @@
+{# A card-footer pager. See docs/DESIGN.md, "Pagination". Takes page_obj, querystring (urlencoded, without page) and label. #}
+{% if page_obj.has_other_pages %}
+  <div class="card-footer d-flex align-items-center">
+    <p class="m-0 small text-secondary pn-num">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+    <nav class="ms-auto" aria-label="{{ label }}">
+      <ul class="pagination m-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.previous_page_number }}"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</span></li>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page_obj.next_page_number }}">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+{% endif %}

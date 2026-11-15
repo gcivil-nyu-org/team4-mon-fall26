@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load user_roles %}
+{% load user_roles teams_extras ui %}
 {% block title %}Free agent pool · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -24,6 +24,7 @@
             <form method="post" novalidate>
               {% csrf_token %}
               {% include "components/form_fields.html" %}
+              <p class="form-hint">Other players can see your name, sport and division.</p>
               <button class="btn btn-primary" type="submit">Join the pool</button>
             </form>
           {% else %}
@@ -62,6 +63,61 @@
               <div class="empty-icon"><i aria-hidden="true" class="ti ti-user-search"></i></div>
               <p class="empty-title">No requests yet</p>
               <p class="empty-subtitle text-secondary">Choose a season to ask the League Admin for team placement.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Free agents</h2>
+          <div class="card-actions"><span class="text-secondary small pn-num">{{ free_agents.paginator.count }} player{{ free_agents.paginator.count|pluralize }}</span></div>
+        </div>
+        <div class="card-body">
+          <form method="get" class="row g-2 align-items-end">
+            <div class="col-sm">
+              <label class="form-label" for="{{ filter_form.season.id_for_label }}">Season</label>
+              {{ filter_form.season|control }}
+            </div>
+            <div class="col-sm">
+              <label class="form-label" for="{{ filter_form.sport.id_for_label }}">Sport</label>
+              {{ filter_form.sport|control }}
+            </div>
+            <div class="col-sm">
+              <label class="form-label" for="{{ filter_form.division.id_for_label }}">Division</label>
+              {{ filter_form.division|control }}
+            </div>
+            <div class="col-sm-auto">
+              <button class="btn btn-outline-secondary w-100" type="submit">Filter</button>
+            </div>
+          </form>
+        </div>
+        {% if free_agents %}
+          <div class="list-group list-group-flush">
+            {% for item in free_agents %}
+              <div class="list-group-item d-flex align-items-center gap-3{% if item.player_id == user.pk %} pn-row-me{% endif %}">
+                {% include "components/avatar.html" with person=item.player size="sm" %}
+                <div class="flex-fill min-w-0">
+                  <a class="fw-medium" href="{% profile_url item.player %}">{{ item.player.get_full_name|default:"PlayNYU player" }}</a>
+                  <div class="small text-secondary">{{ item.sport }} · {{ item.division.name|default:"Any division" }} · Requested {{ item.requested_at|date:"M j" }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          {% include "components/pager.html" with page_obj=free_agents label="Free agent pages" %}
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-users"></i></div>
+              {% if querystring %}
+                <p class="empty-title">No free agents match these filters.</p>
+                <p class="empty-subtitle text-secondary">Choose another season, sport or division.</p>
+              {% else %}
+                <p class="empty-title">No free agents yet</p>
+                <p class="empty-subtitle text-secondary">No one has asked for placement in these seasons.</p>
+              {% endif %}
             </div>
           </div>
         {% endif %}
