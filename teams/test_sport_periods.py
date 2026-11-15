@@ -53,7 +53,9 @@ class EditSportViewTests(TestCase):
         )
         self.assertRedirects(response, reverse("teams:manage_sports"))
         self.sport.refresh_from_db()
-        self.assertEqual((self.sport.period_count, self.sport.period_label), (2, "Half"))
+        self.assertEqual(
+            (self.sport.period_count, self.sport.period_label), (2, "Half")
+        )
 
     def test_edit_sport_shows_errors(self):
         self.client.force_login(self.admin)

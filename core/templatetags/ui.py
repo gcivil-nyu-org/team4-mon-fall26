@@ -24,6 +24,17 @@ def initials(user):
     return (user.email or user.username or "?")[:1].upper()
 
 
+PLAYER_NAME_FALLBACK = "PlayNYU player"
+
+
+@register.filter
+def player_name(user):
+    """A player's full name for pages any member can see. Never the email."""
+    if user is None:
+        return PLAYER_NAME_FALLBACK
+    return user.get_full_name() or PLAYER_NAME_FALLBACK
+
+
 @register.filter
 def sport_icon(sport):
     if sport is None:
