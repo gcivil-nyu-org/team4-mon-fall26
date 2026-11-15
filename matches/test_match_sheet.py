@@ -3,8 +3,10 @@ from django.core.exceptions import ValidationError
 
 from core.templatetags.ui import player_name
 from teams.models import EventType, Roster
+from teams.season_rules import SeasonState
 
 from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
+from .sheet_forms import MatchSheet
 from .stats import period_rows, save_match_sheet, team_sheets
 from .tests import MatchFixtures, ScorekeeperFixtures, make_user
 
@@ -196,3 +198,170 @@ class PlayerNameTests(MatchFixtures):
         user.first_name = "Alex"
         self.assertEqual(player_name(user), "Alex")
         self.assertEqual(player_name(None), "PlayNYU player")
+
+
+class MatchSheetFormTests(SheetFixtures):
+    def sheet(self, data=None, match=None):
+        return MatchSheet(match or self.match, data)
+
+    def periods(self, *rows):
+        """Post data for periods: rows of (home, away), "" for blank."""
+        data = {}
+        for index, (home, away) in enumerate(rows):
+            data[f"period-{index}-home_points"] = home
+            data[f"period-{index}-away_points"] = away
+        return data
+
+    def regular(self, home=1, away=0):
+        return [(home, away)] * 4
+
+    def errors(self, sheet):
+        self.assertFalse(sheet.is_valid())
+        return sheet.non_field_errors()
+
+    def test_period_forms_count(self):
+        forms = self.sheet().periods.forms
+        self.assertEqual(
+            [form.label for form in forms], ["Q1", "Q2", "Q3", "Q4", "OT1", "OT2"]
+        )
+        self.assertEqual([form.is_overtime for form in forms], [False] * 4 + [True] * 2)
+        self.match.home_team.sport.period_count = 0
+        self.assertEqual(self.sheet().periods.forms, [])
+
+    def test_period_initial_from_stored_rows(self):
+        self.save(periods=[(1, 3, 1), (2, 0, 0), (3, 0, 0), (4, 0, 0)])
+        forms = self.sheet().periods.forms
+        self.assertEqual(forms[0].initial, {"home_points": 3, "away_points": 1})
+        self.assertEqual(forms[4].initial, {})
+
+    def test_partial_regular_periods_fail(self):
+        sheet = self.sheet(self.periods((1, 0)))
+        self.assertIn(
+            "Enter every period, or leave them all blank.", self.errors(sheet)
+        )
+
+    def test_overtime_needs_both_points(self):
+        sheet = self.sheet(self.periods(*self.regular(), (1, "")))
+        self.assertIn("Enter both teams' points.", self.errors(sheet))
+
+    def test_ot2_needs_ot1(self):
+        sheet = self.sheet(self.periods(*self.regular(), ("", ""), (1, 0)))
+        self.assertIn("Enter OT1 before OT2.", self.errors(sheet))
+
+    def test_overtime_needs_regular(self):
+        sheet = self.sheet(self.periods(*[("", "")] * 4, (1, 0)))
+        self.assertIn("Enter the regular periods before overtime.", self.errors(sheet))
+
+    def test_final_alone_valid(self):
+        sheet = self.sheet({"home_score": "2", "away_score": "1"})
+        self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+        sheet.save()
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (2, 1))
+
+    def test_nothing_entered_fails(self):
+        self.assertIn(
+            "Enter both scores, or every period.", self.errors(self.sheet({}))
+        )
+
+    def test_periods_override_final(self):
+        data = self.periods((10, 8), (5, 7), (0, 0), (3, 0))
+        data.update(home_score="1", away_score="0")
+        sheet = self.sheet(data)
+        self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+        sheet.save()
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (18, 15))
+        self.assertEqual(self.match.period_scores.count(), 4)
+
+    def test_number_limit(self):
+        stat = f"stat-{self.home.pk}-{self.alex.pk}-{self.goal.pk}"
+        for data in (
+            {"home_score": "1", "away_score": "0", stat: "10000"},
+            self.periods((10000, 0), (0, 0), (0, 0), (0, 0)),
+        ):
+            with self.subTest(data=data):
+                self.assertFalse(self.sheet(data).is_valid())
+        self.assertFalse(PlayerStat.objects.exists())
+
+    def test_saves_stats_and_played(self):
+        data = {
+            "home_score": "1",
+            "away_score": "0",
+            f"stat-{self.home.pk}-{self.alex.pk}-{self.goal.pk}": "2",
+            f"stat-{self.home.pk}-{self.alex.pk}-{self.assist.pk}": "",
+            f"played-{self.away.pk}-{self.jo.pk}": "on",
+        }
+        sheet = self.sheet(data)
+        self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+        sheet.save()
+        self.assertEqual(PlayerStat.objects.get().value, 2)
+        self.assertEqual(
+            set(MatchAppearance.objects.values_list("player_id", flat=True)),
+            {self.alex.pk, self.jo.pk},
+        )
+
+    def test_unknown_fields_ignored(self):
+        stranger = make_user("stranger")
+        data = {
+            "home_score": "1",
+            "away_score": "0",
+            f"stat-{self.away.pk}-{stranger.pk}-{self.goal.pk}": "3",
+            f"played-{self.away.pk}-{stranger.pk}": "on",
+            f"played-{self.hoops_team.pk}-{self.alex.pk}": "on",
+            "period-TOTAL_FORMS": "50",
+        }
+        sheet = self.sheet(data)
+        self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+        sheet.save()
+        self.assertFalse(PlayerStat.objects.exists())
+        self.assertFalse(MatchAppearance.objects.exists())
+
+    def test_grid_fields_and_labels(self):
+        (home_sheet, home_rows), _ = self.sheet().stats.grid
+        self.assertEqual(home_sheet.team, self.home)
+        row, played, stat_fields = home_rows[0]
+        self.assertEqual(row.player, self.alex)
+        self.assertEqual(played.name, f"played-{self.home.pk}-{self.alex.pk}")
+        self.assertEqual(
+            [field.field.widget.attrs["aria-label"] for field in stat_fields],
+            ["Alex Lee, Assist", "Alex Lee, Goal"],
+        )
+        self.assertEqual(played.field.widget.attrs["aria-label"], "Alex Lee played")
+
+    def test_leaver_has_no_inputs(self):
+        leaver = named_user("bea", "Bea", "Zed")
+        Roster.objects.create(team=self.home, player=leaver)
+        self.stored_stat(self.home, leaver)
+        Roster.objects.filter(player=leaver).delete()
+        _, home_rows = self.sheet().stats.grid[0]
+        row, played, stat_fields = home_rows[-1]
+        self.assertEqual(row.player, leaver)
+        self.assertIsNone(played)
+        self.assertEqual(stat_fields, [None, None])
+
+    def test_switched_player_cannot_play_twice(self):
+        # Roster.save allows one team per season. Older data can still have two.
+        Roster.objects.bulk_create([Roster(team=self.home, player=self.jo)])
+        data = {
+            "home_score": "1",
+            "away_score": "0",
+            f"played-{self.home.pk}-{self.jo.pk}": "on",
+            f"played-{self.away.pk}-{self.jo.pk}": "on",
+        }
+        self.assertIn(
+            "Jo Park can only play for one team.", self.errors(self.sheet(data))
+        )
+        self.assertFalse(MatchAppearance.objects.exists())
+
+    def test_closed_season(self):
+        self.season.state = SeasonState.CLOSED
+        self.season.save()
+        match = Match.objects.select_related("season", "home_team__sport").get(
+            pk=self.match.pk
+        )
+        sheet = self.sheet({"home_score": "1", "away_score": "0"}, match=match)
+        self.assertIn(
+            "Scores can only be recorded while the season is open or active.",
+            self.errors(sheet),
+        )

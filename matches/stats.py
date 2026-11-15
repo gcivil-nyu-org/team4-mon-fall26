@@ -81,9 +81,33 @@ def period_rows(match):
     ]
 
 
-def _check_one_team(pairs):
+def _stored(match):
+    stats = {
+        (row.team_id, row.player_id, row.event_type_id): row
+        for row in PlayerStat.objects.filter(match=match)
+    }
+    appearances = {
+        (row.team_id, row.player_id): row
+        for row in MatchAppearance.objects.filter(match=match)
+    }
+    return stats, appearances
+
+
+def _appearances_to_keep(stats, played, players):
+    """Checked Played boxes plus every player with a stat, within the sheet."""
+    with_stats = {(team, player) for (team, player, _), value in stats.items() if value}
+    return (set(played) | with_stats) & set(players)
+
+
+def _check_one_team(keep, players, stored_stats, stored_appearances):
+    # Rows outside the sheet (players who left) stay, so they count too.
+    untouched = {pair for pair in stored_appearances if pair not in players} | {
+        (team, player)
+        for (team, player, _), row in stored_stats.items()
+        if (team, player) not in players and row.value
+    }
     teams_by_player = defaultdict(set)
-    for team_id, player_id in pairs:
+    for team_id, player_id in keep | untouched:
         teams_by_player[player_id].add(team_id)
     twice = [pk for pk, teams in teams_by_player.items() if len(teams) > 1]
     if twice:
@@ -91,6 +115,12 @@ def _check_one_team(pairs):
         raise ValidationError(
             [f"{player_name(user)} can only play for one team." for user in users]
         )
+
+
+def check_one_team(match, *, stats, played, players):
+    """Raise ValidationError when the sheet has a player playing for both teams."""
+    keep = _appearances_to_keep(stats, played, players)
+    _check_one_team(keep, set(players), *_stored(match))
 
 
 def save_match_sheet(match, *, periods, final, stats, played, players):
@@ -105,24 +135,10 @@ def save_match_sheet(match, *, periods, final, stats, played, players):
     """
     with transaction.atomic():
         locked = Match.objects.select_for_update().get(pk=match.pk)
-        stored_stats = {
-            (row.team_id, row.player_id, row.event_type_id): row
-            for row in PlayerStat.objects.filter(match=locked)
-        }
-        stored_appearances = {
-            (row.team_id, row.player_id): row
-            for row in MatchAppearance.objects.filter(match=locked)
-        }
-        with_stats = {
-            (team, player) for (team, player, _), value in stats.items() if value
-        }
-        keep = (set(played) | with_stats) & set(players)
-        untouched = {pair for pair in stored_appearances if pair not in players} | {
-            (team, player)
-            for (team, player, _), row in stored_stats.items()
-            if (team, player) not in players and row.value
-        }
-        _check_one_team(keep | untouched)
+        players = set(players)
+        stored_stats, stored_appearances = _stored(locked)
+        keep = _appearances_to_keep(stats, played, players)
+        _check_one_team(keep, players, stored_stats, stored_appearances)
 
         MatchPeriodScore.objects.filter(match=locked).delete()
         for period, home, away in periods:
