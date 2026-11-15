@@ -2,6 +2,7 @@ import datetime
 import zoneinfo
 
 from django.db import connection
+from django.template.loader import render_to_string
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -405,7 +406,34 @@ class FacilityScheduleTests(ScheduleFixtures):
         self.assertEqual(days, [(day, [match])])
 
     def test_group_by_local_date_keeps_order(self):
-        first, second = self.add_match(start=1), self.add_match(start=2)
-        third = self.add_match(start=49)
-        groups = group_by_local_date([first, second, third])
-        self.assertEqual([matches for _, matches in groups], [[first, second], [third]])
+        ny = zoneinfo.ZoneInfo("America/New_York")
+        day = timezone.localdate() + datetime.timedelta(days=2)
+        matches = []
+        for offset, hour in ((0, 10), (0, 12), (1, 10)):
+            start = datetime.datetime.combine(
+                day + datetime.timedelta(days=offset), datetime.time(hour), tzinfo=ny
+            )
+            matches.append(self.build(starts_at=start, ends_at=start + HOUR))
+        groups = group_by_local_date(matches)
+        self.assertEqual(
+            groups,
+            [(day, matches[:2]), (day + datetime.timedelta(days=1), matches[2:])],
+        )
+
+
+class MatchRowFacilityFlagTests(ScheduleFixtures):
+    def render(self, **context):
+        return render_to_string(
+            "components/match_row.html", {"match": self.add_match(), **context}
+        )
+
+    def test_flag_shows_sport_and_no_facility_link(self):
+        html = self.render(facility_page=True)
+        self.assertIn("Soccer", html)
+        self.assertNotIn("Pier 40", html)
+        self.assertNotIn(reverse("facilities:detail", args=[self.field.pk]), html)
+
+    def test_without_flag_links_the_facility(self):
+        html = self.render()
+        self.assertIn(reverse("facilities:detail", args=[self.field.pk]), html)
+        self.assertNotIn("Soccer", html)
