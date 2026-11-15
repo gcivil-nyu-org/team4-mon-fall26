@@ -136,11 +136,16 @@ class ScoreForm(forms.ModelForm):
         model = Match
         fields = ["home_score", "away_score"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, required=True, **kwargs):
         super().__init__(*args, **kwargs)
         for name in ("home_score", "away_score"):
-            self.fields[name].required = True
+            self.fields[name].required = required
             self.fields[name].validators.append(MinValueValidator(0))
+        if not required:
+            # The match sheet: entered periods replace these two values.
+            self.fields["away_score"].help_text = (
+                "When you enter periods, the final score is their total."
+            )
         match = self.instance
         if match is not None and match.pk:
             self.fields["home_score"].label = f"{match.home_team} score"

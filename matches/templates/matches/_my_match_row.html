@@ -1,7 +1,7 @@
 {# One assigned match on My matches. Needs `match`. Pass primary=True for the page's one primary button. #}
 <div class="list-group-item d-flex flex-wrap align-items-center gap-3">
   <div class="flex-fill min-w-0">
-    {% include "matches/_match_teams.html" %}
+    <a class="text-reset d-inline-block mw-100" href="{% url 'matches:detail' match.pk %}">{% include "matches/_match_teams.html" %}</a>
     <div class="small text-secondary">{{ match.season.name }} · <span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span> · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
   </div>
   {% if match.has_result %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% endif %}

@@ -7,6 +7,7 @@ app_name = "teams"
 urlpatterns = [
     path("league/", views.league_setup, name="league_setup"),
     path("sports/manage/", views.manage_sports, name="manage_sports"),
+    path("sports/<int:pk>/edit/", views.edit_sport, name="edit_sport"),
     path(
         "event-types/manage/",
         views.manage_event_types,

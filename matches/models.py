@@ -1,3 +1,4 @@
+from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -181,5 +182,139 @@ class Match(models.Model):
         """Both scores are recorded, so the match counts in the standings."""
         return self.home_score is not None and self.away_score is not None
 
+    @property
+    def has_periods(self):
+        return self.period_scores.exists()
+
     def __str__(self):
         return f"{self.home_team} vs {self.away_team}"
+
+
+class MatchPeriodScore(models.Model):
+    """Both teams' points in one period. Periods past Sport.period_count are overtime."""
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name="period_scores"
+    )
+    period = models.PositiveSmallIntegerField()
+    home_points = models.PositiveIntegerField()
+    away_points = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["period"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["match", "period"], name="unique_period_per_match"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(period__gte=1),
+                name="period_score_period_positive",
+            ),
+        ]
+
+    def clean(self):
+        if self.match_id and self.period:
+            sport = self.match.home_team.sport
+            if self.period > sport.period_count + sport.MAX_OVERTIME_PERIODS:
+                raise ValidationError(
+                    {"period": "Matches have at most 2 overtime periods."}
+                )
+
+    def __str__(self):
+        return f"{self.match} period {self.period}"
+
+
+def validate_match_player(row):
+    """A stat or appearance row needs a team in the match and a player on it.
+
+    Roster has no history, so the roster check runs only for a new row or a
+    changed player or team. A player who left keeps the rows from before.
+    """
+    match = row.match
+    if row.team_id not in {match.home_team_id, match.away_team_id}:
+        raise ValidationError({"team": "Choose a team in this match."})
+    stored = None
+    if row.pk:
+        stored = (
+            type(row)
+            .objects.filter(pk=row.pk)
+            .values_list("player_id", "team_id")
+            .first()
+        )
+    if stored == (row.player_id, row.team_id):
+        return
+    Roster = apps.get_model("teams", "Roster")
+    if not Roster.objects.filter(team_id=row.team_id, player_id=row.player_id).exists():
+        raise ValidationError({"player": "That player isn't on this team."})
+
+
+class PlayerStat(models.Model):
+    """A player's count for one event type in one match. Zero isn't stored."""
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name="player_stats"
+    )
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="match_stats"
+    )
+    # The team is stored because leaving a team deletes the Roster row.
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="player_stats"
+    )
+    event_type = models.ForeignKey(
+        "teams.EventType", on_delete=models.PROTECT, related_name="player_stats"
+    )
+    value = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["match", "player", "event_type"],
+                name="unique_stat_per_player_event",
+            )
+        ]
+
+    def clean(self):
+        if not (self.match_id and self.player_id and self.team_id):
+            return
+        validate_match_player(self)
+        if (
+            self.event_type_id
+            and self.event_type.sport_id != self.match.home_team.sport_id
+        ):
+            raise ValidationError(
+                {"event_type": "Choose an event type for this sport."}
+            )
+
+    def __str__(self):
+        return f"{self.player} {self.event_type.name} {self.value} in {self.match}"
+
+
+class MatchAppearance(models.Model):
+    """A player took part in a match, for one team."""
+
+    match = models.ForeignKey(
+        Match, on_delete=models.CASCADE, related_name="appearances"
+    )
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="match_appearances",
+    )
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="match_appearances"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["match", "player"], name="unique_appearance_per_match"
+            )
+        ]
+
+    def clean(self):
+        if self.match_id and self.player_id and self.team_id:
+            validate_match_player(self)
+
+    def __str__(self):
+        return f"{self.player} played for {self.team} in {self.match}"

@@ -1,6 +1,9 @@
+from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
 from django.db import models, transaction
+from django.db.models import Max
 
 from .catalog_rules import name_key, validate_catalog_name
 from .season_rules import (
@@ -27,7 +30,15 @@ class SeasonQuerySet(models.QuerySet):
 class Sport(models.Model):
     """A sport available for teams and events."""
 
+    # Matches can add at most this many overtime periods (OT1, OT2).
+    MAX_OVERTIME_PERIODS = 2
+
     name = models.CharField(max_length=50, unique=True)
+    # 0 means the sport has no periods (tennis, say).
+    period_count = models.PositiveSmallIntegerField(
+        default=4, validators=[MaxValueValidator(10)]
+    )
+    period_label = models.CharField(max_length=10, default="Q")
 
     def clean(self):
         try:
@@ -40,6 +51,30 @@ class Sport(models.Model):
                 raise ValidationError(
                     {"name": "A sport with this name already exists."}
                 )
+
+        if self.pk and self.period_count is not None:
+            # apps.get_model: matches imports teams, so a direct import is circular.
+            highest = (
+                apps.get_model("matches", "MatchPeriodScore")
+                .objects.filter(match__home_team__sport=self)
+                .aggregate(Max("period"))["period__max"]
+            )
+            if highest and highest > self.period_count + self.MAX_OVERTIME_PERIODS:
+                raise ValidationError(
+                    {
+                        "period_count": (
+                            f"Matches already have scores for period {highest}."
+                        )
+                    }
+                )
+
+    def period_name(self, n):
+        """Q1, Half 2, or OT1 for the first period past the regular ones."""
+        if n > self.period_count:
+            return f"OT{n - self.period_count}"
+        if len(self.period_label) <= 2:
+            return f"{self.period_label}{n}"
+        return f"{self.period_label} {n}"
 
     def save(self, *args, **kwargs):
         self.full_clean()

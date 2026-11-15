@@ -565,6 +565,23 @@ def manage_sports(request):
 
 
 @login_required
+def edit_sport(request, pk):
+    """League Admins change a sport's name and its periods."""
+    _require_league_admin(request.user)
+    sport = get_object_or_404(Sport, pk=pk)
+    form = SportForm(request.POST or None, instance=sport)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"Saved {sport}.")
+        return redirect("teams:manage_sports")
+    return render(
+        request,
+        "teams/edit_sport.html",
+        {"form": form, "sport": sport, "nav_section": "league_setup"},
+    )
+
+
+@login_required
 def manage_event_types(request):
     """Display and manage event types for League Admins."""
     _require_league_admin(request.user)
