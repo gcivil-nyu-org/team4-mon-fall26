@@ -23,6 +23,10 @@ class SheetRow:
     played: bool = False  # Has a MatchAppearance for this team.
     stats: dict = field(default_factory=dict)  # event_type_id -> value; missing is 0.
 
+    def values(self, event_types):
+        """The stored values in the order of event_types, 0 when missing."""
+        return [self.stats.get(event_type.pk, 0) for event_type in event_types]
+
 
 @dataclass
 class TeamSheet:

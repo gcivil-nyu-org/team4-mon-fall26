@@ -1,5 +1,9 @@
+import datetime
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.urls import reverse
+from django.utils import timezone
 
 from core.templatetags.ui import player_name
 from teams.models import EventType, Roster
@@ -365,3 +369,121 @@ class MatchSheetFormTests(SheetFixtures):
             "Scores can only be recorded while the season is open or active.",
             self.errors(sheet),
         )
+
+
+class ScoreViewTests(SheetFixtures):
+    def score_url(self, match=None):
+        return reverse("matches:score", args=[(match or self.match).pk])
+
+    def submit_url(self, match):
+        return reverse("matches:submit_score", args=[match.pk])
+
+    def detail_url(self, match=None):
+        return reverse("matches:detail", args=[(match or self.match).pk])
+
+    def sheet_data(self):
+        data = {}
+        for index, (home, away) in enumerate([(1, 0), (0, 0), (1, 1), (0, 2)]):
+            data[f"period-{index}-home_points"] = home
+            data[f"period-{index}-away_points"] = away
+        data[f"stat-{self.home.pk}-{self.alex.pk}-{self.goal.pk}"] = "2"
+        data[f"played-{self.home.pk}-{self.sam.pk}"] = "on"
+        return data
+
+    def under_way(self):
+        now = timezone.now()
+        return self.assign(
+            starts_at=now - datetime.timedelta(hours=1),
+            ends_at=now + datetime.timedelta(hours=1),
+        )
+
+    def test_admin_saves_sheet_and_goes_to_detail(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(self.score_url(), self.sheet_data())
+        self.assertRedirects(response, self.detail_url())
+        self.match.refresh_from_db()
+        self.assertEqual((self.match.home_score, self.match.away_score), (2, 3))
+        self.assertEqual(PlayerStat.objects.get().value, 2)
+        self.assertEqual(MatchAppearance.objects.count(), 2)
+
+    def test_invalid_sheet_shows_errors(self):
+        self.client.force_login(self.admin)
+        response = self.client.post(self.score_url(), {"period-0-home_points": "1"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Enter every period, or leave them all blank.")
+
+    def test_keeper_saves_sheet(self):
+        match = self.under_way()
+        self.client.force_login(self.keeper)
+        response = self.client.post(
+            self.submit_url(match), {"home_score": "2", "away_score": "1"}
+        )
+        self.assertRedirects(response, self.detail_url(match))
+
+    def test_other_keeper_403(self):
+        match = self.under_way()
+        self.client.force_login(self.other_keeper)
+        response = self.client.post(self.submit_url(match), self.sheet_data())
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(PlayerStat.objects.exists())
+
+    def test_cancelled_and_closed_redirect_as_today(self):
+        match = self.under_way()
+        manage = reverse("matches:manage") + f"?season={self.season.pk}"
+        match.cancel()
+        self.client.force_login(self.admin)
+        response = self.client.post(self.score_url(match), follow=True)
+        self.assertRedirects(response, manage)
+        self.assertContains(response, "Cancelled matches can&#x27;t be scored.")
+        self.client.force_login(self.keeper)
+        response = self.client.post(self.submit_url(match), follow=True)
+        self.assertRedirects(response, reverse("matches:mine"))
+        self.season.state = SeasonState.CLOSED
+        self.season.save()
+        self.client.force_login(self.admin)
+        response = self.client.get(self.score_url(), follow=True)
+        self.assertRedirects(response, manage)
+        self.assertContains(response, "isn&#x27;t open or active.")
+
+    def test_form_shows_grid(self):
+        self.client.force_login(self.admin)
+        response = self.client.get(self.score_url())
+        self.assertContains(response, f'name="played-{self.home.pk}-{self.alex.pk}"')
+        self.assertContains(response, "OT1")
+        self.assertContains(response, 'aria-label="Alex Lee, Goal"')
+        self.assertContains(response, "form-control-sm pn-num text-end")
+        self.assertContains(response, self.detail_url())
+
+    def test_leaver_shows_as_text(self):
+        leaver = named_user("bea", "Bea", "Zed")
+        Roster.objects.create(team=self.home, player=leaver)
+        self.stored_stat(self.home, leaver, value=7)
+        Roster.objects.filter(player=leaver).delete()
+        self.client.force_login(self.admin)
+        response = self.client.get(self.score_url())
+        self.assertContains(response, "Left team")
+        self.assertContains(response, "Bea Zed")
+        self.assertNotContains(response, f'name="played-{self.home.pk}-{leaver.pk}"')
+
+    def test_no_email_on_form(self):
+        nameless = make_user("nameless")
+        Roster.objects.create(team=self.away, player=nameless)
+        self.client.force_login(self.admin)
+        response = self.client.get(self.score_url())
+        self.assertContains(response, "PlayNYU player")
+        self.assertNotContains(response, nameless.email)
+
+    def test_no_stat_section_without_event_types(self):
+        EventType.objects.filter(sport=self.soccer).delete()
+        self.client.force_login(self.admin)
+        response = self.client.get(self.score_url())
+        self.assertNotContains(response, 'name="stat-')
+        self.assertContains(response, f'name="played-{self.home.pk}-{self.alex.pk}"')
+
+    def test_no_period_section_without_periods(self):
+        self.soccer.period_count = 0
+        self.soccer.save()
+        self.client.force_login(self.admin)
+        response = self.client.get(self.score_url())
+        self.assertNotContains(response, 'name="period-0-home_points"')
+        self.assertContains(response, 'name="home_score"')

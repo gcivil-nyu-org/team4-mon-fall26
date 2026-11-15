@@ -50,8 +50,11 @@ def sport_icon(sport):
 
 
 @register.filter
-def control(field):
-    """Render a form field's widget with the design system's classes and error state."""
+def control(field, extra=""):
+    """Render a form field's widget with the design system's classes and error state.
+
+    `extra` adds classes, for example {{ field|control:"form-control-sm pn-num" }}.
+    """
     widget = field.field.widget
     if isinstance(widget, (forms.CheckboxInput, forms.RadioSelect)):
         css = "form-check-input"
@@ -59,6 +62,8 @@ def control(field):
         css = "form-select"
     else:
         css = "form-control"
+    if extra:
+        css += f" {extra}"
     if field.errors:
         css += " is-invalid"
     existing = widget.attrs.get("class")

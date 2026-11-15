@@ -138,6 +138,8 @@ class PlayerStatForm(forms.Form):
                     ]
                 else:
                     played, stats = None, [None] * len(self.event_types)
+                    # Shown as text on the form.
+                    row.stored_values = row.values(self.event_types)
                 rows.append((row, played, stats))
             grid.append((sheet, rows))
         return grid
@@ -220,11 +222,11 @@ class MatchSheet:
         return True
 
     def non_field_errors(self):
-        return (
-            list(self.score_form.non_field_errors())
-            + list(self.periods.non_form_errors())
-            + self._errors
-        )
+        return list(self.score_form.non_field_errors()) + self.sheet_errors()
+
+    def sheet_errors(self):
+        """Errors that belong to no single input. The score card shows its own."""
+        return list(self.periods.non_form_errors()) + self._errors
 
     def _final(self):
         home = self.score_form.cleaned_data.get("home_score")

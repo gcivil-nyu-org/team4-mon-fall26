@@ -11,9 +11,10 @@ from teams.models import Season
 from teams.season_rules import SeasonAction
 from teams.views import _require_league_admin
 
-from .forms import MatchForm, ScoreForm
+from .forms import MatchForm
 from .models import Match
 from .scorekeeping import group_assigned_matches
+from .sheet_forms import MatchSheet
 from .schedule import schedule_matches, seasons_visible_to
 from .standings import compute_standings
 
@@ -132,19 +133,22 @@ def cancel_match(request, pk):
     return redirect(_manage_url(match.season_id))
 
 
-def _score_match(request, match, form, back_url, nav_section):
+def _score_match(request, match, nav_section):
     """Shared save path for League Admin and scorekeeper score entry."""
-    if request.method == "POST" and form.is_valid():
-        form.save()
+    sheet = MatchSheet(match, request.POST if request.method == "POST" else None)
+    detail_url = reverse("matches:detail", args=[match.pk])
+    if request.method == "POST" and sheet.is_valid():
+        sheet.save()
         messages.success(request, f"Saved the score for {match}.")
-        return redirect(back_url)
+        return redirect(detail_url)
     return render(
         request,
         "matches/score_form.html",
         {
-            "form": form,
+            "sheet": sheet,
+            "form": sheet.score_form,
             "match": match,
-            "back_url": back_url,
+            "back_url": detail_url,
             "nav_section": nav_section,
         },
     )
@@ -166,10 +170,7 @@ def record_score(request, pk):
         else:
             messages.error(request, f"{match.season} isn't open or active.")
         return redirect(_manage_url(match.season_id))
-    form = ScoreForm(request.POST or None, instance=match)
-    return _score_match(
-        request, match, form, _manage_url(match.season_id), "league_setup"
-    )
+    return _score_match(request, match, "league_setup")
 
 
 @login_required
@@ -195,8 +196,13 @@ def submit_score(request, pk):
         # My matches hides the button until then. A typed URL gets the same answer.
         messages.error(request, "You can submit the score once the match starts.")
         return redirect("matches:mine")
-    form = ScoreForm(request.POST or None, instance=match)
-    return _score_match(request, match, form, reverse("matches:mine"), "my_matches")
+    return _score_match(request, match, "my_matches")
+
+
+@login_required
+def match_detail(request, pk):
+    match = get_object_or_404(Match, pk=pk)
+    return render(request, "matches/match_detail.html", {"match": match})
 
 
 @login_required
