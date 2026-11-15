@@ -24,8 +24,34 @@ class SportForm(forms.ModelForm):
 
     class Meta:
         model = Sport
-        fields = ["name"]
-        labels = {"name": "Sport name"}
+        fields = ["name", "period_count", "period_label"]
+        labels = {
+            "name": "Sport name",
+            "period_count": "Periods per match",
+            "period_label": "Period label",
+        }
+        help_texts = {
+            "period_count": "Use 0 for a sport with no periods.",
+            "period_label": "Q gives Q1, Q2. Half gives Half 1, Half 2.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A blank period field keeps the current value (the default for a new sport).
+        for name in ("period_count", "period_label"):
+            self.fields[name].required = False
+
+    def _keep_current(self, name):
+        value = self.cleaned_data.get(name)
+        if value in (None, ""):
+            return getattr(self.instance, name)
+        return value
+
+    def clean_period_count(self):
+        return self._keep_current("period_count")
+
+    def clean_period_label(self):
+        return self._keep_current("period_label")
 
 
 class EventTypeForm(forms.ModelForm):
