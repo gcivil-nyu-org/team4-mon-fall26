@@ -144,8 +144,7 @@ def _score_match(request, match, nav_section):
     """Shared save path for League Admin and scorekeeper score entry."""
     sheet = MatchSheet(match, request.POST if request.method == "POST" else None)
     detail_url = reverse("matches:detail", args=[match.pk])
-    if request.method == "POST" and sheet.is_valid():
-        sheet.save()
+    if request.method == "POST" and sheet.is_valid() and sheet.save():
         messages.success(request, f"Saved the score for {match}.")
         return redirect(detail_url)
     return render(

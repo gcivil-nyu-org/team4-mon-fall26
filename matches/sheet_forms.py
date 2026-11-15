@@ -243,9 +243,19 @@ class MatchSheet:
         }
 
     def save(self):
-        save_match_sheet(
-            self.match,
-            periods=self.periods.filled(),
-            final=self._final(),
-            **self._sheet_rows(),
-        )
+        """Save, and return False with the error kept when the writer refuses.
+
+        The writer checks again under the match lock, so a save made by someone
+        else since is_valid() becomes a form error, not a server error.
+        """
+        try:
+            save_match_sheet(
+                self.match,
+                periods=self.periods.filled(),
+                final=self._final(),
+                **self._sheet_rows(),
+            )
+        except ValidationError as error:
+            self._errors.extend(error.messages)
+            return False
+        return True

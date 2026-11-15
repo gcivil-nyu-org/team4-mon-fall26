@@ -358,6 +358,21 @@ class MatchSheetFormTests(SheetFixtures):
         )
         self.assertFalse(MatchAppearance.objects.exists())
 
+    def test_writer_error_becomes_form_error(self):
+        # Another save adds Jo to home between is_valid() and save().
+        data = {
+            "home_score": "1",
+            "away_score": "0",
+            f"played-{self.away.pk}-{self.jo.pk}": "on",
+        }
+        sheet = self.sheet(data)
+        self.assertTrue(sheet.is_valid())
+        Roster.objects.bulk_create([Roster(team=self.home, player=self.jo)])
+        MatchAppearance.objects.create(match=self.match, team=self.home, player=self.jo)
+        Roster.objects.filter(team=self.home, player=self.jo).delete()
+        self.assertFalse(sheet.save())
+        self.assertIn("Jo Park can only play for one team.", sheet.non_field_errors())
+
     def test_closed_season(self):
         self.season.state = SeasonState.CLOSED
         self.season.save()
