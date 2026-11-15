@@ -12,6 +12,119 @@ WIN_POINTS = 3
 DRAW_POINTS = 1
 
 
+def counted_matches():
+    """Matches that count in the standings: scheduled, both scores set."""
+    return Match.objects.filter(
+        status=Match.Status.SCHEDULED,
+        home_score__isnull=False,
+        away_score__isnull=False,
+    )
+
+
+def rank_rows(teams, scores):
+    """One row per team from (home id, away id, home score, away score) tuples.
+
+    Each row has the team, played, won, drawn, lost and points. Scores that
+    name a team not in `teams` are skipped. Rows sort by points, then wins,
+    then team name.
+    """
+    rows = {
+        team.pk: {
+            "team": team,
+            "played": 0,
+            "won": 0,
+            "drawn": 0,
+            "lost": 0,
+            "points": 0,
+        }
+        for team in teams
+    }
+    for home_id, away_id, home_score, away_score in scores:
+        home = rows.get(home_id)
+        away = rows.get(away_id)
+        if home is None or away is None:
+            continue
+        home["played"] += 1
+        away["played"] += 1
+        if home_score > away_score:
+            home["won"] += 1
+            home["points"] += WIN_POINTS
+            away["lost"] += 1
+        elif home_score < away_score:
+            away["won"] += 1
+            away["points"] += WIN_POINTS
+            home["lost"] += 1
+        else:
+            home["drawn"] += 1
+            away["drawn"] += 1
+            home["points"] += DRAW_POINTS
+            away["points"] += DRAW_POINTS
+    return sorted(
+        rows.values(),
+        key=lambda row: (-row["points"], -row["won"], row["team"].name),
+    )
+
+
+def standings_by_team(season_ids):
+    """Standings for many seasons at once: {team id: standing}.
+
+    Each standing has the season `row`, its 1-based `position` in the season,
+    the team count `of`, and its `division_position` / `division_of` (None
+    when the team has no division). Runs exactly 2 queries for any number of
+    seasons, and none for an empty input.
+    """
+    ids = list(season_ids)
+    if not ids:
+        return {}
+    from teams.models import Team
+
+    teams = list(
+        Team.objects.filter(season_id__in=ids).select_related("division")
+    )
+    season_scores = {}
+    for season_id, home_id, away_id, home_score, away_score in (
+        counted_matches()
+        .filter(season_id__in=ids)
+        .values_list(
+            "season_id", "home_team_id", "away_team_id", "home_score", "away_score"
+        )
+    ):
+        season_scores.setdefault(season_id, []).append(
+            (home_id, away_id, home_score, away_score)
+        )
+    season_teams = {}
+    for team in teams:
+        season_teams.setdefault(team.season_id, []).append(team)
+    result = {}
+    for season_id, season_team_list in season_teams.items():
+        rows = rank_rows(season_team_list, season_scores.get(season_id, []))
+        division_seen = {}
+        for position, row in enumerate(rows, start=1):
+            team = row["team"]
+            entry = {
+                "row": row,
+                "position": position,
+                "of": len(season_team_list),
+                "division_position": None,
+                "division_of": None,
+            }
+            if team.division_id is not None:
+                division_seen[team.division_id] = (
+                    division_seen.get(team.division_id, 0) + 1
+                )
+                entry["division_position"] = division_seen[team.division_id]
+            result[team.pk] = entry
+        for team in season_team_list:
+            if team.division_id is not None:
+                mates = [
+                    mate
+                    for mate in season_team_list
+                    if mate.division_id == team.division_id
+                ]
+                result[team.pk]["division_of"] = len(mates)
+    return result
+
+
 def compute_standings(season, division=None):
     """One row per team of the season, ordered like the leaderboard.
 
@@ -27,56 +140,18 @@ def compute_standings(season, division=None):
     teams = list(
         Team.objects.filter(season=season).select_related("division").order_by("name")
     )
-    rows = {
-        team.pk: {
-            "team": team,
-            "played": 0,
-            "won": 0,
-            "drawn": 0,
-            "lost": 0,
-            "points": 0,
-        }
-        for team in teams
-    }
-    matches = (
-        Match.objects.filter(
-            season=season,
-            status=Match.Status.SCHEDULED,
-            home_score__isnull=False,
-            away_score__isnull=False,
-        )
-        .select_related("home_team", "away_team")
+    scores = (
+        counted_matches()
+        .filter(season=season)
         .filter(
             Q(home_team__season=season) & Q(away_team__season=season),
         )
+        .values_list("home_team_id", "away_team_id", "home_score", "away_score")
     )
-    for match in matches:
-        home = rows.get(match.home_team_id)
-        away = rows.get(match.away_team_id)
-        if home is None or away is None:
-            continue
-        home["played"] += 1
-        away["played"] += 1
-        if match.home_score > match.away_score:
-            home["won"] += 1
-            home["points"] += WIN_POINTS
-            away["lost"] += 1
-        elif match.home_score < match.away_score:
-            away["won"] += 1
-            away["points"] += WIN_POINTS
-            home["lost"] += 1
-        else:
-            home["drawn"] += 1
-            away["drawn"] += 1
-            home["points"] += DRAW_POINTS
-            away["points"] += DRAW_POINTS
-    listed = rows.values()
+    rows = rank_rows(teams, scores)
     if division is not None:
-        listed = [row for row in listed if row["team"].division_id == division.pk]
-    return sorted(
-        listed,
-        key=lambda row: (-row["points"], -row["won"], row["team"].name),
-    )
+        rows = [row for row in rows if row["team"].division_id == division.pk]
+    return rows
 
 
 def team_records(team_ids):
@@ -90,12 +165,13 @@ def team_records(team_ids):
     }
     if not records:
         return records
-    matches = Match.objects.filter(
-        Q(home_team__in=list(records)) | Q(away_team__in=list(records)),
-        status=Match.Status.SCHEDULED,
-        home_score__isnull=False,
-        away_score__isnull=False,
-    ).values_list("home_team_id", "away_team_id", "home_score", "away_score")
+    matches = (
+        counted_matches()
+        .filter(
+            Q(home_team__in=list(records)) | Q(away_team__in=list(records)),
+        )
+        .values_list("home_team_id", "away_team_id", "home_score", "away_score")
+    )
     for home_id, away_id, home_score, away_score in matches:
         for team_id, scored, conceded in (
             (home_id, home_score, away_score),
