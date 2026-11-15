@@ -51,10 +51,9 @@ class FacilitySchedulePageTests(ScheduleFixtures):
         self.add_match(start=60)
         response = self.get()
         self.assertEqual(response.context["upcoming_count"], 3)
-        self.assertContains(
-            response,
-            date_format(timezone.localtime(first.starts_at), "D M j, g:i A"),
-        )
+        self.assertEqual(response.context["next_game"], first)
+        when = date_format(timezone.localtime(first.starts_at), "D M j, g:i A")
+        self.assertContains(response, f'<div class="h3 mb-0 pn-num">{when}</div>')
 
     def test_no_games_empty_states(self):
         response = self.get()
