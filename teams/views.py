@@ -1,9 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
-from django.db.models import Count
-from django.http import Http404
+from django.db.models import Count, F, Q
+from django.http import Http404, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
@@ -59,6 +60,107 @@ def team_list(request):
         "season", "division"
     )
     return render(request, "teams/team_list.html", {"teams": teams})
+
+
+TEAMS_PER_PAGE = 20
+
+
+def _clean_filter_id(value):
+    """An int primary key from the query string, or None when it is missing."""
+    if value and value.isdecimal():
+        return int(value)
+    return None
+
+
+@login_required
+def team_directory(request):
+    """Every team the viewer can see, with filters and standings."""
+    visible_seasons = seasons_visible_to(request.user)
+    teams = (
+        Team.objects.filter(Q(season__isnull=True) | Q(season__in=visible_seasons))
+        .select_related("sport", "season", "division")
+        .order_by(F("season__start_date").desc(nulls_last=True), "name")
+    )
+    sports = Sport.objects.filter(
+        Q(teams__season__isnull=True) | Q(teams__season__in=visible_seasons)
+    ).distinct().order_by("name")
+    seasons = visible_seasons.order_by(
+        F("start_date").desc(nulls_last=True), "name"
+    )
+    sport_id = _clean_filter_id(request.GET.get("sport"))
+    season_id = _clean_filter_id(request.GET.get("season"))
+    if sport_id is not None and not Sport.objects.filter(pk=sport_id).exists():
+        sport_id = None
+    if (
+        season_id is not None
+        and not visible_seasons.filter(pk=season_id).exists()
+    ):
+        season_id = None
+    if sport_id is not None:
+        teams = teams.filter(sport_id=sport_id)
+    if season_id is not None:
+        teams = teams.filter(season_id=season_id)
+    division_id = _clean_filter_id(request.GET.get("division"))
+    if (
+        division_id is None
+        or season_id is None
+        or not Division.objects.filter(
+            pk=division_id, season_id=season_id
+        ).exists()
+    ):
+        division_id = None
+    if division_id is not None:
+        teams = teams.filter(division_id=division_id)
+    divisions = (
+        Division.objects.filter(season_id=season_id).order_by("name")
+        if season_id is not None
+        else []
+    )
+    query = (request.GET.get("q") or "").strip()
+    if query:
+        teams = teams.filter(name__icontains=query)
+    page_obj = Paginator(teams, TEAMS_PER_PAGE).get_page(request.GET.get("page"))
+    standings = standings_by_team(
+        {team.season_id for team in page_obj if team.season_id is not None}
+    )
+    mine = set(
+        Roster.objects.filter(player=request.user).values_list("team_id", flat=True)
+    )
+    rows = [
+        {
+            "team": team,
+            "standing": standings.get(team.pk),
+            "is_mine": team.pk in mine,
+        }
+        for team in page_obj
+    ]
+    params = QueryDict(mutable=True)
+    if sport_id is not None:
+        params["sport"] = sport_id
+    if season_id is not None:
+        params["season"] = season_id
+    if division_id is not None:
+        params["division"] = division_id
+    if query:
+        params["q"] = query
+    return render(
+        request,
+        "teams/team_directory.html",
+        {
+            "page_obj": page_obj,
+            "rows": rows,
+            "sports": sports,
+            "seasons": seasons,
+            "divisions": divisions,
+            "selected": {
+                "sport": sport_id,
+                "season": season_id,
+                "division": division_id,
+                "q": query,
+            },
+            "querystring": params.urlencode(),
+        },
+    )
 
 
 @login_required

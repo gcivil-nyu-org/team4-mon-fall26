@@ -14,6 +14,7 @@ urlpatterns = [
         name="manage_event_types",
     ),
     path("", views.team_list, name="list"),
+    path("all/", views.team_directory, name="directory"),
     path("new/", views.create_team, name="create"),
     path("<int:pk>/", views.team_detail, name="detail"),
     path("<int:pk>/add-player/", views.add_player, name="add_player"),
