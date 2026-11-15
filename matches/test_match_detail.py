@@ -213,3 +213,27 @@ class MatchDetailTests(SheetFixtures):
         with CaptureQueriesContext(connection) as captured:
             self.assertEqual(self.client.get(self.url()).status_code, 200)
         return len(captured)
+
+
+class MatchRowLinkTests(SheetFixtures):
+    def href(self):
+        return f'href="{reverse("matches:detail", args=[self.match.pk])}"'
+
+    def test_season_schedule_links_match(self):
+        self.client.force_login(self.player)
+        response = self.client.get(
+            reverse("matches:season_schedule", args=[self.season.pk])
+        )
+        self.assertContains(response, self.href())
+
+    def test_team_page_links_match(self):
+        Roster.objects.create(team=self.home, player=self.player)
+        self.client.force_login(self.player)
+        response = self.client.get(reverse("teams:detail", args=[self.home.pk]))
+        self.assertContains(response, self.href())
+
+    def test_my_matches_links_match(self):
+        self.match.scorekeeper = self.keeper
+        self.match.save()
+        self.client.force_login(self.keeper)
+        self.assertContains(self.client.get(reverse("matches:mine")), self.href())
