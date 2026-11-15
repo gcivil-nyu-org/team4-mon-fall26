@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
+from matches.schedule import facility_schedule
 from teams.views import _require_league_admin
 
 from .forms import NYUFacilityForm
@@ -39,7 +40,12 @@ def facility_detail(request, pk):
     return render(
         request,
         "facilities/facility_detail.html",
-        {"facility": facility, "markers": markers},
+        {
+            "facility": facility,
+            "markers": markers,
+            **facility_schedule(facility, request.user, request.GET.get("page")),
+            "querystring": "",
+        },
     )
 
 
