@@ -14,7 +14,8 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
-from matches.standings import compute_standings
+from matches.standings import standings_by_team
+from matches.stats import team_player_stats, team_stat_totals
 
 from .default_seasons import created_seasons_message, ensure_default_seasons
 from .forms import (
@@ -115,43 +116,49 @@ def create_team(request):
 @login_required
 def team_detail(request, pk):
     team = get_object_or_404(
-        Team.objects.select_related("captain", "season", "division"), pk=pk
+        Team.objects.select_related("captain", "season", "division", "sport"), pk=pk
     )
-    # Rosters show members' emails, so only teammates can see them.
-    if not team.roster.filter(player=request.user).exists():
+    visible_seasons = seasons_visible_to(request.user)
+    if team.season_id is not None and not visible_seasons.filter(
+        pk=team.season_id
+    ).exists():
         raise Http404
     # Captain first, then players in the order they joined.
-    roster = team.roster.select_related("player").order_by("role", "joined_at")
+    roster = list(team.roster.select_related("player").order_by("role", "joined_at"))
+    is_member = any(entry.player_id == request.user.pk for entry in roster)
     upcoming_matches, past_matches = team_schedule(team, request.user)
-    record = None
-    if team.season_id:
-        record = next(
-            (
-                row
-                for row in compute_standings(team.season)
-                if row["team"].pk == team.pk
-            ),
-            None,
+    standing = None
+    if team.season_id is not None:
+        standing = standings_by_team([team.season_id]).get(team.pk)
+    team_stats = team_stat_totals(team, request.user)
+    stat_event_types, player_stats = team_player_stats(team, request.user)
+    if not any(row["games"] or any(row["values"]) for row in player_stats):
+        player_stats = []
+        team_stats = []
+    context = {
+        "team": team,
+        "is_member": is_member,
+        "is_captain": team.captain_id == request.user.pk,
+        "roster": roster,
+        "standing": standing,
+        "upcoming_matches": upcoming_matches,
+        "past_matches": past_matches,
+        "team_stats": team_stats,
+        "stat_event_types": stat_event_types,
+        "player_stats": player_stats,
+        "can_view_schedule": team.season_id is not None
+        and visible_seasons.filter(pk=team.season_id).exists(),
+    }
+    if is_member:
+        context.update(
+            {
+                "can_add": team.allows(SeasonAction.ADD_PLAYER),
+                "can_remove": team.allows(SeasonAction.REMOVE_PLAYER),
+                "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
+                "is_full": len(roster) >= team.max_roster_size,
+            }
         )
-    return render(
-        request,
-        "teams/team_detail.html",
-        {
-            "team": team,
-            "roster": roster,
-            "is_captain": team.captain_id == request.user.pk,
-            "is_full": len(roster) >= team.max_roster_size,
-            "can_add": team.allows(SeasonAction.ADD_PLAYER),
-            "can_remove": team.allows(SeasonAction.REMOVE_PLAYER),
-            "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
-            "upcoming_matches": upcoming_matches,
-            "past_matches": past_matches,
-            "record": record,
-            "can_view_schedule": seasons_visible_to(request.user)
-            .filter(pk=team.season_id)
-            .exists(),
-        },
-    )
+    return render(request, "teams/team_detail.html", context)
 
 
 @login_required

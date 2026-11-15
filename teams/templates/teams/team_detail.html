@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load teams_extras %}
+{% load ui %}
 {% block title %}{{ team.name }} · PlayNYU{% endblock %}
 {% block content %}
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -8,11 +9,11 @@
       <div class="page-header">
         {% if team.season %}<div class="subheader">{{ team.season }}</div>{% endif %}
         <h1>{{ team.name }}</h1>
-        <div class="page-meta">{{ team.sport }}{% if team.division %} · {{ team.division.name }}{% endif %} · Captain {{ team.captain.get_full_name|default:team.captain.email }}</div>
+        <div class="page-meta">{{ team.sport }}{% if team.division %} · {{ team.division.name }}{% endif %} · Captain <a href="{% profile_url team.captain %}">{{ team.captain|display_name }}</a></div>
       </div>
     </div>
+    {% if is_member %}
     <div class="d-flex flex-wrap gap-2">
-      {# The view returns 404 to non-members, so each viewer is on the roster. #}
       <a class="btn btn-outline-secondary" href="{% url 'chat:thread' team.pk %}"><i aria-hidden="true" class="ti ti-messages me-1"></i>Team chat</a>
       {% if is_captain %}
         {% if not can_add %}
@@ -31,6 +32,7 @@
         <button class="btn btn-outline-danger" type="button" disabled title="Rosters are locked once the season starts.">Leave team</button>
       {% endif %}
     </div>
+    {% endif %}
   </div>
 
   <div class="row row-cards">
@@ -47,16 +49,17 @@
               <div class="flex-fill min-w-0">
                 {# Players who haven't signed up have no profile page. #}
                 {% if entry.player.is_active %}
-                  <a class="text-reset fw-medium" href="{% profile_url entry.player %}">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</a>
+                  <a class="text-reset fw-medium" href="{% profile_url entry.player %}">{{ entry.player|display_name }}</a>
                 {% else %}
-                  <span class="fw-medium">{{ entry.player.get_full_name|default:entry.player.email|default:entry.player.username }}</span>
+                  <span class="fw-medium">{{ entry.player|display_name }}</span>
                 {% endif %}
                 {% if entry.player_id == user.pk %}<span class="small text-secondary ms-1">(you)</span>{% endif %}
+                {% if is_member %}<div class="small text-secondary">{{ entry.player.email }}</div>{% endif %}
               </div>
               {% if not entry.player.is_active %}<span class="badge bg-secondary-lt">Not signed up yet</span>{% endif %}
               {% if entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
-              {% if is_captain and can_remove and entry.role == "player" %}
-                <form method="post" action="{% url 'teams:remove_player' team.pk entry.pk %}" onsubmit="return confirm('Remove {{ entry.player.get_full_name|default:entry.player.email|escapejs }} from {{ team.name|escapejs }}?');">
+              {% if is_member and is_captain and can_remove and entry.role == "player" %}
+                <form method="post" action="{% url 'teams:remove_player' team.pk entry.pk %}" onsubmit="return confirm('Remove {{ entry.player|display_name|escapejs }} from {{ team.name|escapejs }}?');">
                   {% csrf_token %}
                   <button class="btn btn-sm btn-ghost-danger" type="submit">Remove</button>
                 </form>
@@ -64,6 +67,50 @@
             </div>
           {% endfor %}
         </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Player stats</h3></div>
+        {% if player_stats %}
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th class="text-end" title="Games played">GP</th>
+                  {% for event_type in stat_event_types %}<th class="text-end" title="{{ event_type.name }}">{{ event_type.name }}</th>{% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in player_stats %}
+                  <tr{% if row.player.pk == user.pk %} class="pn-row-me"{% endif %}>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        {% include "components/avatar.html" with person=row.player size="sm" %}
+                        <div class="min-w-0">
+                          {% if row.player.is_active %}
+                            <a class="text-reset fw-medium text-break" href="{% profile_url row.player %}">{{ row.player|display_name }}</a>
+                          {% else %}
+                            <span class="fw-medium text-break">{{ row.player|display_name }}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-end pn-num">{{ row.games }}</td>
+                    {% for value in row.values %}<td class="text-end pn-num">{{ value }}</td>{% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-scoreboard"></i></div>
+              <p class="empty-title">No stats recorded yet</p>
+              <p class="empty-subtitle text-secondary">Stats show up after a scorekeeper records a match.</p>
+            </div>
+          </div>
+        {% endif %}
       </div>
       <div class="card">
         <div class="card-header">
@@ -98,7 +145,8 @@
             <dt class="col-5 fw-normal text-secondary">Sport</dt><dd class="col-7">{{ team.sport }}</dd>
             <dt class="col-5 fw-normal text-secondary">Season</dt><dd class="col-7">{{ team.season|default:"None" }}{% if team.season %} {% include "components/season_state_badge.html" with season=team.season %}{% endif %}</dd>
             <dt class="col-5 fw-normal text-secondary">Division</dt><dd class="col-7">{{ team.division.name|default:"None" }}</dd>
-            {% if team.season_id %}<dt class="col-5 fw-normal text-secondary">Record</dt><dd class="col-7 pn-num">{% if record and record.played %}{{ record.won }}–{{ record.drawn }}–{{ record.lost }} · {{ record.points }} pts{% else %}No results yet{% endif %}</dd>{% endif %}
+            <dt class="col-5 fw-normal text-secondary">Record</dt><dd class="col-7 pn-num">{% if standing and standing.row.played %}{{ standing.row.won }}–{{ standing.row.drawn }}–{{ standing.row.lost }} · {{ standing.row.points }} pts{% else %}–{% endif %}</dd>
+            <dt class="col-5 fw-normal text-secondary">Position</dt><dd class="col-7 pn-num">{% if standing %}{{ standing.position|ordinal }} of {{ standing.of }}{% if standing.division_position %} · {{ standing.division_position|ordinal }} in {{ team.division.name }}{% endif %}{% else %}–{% endif %}</dd>
             <dt class="col-5 fw-normal text-secondary">Created</dt><dd class="col-7">{{ team.created_at|date:"M j, Y" }}</dd>
           </dl>
           <div class="d-flex justify-content-between small mb-1">
@@ -109,6 +157,31 @@
             <div class="progress-bar bg-primary" style="width: {% widthratio roster|length team.max_roster_size 100 %}%" role="progressbar" aria-label="Roster spots filled" aria-valuenow="{{ roster|length }}" aria-valuemin="0" aria-valuemax="{{ team.max_roster_size }}"></div>
           </div>
         </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Team stats</h3></div>
+        {% if team_stats %}
+          <div class="table-responsive">
+            <table class="table table-vcenter card-table">
+              <thead>
+                <tr><th>Stat</th><th class="text-end" title="Total">Total</th></tr>
+              </thead>
+              <tbody>
+                {% for stat in team_stats %}
+                  <tr><td>{{ stat.event_type.name }}</td><td class="text-end pn-num">{{ stat.total }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-scoreboard"></i></div>
+              <p class="empty-title">No stats recorded yet</p>
+              <p class="empty-subtitle text-secondary">Stats show up after a scorekeeper records a match.</p>
+            </div>
+          </div>
+        {% endif %}
       </div>
       <div class="card">
         <div class="card-header"><h3 class="card-title">Past matches</h3></div>

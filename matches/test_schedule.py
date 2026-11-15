@@ -289,9 +289,7 @@ class TeamScheduleTests(ScheduleFixtures):
         self.add_match(start=-24)
         self.make_draft()
         response = self.client.get(self.url())
-        self.assertEqual(response.context["upcoming_matches"], [])
-        self.assertEqual(response.context["past_matches"], [])
-        self.assertNotContains(response, "View season schedule")
+        self.assertEqual(response.status_code, 404)
 
     def test_league_admin_sees_draft_season_matches(self):
         match = self.add_match(start=24)
@@ -302,9 +300,9 @@ class TeamScheduleTests(ScheduleFixtures):
         self.assertEqual(response.context["upcoming_matches"], [match])
         self.assertContains(response, "View season schedule")
 
-    def test_non_members_still_cannot_see_the_team(self):
+    def test_non_members_can_see_the_team(self):
         self.client.force_login(make_user("stranger"))
-        self.assertEqual(self.client.get(self.url()).status_code, 404)
+        self.assertEqual(self.client.get(self.url()).status_code, 200)
 
     def test_query_count_does_not_grow_with_matches(self):
         self.add_match()

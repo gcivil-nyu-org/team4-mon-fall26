@@ -7,8 +7,12 @@ from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from .models import EventType, FreeAgentRequest, Roster, Season, Sport, Team
+from facilities.models import Facility
+from matches.models import Match, MatchAppearance, PlayerStat
+
+from .models import Division, EventType, FreeAgentRequest, Roster, Season, Sport, Team
 from .season_rules import SeasonState
 
 
@@ -118,11 +122,149 @@ class RosterPageTests(TestCase):
         self.assertContains(response, "player@nyu.edu")
         self.assertContains(response, "Add a player")
 
-    def test_non_member_gets_404(self):
+    def test_non_member_sees_team_without_emails(self):
+        team = make_team(make_user("cap"))
+        Roster.objects.create(team=team, player=make_user("player"))
+        self.client.force_login(make_user("stranger"))
+        response = self.client.get(reverse("teams:detail", args=[team.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "@nyu.edu")
+        self.assertContains(response, "PlayNYU player")
+
+    def test_non_member_sees_no_member_controls(self):
         team = make_team(make_user("cap"))
         self.client.force_login(make_user("stranger"))
         response = self.client.get(reverse("teams:detail", args=[team.pk]))
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, reverse("chat:thread", args=[team.pk]))
+        self.assertNotContains(response, reverse("teams:add_player", args=[team.pk]))
+        self.assertNotContains(response, reverse("teams:leave", args=[team.pk]))
+        self.assertNotContains(response, "Remove")
+
+    def test_draft_season_team_is_404_for_players_and_200_for_admins(self):
+        season = make_season(state=SeasonState.DRAFT)
+        team = make_team(make_user("cap"), season=season)
+        self.client.force_login(make_user("stranger"))
+        url = reverse("teams:detail", args=[team.pk])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        admin = make_user("boss")
+        admin.is_superuser = True
+        admin.save()
+        self.client.force_login(admin)
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+    def test_member_still_sees_emails_and_chat(self):
+        captain = make_user("cap")
+        team = make_team(captain)
+        Roster.objects.create(team=team, player=make_user("player"))
+        self.client.force_login(captain)
+        response = self.client.get(reverse("teams:detail", args=[team.pk]))
+        self.assertContains(response, "cap@nyu.edu")
+        self.assertContains(response, "player@nyu.edu")
+        self.assertContains(response, reverse("chat:thread", args=[team.pk]))
+
+    def test_shows_position_and_division_position(self):
+        season = make_season()
+        division = Division.objects.create(season=season, name="A")
+        home = make_team(make_user("cap"), season=season)
+        away = make_team(make_user("other"), name="Bobcats", season=season)
+        make_team(make_user("third"), name="Terriers", season=season)
+        for team in (home, away):
+            team.division = division
+            team.save()
+        field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
+        Match.objects.create(
+            season=season,
+            home_team=home,
+            away_team=away,
+            facility=field,
+            starts_at=timezone.now() - timezone.timedelta(days=2),
+            ends_at=timezone.now() - timezone.timedelta(days=2, hours=-2),
+            home_score=2,
+            away_score=0,
+        )
+        self.client.force_login(home.captain)
+        response = self.client.get(reverse("teams:detail", args=[home.pk]))
+        self.assertContains(response, "1st of 3")
+        self.assertContains(response, "1st in A")
+
+    def test_team_without_season_shows_dashes(self):
+        team = make_team(make_user("cap"))
+        self.client.force_login(make_user("stranger"))
+        response = self.client.get(reverse("teams:detail", args=[team.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "–")
+
+    def test_shows_stat_totals_and_player_table(self):
+        captain = make_user("cap")
+        scorer = make_user("scorer")
+        scorer.first_name = "Sam"
+        scorer.last_name = "Striker"
+        scorer.save()
+        season = make_season()
+        team = make_team(captain, season=season)
+        Roster.objects.create(team=team, player=scorer)
+        goal = EventType.objects.create(sport=team.sport, name="Goal")
+        field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
+        rival = make_team(make_user("opp"), name="Rivals", season=season)
+        match = Match.objects.create(
+            season=season,
+            home_team=team,
+            away_team=rival,
+            facility=field,
+            starts_at=timezone.now() - timezone.timedelta(days=2),
+            ends_at=timezone.now() - timezone.timedelta(days=2, hours=-2),
+            home_score=2,
+            away_score=0,
+        )
+        MatchAppearance.objects.create(match=match, player=scorer, team=team)
+        PlayerStat.objects.create(
+            match=match, player=scorer, team=team, event_type=goal, value=2
+        )
+        self.client.force_login(captain)
+        response = self.client.get(reverse("teams:detail", args=[team.pk]))
+        self.assertContains(response, "Sam Striker")
+        self.assertContains(response, "GP")
+        self.assertContains(
+            response, '<td class="text-end pn-num">2</td>', html=True
+        )
+
+    def test_empty_stats_state(self):
+        team = make_team(make_user("cap"))
+        self.client.force_login(team.captain)
+        response = self.client.get(reverse("teams:detail", args=[team.pk]))
+        self.assertContains(response, "No stats recorded yet", count=2)
+
+    def test_query_count_is_fixed(self):
+        from matches.test_stats import count_queries
+
+        captain = make_user("cap")
+        season = make_season()
+        team = make_team(captain, season=season)
+        field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
+        rival = make_team(make_user("opp"), name="Rivals", season=season)
+        goal = EventType.objects.create(sport=team.sport, name="Goal")
+        url = reverse("teams:detail", args=[team.pk])
+        self.client.force_login(captain)
+        small = count_queries(lambda: self.client.get(url))
+        for index in range(4):
+            player = make_user(f"extra{index}")
+            Roster.objects.create(team=team, player=player)
+            match = Match.objects.create(
+                season=season,
+                home_team=team,
+                away_team=rival,
+                facility=field,
+                starts_at=timezone.now() - timezone.timedelta(days=index + 1),
+                ends_at=timezone.now() - timezone.timedelta(days=index + 1, hours=-2),
+                home_score=1,
+                away_score=0,
+            )
+            MatchAppearance.objects.create(match=match, player=player, team=team)
+            PlayerStat.objects.create(
+                match=match, player=player, team=team, event_type=goal, value=1
+            )
+        self.assertEqual(count_queries(lambda: self.client.get(url)), small)
 
     def test_my_teams_lists_only_my_teams(self):
         me = make_user("me")
