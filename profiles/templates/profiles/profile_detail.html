@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}{{ player.get_full_name|default:"Player" }} · PlayNYU{% endblock %}
 {% block content %}
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -17,21 +18,17 @@
 
   <div class="row row-cards">
     <div class="{% if is_owner %}col-lg-8{% else %}col-12{% endif %}">
-      <div class="card">
+      <div class="card mb-3">
         <div class="card-header"><h3 class="card-title">Teams</h3></div>
         {% if teams %}
           <div class="list-group list-group-flush">
             {% for item in teams %}
               <div class="list-group-item d-flex align-items-center gap-3">
-                {% include "components/team_logo.html" with team=item.entry.team size="md" %}
                 <div class="flex-fill min-w-0">
-                  {% if item.can_open %}
-                    <a class="text-reset fw-medium" href="{% url 'teams:detail' item.entry.team.pk %}">{{ item.entry.team.name }}</a>
-                  {% else %}
-                    <span class="fw-medium">{{ item.entry.team.name }}</span>
-                  {% endif %}
+                  {% include "components/team_link.html" with team=item.entry.team size="md" %}
                   <div class="small text-secondary">{{ item.entry.team.sport }}{% if item.entry.team.season %} · {{ item.entry.team.season }}{% endif %}</div>
                 </div>
+                <span class="small text-secondary pn-num flex-shrink-0">{% if item.standing %}{{ item.standing.position|ordinal }} · {{ item.standing.row.won }}–{{ item.standing.row.drawn }}–{{ item.standing.row.lost }}{% elif item.record and item.record.played %}{{ item.record.won }}–{{ item.record.drawn }}–{{ item.record.lost }}{% else %}–{% endif %}</span>
                 {% if item.entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
               </div>
             {% endfor %}
@@ -42,6 +39,63 @@
               <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
               <p class="empty-title">Not on any teams yet.</p>
               {% if is_owner %}<p class="empty-subtitle text-secondary">Create a team, or ask a captain to add you with your NYU email.</p>{% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header"><h3 class="card-title">Season stats</h3></div>
+        {% if season_stats %}
+          {% for block in season_stats %}
+            <div class="card-header">
+              <div><h4 class="card-title">{{ block.season.name|default:block.team.name }}</h4><div class="small text-secondary"><span class="pn-num">GP {{ block.games }}</span></div></div>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table">
+                <thead>
+                  <tr><th>Stat</th><th class="text-end" title="Total">Total</th><th class="text-end" title="Per game">PG</th></tr>
+                </thead>
+                <tbody>
+                  {% for row in block.rows %}
+                    <tr>
+                      <td>{{ row.event_type.name }}</td>
+                      <td class="text-end pn-num">{{ row.total }}</td>
+                      <td class="text-end pn-num">{{ row.per_game|default_if_none:"–" }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-chart-bar"></i></div>
+              <p class="empty-title">No stats yet.</p>
+              <p class="empty-subtitle text-secondary">Stats show up after a scorekeeper records a match.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">Recent matches</h3></div>
+        {% if recent_lines %}
+          <div class="list-group list-group-flush">
+            {% for match in recent_lines %}
+              {% include "components/match_row.html" %}
+              <div class="list-group-item py-2">
+                <div class="small text-secondary">{% for stat in match.player_line %}{% if not forloop.first %} · {% endif %}{{ stat.value }} {{ stat.event_type.name }}{{ stat.value|pluralize }}{% endfor %}</div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-scoreboard"></i></div>
+              <p class="empty-title">No matches played yet.</p>
+              <p class="empty-subtitle text-secondary">Matches show up here after the player takes part in one.</p>
             </div>
           </div>
         {% endif %}
