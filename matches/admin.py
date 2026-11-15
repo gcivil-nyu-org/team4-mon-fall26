@@ -1,6 +1,10 @@
 from django.contrib import admin
 
-from .models import Match
+from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
+
+admin.site.register(MatchPeriodScore)
+admin.site.register(PlayerStat)
+admin.site.register(MatchAppearance)
 
 
 @admin.register(Match)

@@ -1,7 +1,9 @@
+from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator
 from django.db import models, transaction
+from django.db.models import Max
 
 from .catalog_rules import name_key, validate_catalog_name
 from .season_rules import (
@@ -48,6 +50,22 @@ class Sport(models.Model):
             if name_key(sport.name) == name_key(self.name):
                 raise ValidationError(
                     {"name": "A sport with this name already exists."}
+                )
+
+        if self.pk and self.period_count is not None:
+            # apps.get_model: matches imports teams, so a direct import is circular.
+            highest = (
+                apps.get_model("matches", "MatchPeriodScore")
+                .objects.filter(match__home_team__sport=self)
+                .aggregate(Max("period"))["period__max"]
+            )
+            if highest and highest > self.period_count + self.MAX_OVERTIME_PERIODS:
+                raise ValidationError(
+                    {
+                        "period_count": (
+                            f"Matches already have scores for period {highest}."
+                        )
+                    }
                 )
 
     def period_name(self, n):
