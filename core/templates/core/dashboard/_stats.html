@@ -6,7 +6,7 @@
       <div class="subheader">Next match</div>
       {% if next_match %}
         <div class="h1 mb-0 pn-num">{{ next_match.starts_at|date:"D M j" }}</div>
-        <div class="small text-secondary"><span class="pn-num">{{ next_match.starts_at|date:"g:i A" }}</span> · vs {{ next_match.opponent.name }}</div>
+        <div class="small text-secondary"><span class="pn-num">{{ next_match.starts_at|date:"g:i A" }}</span> · vs <a href="{% url 'teams:detail' next_match.opponent.pk %}">{{ next_match.opponent.name }}</a></div>
       {% else %}
         <div class="h1 mb-0 pn-num text-secondary">–</div>
         <div class="small text-secondary">Nothing scheduled</div>

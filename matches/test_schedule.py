@@ -111,6 +111,12 @@ class SeasonScheduleTests(ScheduleFixtures):
             url = reverse("matches:season_schedule", args=[pk])
             self.assertEqual(self.client.get(url).status_code, 404)
 
+    def test_match_rows_link_both_teams(self):
+        self.add_match()
+        response = self.client.get(self.url())
+        for team in (self.home, self.away):
+            self.assertContains(response, reverse("teams:detail", args=[team.pk]))
+
     def test_filter_by_division(self):
         gold = self.add_match(start=24)
         silver = self.add_match(

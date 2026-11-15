@@ -28,6 +28,25 @@ PLAYER_NAME_FALLBACK = "PlayNYU player"
 
 
 @register.filter
+def display_name(user):
+    """A player's full name for pages anyone can see. Never the email."""
+    if user is None:
+        return PLAYER_NAME_FALLBACK
+    return user.get_full_name() or PLAYER_NAME_FALLBACK
+
+
+@register.filter
+def ordinal(n):
+    """1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st, 22nd, 101st, 111th."""
+    number = int(n)
+    if 10 <= number % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+    return f"{number}{suffix}"
+
+
+@register.filter
 def player_name(user):
     """A player's full name for pages any member can see. Never the email."""
     if user is None:

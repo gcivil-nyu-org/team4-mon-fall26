@@ -156,6 +156,12 @@ Sizes (default `sm`): `xs` 20px (inline in text), `sm` 32px (list rows, tables, 
 
 Same as the avatar, but a rounded square instead of a circle. Until logo uploads exist it shows the team's sport icon (`{{ team.sport|sport_icon }}`) on violet tint. In the header of a team page, the logo is `xl`. Takes `labelled=True` the same way. Icons that aren't a person or team (status icons, feature tiles) may use either shape; keep each page consistent.
 
+### Team link
+
+`{% include "components/team_link.html" with team=team size="sm" %}`
+
+The logo, then a `text-reset fw-medium text-break` link with the team name to its page (`teams:detail`). Use it wherever a team name appears outside its own page. Do not use `stretched-link` in a row that holds a team link.
+
 ### Cards
 
 ```html
@@ -409,7 +415,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-sheet-input`) | `static/css/playnyu.css` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
-| Template filters (`initials`, `sport_icon`, `control` with optional extra classes, `player_name`: full name or "PlayNYU player", never the email) | `core/templatetags/ui.py` |
+| Template filters (`initials`, `sport_icon`, `control` with optional extra classes, `player_name` and `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)
 

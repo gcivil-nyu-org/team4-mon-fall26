@@ -171,7 +171,10 @@ class StatRowTests(DashboardMatchFixtures):
         self.add_match(start=72)
         response = self.get()
         self.assertEqual(response.context["next_match"], nearest)
-        self.assertContains(response, "vs Terriers")
+        self.assertContains(
+            response,
+            f"vs <a href=\"{reverse('teams:detail', args=[self.third.pk])}\">Terriers</a>",
+        )
         local = timezone.localtime(nearest.starts_at)
         self.assertContains(response, local.strftime("%a %b ") + str(local.day))
         self.assertNotContains(response, "Nothing scheduled")

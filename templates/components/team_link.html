@@ -1,0 +1,2 @@
+{# A team logo plus a linked name. Needs `team`; `size` defaults to sm. #}
+<span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="d-inline-flex flex-shrink-0">{% include "components/team_logo.html" with team=team size=size|default:"sm" %}</span><a class="text-reset fw-medium text-break" href="{% url 'teams:detail' team.pk %}">{{ team.name }}</a></span>
