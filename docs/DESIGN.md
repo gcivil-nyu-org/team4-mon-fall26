@@ -162,6 +162,8 @@ Same as the avatar, but a rounded square instead of a circle. Until logo uploads
 
 The logo, then a `text-reset fw-medium text-break` link with the team name to its page (`teams:detail`). Use it wherever a team name appears outside its own page. Do not use `stretched-link` in a row that holds a team link.
 
+Pass `link=False` when the viewer can't open the team page. The name then shows as plain text (`fw-medium text-break`). `matches/_match_teams.html` passes the flag on.
+
 ### Cards
 
 ```html
@@ -226,7 +228,7 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 Each team name links to its team page (`components/team_link.html`). The time and the final score are `text-reset` links to the match page (`matches:detail`). Don't wrap the matchup in a link, because links can't nest. Don't use `stretched-link`, because the row holds several links. `matches/_my_match_row.html` on My matches uses the same links.
 
-On My matches, a row in a draft season doesn't link its time or score, because players get a 404 on that match page.
+On My matches, a row in a draft season doesn't link its time or score, because players get a 404 on that match page. It shows the team names as plain text (`link=False`), because `teams:detail` is a 404 too. League Admins still get the team links: the view sets `can_see_drafts`.
 
 On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
 

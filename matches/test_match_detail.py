@@ -6,6 +6,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
+from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 from teams.models import EventType, Roster
 from teams.season_rules import SeasonState
 
@@ -314,3 +315,28 @@ class MatchRowLinkTests(SheetFixtures):
         self.assertNotContains(response, self.href())
         detail = reverse("matches:detail", args=[self.match.pk])
         self.assertEqual(self.client.get(detail).status_code, 404)
+
+    def draft_my_matches(self, keeper):
+        self.match.scorekeeper = keeper
+        self.match.save()
+        self.season.state = SeasonState.DRAFT
+        self.season.save()
+        self.client.force_login(keeper)
+        return self.client.get(reverse("matches:mine"))
+
+    def test_my_matches_draft_season_teams_not_linked(self):
+        # teams:detail is 404 for a scorekeeper while the season is a draft.
+        response = self.draft_my_matches(self.keeper)
+        for team in (self.home, self.away):
+            self.assertContains(response, team.name)
+            team_url = reverse("teams:detail", args=[team.pk])
+            self.assertNotContains(response, f'href="{team_url}"')
+            self.assertEqual(self.client.get(team_url).status_code, 404)
+
+    def test_my_matches_draft_season_teams_linked_for_league_admin(self):
+        assign_role(self.keeper, LEAGUE_ADMIN_ROLE)
+        response = self.draft_my_matches(self.keeper)
+        for team in (self.home, self.away):
+            team_url = reverse("teams:detail", args=[team.pk])
+            self.assertContains(response, f'href="{team_url}"')
+            self.assertEqual(self.client.get(team_url).status_code, 200)

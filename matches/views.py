@@ -73,7 +73,12 @@ def my_matches(request):
     return render(
         request,
         "matches/my_matches.html",
-        {"groups": group_assigned_matches(request.user), "nav_section": "my_matches"},
+        {
+            "groups": group_assigned_matches(request.user),
+            "can_see_drafts": request.user.is_superuser
+            or has_role(request.user, LEAGUE_ADMIN_ROLE),
+            "nav_section": "my_matches",
+        },
     )
 
 
