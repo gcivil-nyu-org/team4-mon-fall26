@@ -220,6 +220,8 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 The "Home vs Away" matchup is a `text-reset` link to the match page (`matches:detail`). Don't use `stretched-link`, because the facility link and the action are separate links.
 
+On My matches, a row in a draft season doesn't link, because players get a 404 on that match page.
+
 On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
 
 A row can end with one action. Pass `action_url` and `action_label`: `{% include "components/match_row.html" with action_url=url action_label="Record score" %}`. The action renders as `btn btn-sm btn-outline-secondary`.

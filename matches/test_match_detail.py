@@ -255,3 +255,16 @@ class MatchRowLinkTests(SheetFixtures):
         self.match.save()
         self.client.force_login(self.keeper)
         self.assertContains(self.client.get(reverse("matches:mine")), self.href())
+
+    def test_my_matches_draft_season_not_linked(self):
+        # The match page is 404 for a scorekeeper while the season is a draft.
+        self.match.scorekeeper = self.keeper
+        self.match.save()
+        self.season.state = SeasonState.DRAFT
+        self.season.save()
+        self.client.force_login(self.keeper)
+        response = self.client.get(reverse("matches:mine"))
+        self.assertContains(response, "Violets")
+        self.assertNotContains(response, self.href())
+        detail = reverse("matches:detail", args=[self.match.pk])
+        self.assertEqual(self.client.get(detail).status_code, 404)
