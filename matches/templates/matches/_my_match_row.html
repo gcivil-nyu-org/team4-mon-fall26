@@ -1,7 +1,8 @@
 {# One assigned match on My matches. Needs `match`. Pass primary=True for the page's one primary button. #}
 <div class="list-group-item d-flex flex-wrap align-items-center gap-3">
   <div class="flex-fill min-w-0">
-    {% include "matches/_match_teams.html" %}
+    {# Only League Admins can open a draft season's team pages. #}
+    {% if match.season.state == "draft" and not can_see_drafts %}{% include "matches/_match_teams.html" with link=False %}{% else %}{% include "matches/_match_teams.html" %}{% endif %}
     {# Players can't open a draft season's match page, so draft rows don't link to it. #}
     <div class="small text-secondary">{{ match.season.name }} · {% if match.season.state == "draft" %}<span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span>{% else %}<a class="pn-num text-reset" href="{% url 'matches:detail' match.pk %}" title="Match page">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</a>{% endif %} · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
   </div>

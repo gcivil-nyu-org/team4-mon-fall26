@@ -144,9 +144,9 @@ Shared partials live in `templates/components/`. Use them with `{% include %}` i
 
 `{% include "components/avatar.html" with person=user size="md" %}`
 
-Renders a circle with the person's initials on violet tint (`{{ person|initials }}` falls back to the first letter of the email). When profile photos land, this partial is the only place that changes: it will show the photo when there is one.
+Renders a circle with the person's initials on violet tint (`{{ person|initials }}`). A person with no name gets "P", for "PlayNYU player". The avatar never uses the email, in the initials or in the label. When profile photos land, this partial is the only place that changes: it will show the photo when there is one.
 
-It is hidden from screen readers by default, because the person's name is almost always right next to it. When an avatar stands alone (a stacked group, an avatar-only button), pass `labelled=True` to give it a label and a hover title.
+It is hidden from screen readers by default, because the person's name is almost always right next to it. When an avatar stands alone (a stacked group, an avatar-only button), pass `labelled=True` to give it a label and a hover title. The label is `{{ person|display_name }}`.
 
 Sizes (default `sm`): `xs` 20px (inline in text), `sm` 32px (list rows, tables, stacked groups), `md` 40px (dashboard and profile lists), `lg` 48px (team grid cards), `xl` 80px (page header). Groups of avatars use `avatar-list`, max 5 then `+N`. Don't use `avatar-list-stacked` with initials: the overlap cuts the letters off. It's fine once avatars are photos.
 
@@ -161,6 +161,8 @@ Same as the avatar, but a rounded square instead of a circle. Until logo uploads
 `{% include "components/team_link.html" with team=team size="sm" %}`
 
 The logo, then a `text-reset fw-medium text-break` link with the team name to its page (`teams:detail`). Use it wherever a team name appears outside its own page. Do not use `stretched-link` in a row that holds a team link.
+
+Pass `link=False` when the viewer can't open the team page. The name then shows as plain text (`fw-medium text-break`). `matches/_match_teams.html` passes the flag on.
 
 ### Cards
 
@@ -226,7 +228,7 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 Each team name links to its team page (`components/team_link.html`). The time and the final score are `text-reset` links to the match page (`matches:detail`). Don't wrap the matchup in a link, because links can't nest. Don't use `stretched-link`, because the row holds several links. `matches/_my_match_row.html` on My matches uses the same links.
 
-On My matches, a row in a draft season doesn't link its time or score, because players get a 404 on that match page.
+On My matches, a row in a draft season doesn't link its time or score, because players get a 404 on that match page. It shows the team names as plain text (`link=False`), because `teams:detail` is a 404 too. League Admins still get the team links: the view sets `can_see_drafts`.
 
 On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
 
@@ -429,7 +431,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-sheet-input`) | `static/css/playnyu.css` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
-| Template filters (`initials`, `sport_icon`, `control` with optional extra classes, `player_name` and `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
+| Template filters (`initials`: "P" with no name, never the email, `sport_icon`, `control` with optional extra classes, `player_name` and `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)
 

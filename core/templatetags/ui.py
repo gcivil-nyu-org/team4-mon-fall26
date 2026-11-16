@@ -14,17 +14,20 @@ SPORT_ICONS = {
 DEFAULT_SPORT_ICON = "ti-trophy"
 
 
+PLAYER_NAME_FALLBACK = "PlayNYU player"
+
+
 @register.filter
 def initials(user):
-    """Two-letter initials for an avatar, falling back to the email's first letter."""
-    first = (user.first_name or "")[:1]
-    last = (user.last_name or "")[:1]
+    """Two-letter initials for an avatar. Never the email.
+
+    A person with no name gets "P", for "PlayNYU player".
+    """
+    first = (getattr(user, "first_name", "") or "")[:1]
+    last = (getattr(user, "last_name", "") or "")[:1]
     if first or last:
         return f"{first}{last}".upper()
-    return (user.email or user.username or "?")[:1].upper()
-
-
-PLAYER_NAME_FALLBACK = "PlayNYU player"
+    return PLAYER_NAME_FALLBACK[:1]
 
 
 @register.filter
