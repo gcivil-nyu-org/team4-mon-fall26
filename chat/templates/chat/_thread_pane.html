@@ -24,14 +24,14 @@
           <button class="btn btn-sm btn-ghost-secondary" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Chat options"><i aria-hidden="true" class="ti ti-dots-vertical"></i></button>
           <div class="dropdown-menu dropdown-menu-end">
             {% if is_blocked %}
-              <form method="post" action="{% url 'chat:block' other_user.pk %}" onsubmit="return confirm('Unblock {{ other_user|chat_display_name }}?');">
+              <form method="post" action="{% url 'chat:block' other_user.pk %}" onsubmit="return confirm('Unblock {{ other_user|chat_display_name|escapejs }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="unblock">
                 <input type="hidden" name="next" value="{{ active.pk }}">
                 <button class="dropdown-item" type="submit">Unblock {{ other_user|chat_display_name }}</button>
               </form>
             {% else %}
-              <form method="post" action="{% url 'chat:block' other_user.pk %}" onsubmit="return confirm('Block {{ other_user|chat_display_name }}? You will not see their messages.');">
+              <form method="post" action="{% url 'chat:block' other_user.pk %}" onsubmit="return confirm('Block {{ other_user|chat_display_name|escapejs }}? You will not see their messages.');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="block">
                 <input type="hidden" name="next" value="{{ active.pk }}">

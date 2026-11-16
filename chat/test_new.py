@@ -51,6 +51,21 @@ class StartChatTests(TestCase):
         for key in ("off", "ghost", "foe"):
             self.assertNotContains(response, f"Sam {people[key].last_name}")
 
+    def test_search_does_not_match_email_prefix(self):
+        make_user("zelda.k", first_name="Zed", last_name="Kim")
+        self.client.force_login(self.user)
+        for q in ("zel", "zelda", "zelda.k@"):
+            with self.subTest(q=q):
+                response = self.client.get(self.url, {"q": q})
+                self.assertNotContains(response, "Zed Kim")
+
+    def test_search_matches_full_email_exactly(self):
+        make_user("zelda.k", first_name="Zed", last_name="Kim")
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, {"q": "Zelda.K@nyu.edu"})
+        self.assertContains(response, "Zed Kim")
+        self.assertNotContains(response, "zelda.k@nyu.edu")
+
     def test_search_caps_at_20(self):
         for index in range(21):
             make_user(f"quinn{index}", first_name="Quinn", last_name=f"Q{index}")

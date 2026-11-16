@@ -251,16 +251,16 @@ def reachable_users(user):
 def search_people(user, q):
     """Up to 20 reachable people matching ``q`` (needs 2+ characters).
 
-    Matches first or last names anywhere, or an email starting with the
-    local part of ``q``.
+    Matches first or last names anywhere, or a whole email exactly. A
+    partial email never matches, so search can't be used to guess who has
+    an account.
     """
     query = (q or "").strip()
     if len(query) < 2:
         return []
-    local, _, _ = query.partition("@")
     looks = Q(first_name__icontains=query) | Q(last_name__icontains=query)
-    if local:
-        looks |= Q(email__istartswith=local)
+    if "@" in query:
+        looks |= Q(email__iexact=query)
     return list(
         reachable_users(user)
         .filter(looks)

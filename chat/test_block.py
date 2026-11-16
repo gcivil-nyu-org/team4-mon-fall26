@@ -100,3 +100,32 @@ class BlockTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(self.conversation_url())
         self.assertContains(response, "You can't message this person.")
+
+
+class BlockConfirmEscapeTests(TestCase):
+    """The block and unblock confirm() text holds a user-chosen name."""
+
+    def setUp(self):
+        self.user = make_user("alex", first_name="Alex")
+        self.attacker = make_user(
+            "mallory", first_name="x');alert(1);('", last_name="Evil"
+        )
+        self.direct = make_direct(self.user, self.attacker)
+        self.url = reverse("chat:conversation", args=[self.direct.pk])
+
+    def assert_name_escaped_for_js(self, response):
+        body = response.content.decode()
+        # HTML escaping alone is not enough: the browser decodes &#x27; back
+        # to a quote before the onsubmit handler runs.
+        for verb in ("Block", "Unblock"):
+            self.assertNotIn(f"confirm('{verb} x&#x27;", body)
+        self.assertIn("x\\u0027)\\u003Balert(1)\\u003B(\\u0027", body)
+
+    def test_block_confirm_escapes_name(self):
+        self.client.force_login(self.user)
+        self.assert_name_escaped_for_js(self.client.get(self.url))
+
+    def test_unblock_confirm_escapes_name(self):
+        Block.objects.create(blocker=self.user, blocked=self.attacker)
+        self.client.force_login(self.user)
+        self.assert_name_escaped_for_js(self.client.get(self.url))
