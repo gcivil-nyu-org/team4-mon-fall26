@@ -3,6 +3,7 @@
 Run it by hand, after seed_class_league. It is not in .ebextensions.
 
     python manage.py seed_match_details [--dry-run] [--season PK ...] [--seed N]
+        [--default-event-types]
 
 On Elastic Beanstalk (see docs/DATABASE.md, "Class league on Elastic
 Beanstalk", for the first steps):
@@ -12,8 +13,15 @@ Beanstalk", for the first steps):
     cd /var/app/current
     export $(sudo /opt/elasticbeanstalk/bin/get-config --output YAML environment \\
         | sed -r 's/: /=/' | xargs)
-    python manage.py seed_match_details --dry-run
-    python manage.py seed_match_details
+    python manage.py seed_match_details --default-event-types --dry-run
+    python manage.py seed_match_details --default-event-types
+
+--default-event-types first adds event types to each sport that has none
+(sport names match case-insensitively). The first type is the scoring stat:
+- Basketball: Points, Assists, Rebounds
+- Futsal: Goals, Assists, Yellow cards
+- Volleyball: Kills, Aces (no scoring stat: the final score is sets won)
+A sport with any event type is left alone, so a rerun creates nothing.
 
 The command fills a match only when all of these are true:
 - Both scores are set and the match is not cancelled.
@@ -27,8 +35,10 @@ For each such match:
 - Period scores: the final score split over the sport's period_count periods.
   The periods add up exactly to home_score and away_score.
 - Player stats, for the sport's event types:
-  - The scoring type (Goal, Goals, Point, Points or Pts) adds up exactly to
-    each team's score, over the players who appeared.
+  - The scoring type adds up exactly to each team's score, over the players
+    who appeared. It is the type marked is_scoring (teams.event_types
+    .scoring_event_type). With no mark, a type named Points, Point, Pts,
+    Goal or Goals is used.
   - Assists: a team has no more assists than scoring plays, so never more
     assists than goals.
   - Other types get small random values. Zeros are not stored.
@@ -42,7 +52,8 @@ scoring stat; they get appearances and the other stats only.
 It writes through matches.stats.save_match_sheet, with its validation, one
 transaction per match. A draw comes from random.Random(f"{seed}:{match.pk}"),
 so a run gives the same rows each time. A second run changes nothing, because
-filled matches are skipped. --dry-run rolls back every transaction.
+filled matches are skipped. --dry-run rolls back every transaction, the new
+event types too.
 
 It never changes a final score, standings, a cancelled match or a match with
 details. The rows create no notifications and no audit log rows.
@@ -50,6 +61,7 @@ details. The rows create no notifications and no audit log rows.
 
 import random
 from collections import Counter, defaultdict
+from contextlib import nullcontext
 
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
@@ -60,10 +72,10 @@ from audit import signals as audit_signals
 from matches.models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
 from matches.stats import save_match_sheet
 from notifications import signals as notification_signals
+from teams.event_types import create_default_event_types, pick_scoring_type
 from teams.models import EventType, Roster, Season
 from teams.season_rules import SeasonState
 
-SCORING_NAMES = {"goal", "goals", "point", "points", "pts"}
 ASSIST_NAMES = {"assist", "assists", "ast"}
 # Cards and fouls are rare: a 1 for about one player in ten.
 RARE_WORDS = ("card", "foul", "ejection", "penalt", "own goal")
@@ -109,8 +121,11 @@ def _key(name):
 
 def classify(event_types):
     """(scoring type or None, assist type or None, other types)."""
-    scoring = next((t for t in event_types if _key(t.name) in SCORING_NAMES), None)
-    assist = next((t for t in event_types if _key(t.name) in ASSIST_NAMES), None)
+    scoring = pick_scoring_type(event_types)
+    assist = next(
+        (t for t in event_types if t != scoring and _key(t.name) in ASSIST_NAMES),
+        None,
+    )
     others = [t for t in event_types if t not in (scoring, assist)]
     return scoring, assist, others
 
@@ -221,8 +236,38 @@ class Command(BaseCommand):
             default=0,
             help="Random seed. The same seed gives the same rows. Default 0.",
         )
+        parser.add_argument(
+            "--default-event-types",
+            action="store_true",
+            help=(
+                "First add the default event types to Basketball, Futsal and "
+                "Volleyball, for each of them that has no event types."
+            ),
+        )
 
     def handle(self, *args, **options):
+        dry_run = options["dry_run"]
+        # A dry run keeps the new event types until the end, so the match
+        # counts use them, then rolls everything back.
+        with transaction.atomic() if dry_run else nullcontext():
+            if options["default_event_types"]:
+                self.add_default_event_types(dry_run)
+            self.fill_matches(options)
+            if dry_run:
+                transaction.set_rollback(True)
+
+    def add_default_event_types(self, dry_run):
+        verb = "would create" if dry_run else "created"
+        created = create_default_event_types()
+        for sport, types in created:
+            scoring = next((t.name for t in types if t.is_scoring), None)
+            note = f"scoring stat: {scoring}" if scoring else "no scoring stat"
+            names = ", ".join(t.name for t in types)
+            self.stdout.write(f"{sport.name}: {verb} event types {names} ({note}).")
+        total = sum(len(types) for _, types in created)
+        self.stdout.write(f"{verb.capitalize()} {total} event types.")
+
+    def fill_matches(self, options):
         dry_run = options["dry_run"]
         self.verbosity_high = options["verbosity"] >= 2
         self.verb = "would update" if dry_run else "updated"
@@ -354,6 +399,6 @@ class Command(BaseCommand):
             )
         elif event_types and classify(event_types)[0] is None:
             self.stdout.write(
-                f"{sport.name}: no scoring event type (Goal or Points); "
-                "the other stats only."
+                f"{sport.name}: no scoring event type; the other stats only. "
+                "Mark one on the event types page."
             )

@@ -6,7 +6,7 @@
     <div>
       <div class="subheader">League Admin</div>
       <h1>Event types</h1>
-      <div class="page-meta">Kinds of events each sport offers, such as pickup or 3v3.</div>
+      <div class="page-meta">Stats each sport records, such as points or assists.</div>
     </div>
     <a class="btn btn-outline-secondary" href="{% url 'teams:league_setup' %}">League setup</a>
   </div>
@@ -23,13 +23,25 @@
             {% for event_type in event_types %}
               <div class="list-group-item d-flex align-items-center gap-3">
                 <span class="avatar rounded bg-primary-lt"><i aria-hidden="true" class="ti {{ event_type.sport|sport_icon }}"></i></span>
-                <div class="min-w-0">
+                <div class="min-w-0 flex-fill">
                   <div class="fw-medium">{{ event_type.name }}</div>
                   <div class="small text-secondary">{{ event_type.sport.name }}</div>
                 </div>
+                <form class="d-flex align-items-center gap-2" method="post" action="{% url 'teams:set_scoring_event_type' event_type.pk %}">
+                  {% csrf_token %}
+                  {% if event_type.is_scoring %}
+                    <span class="badge bg-primary-lt">Scoring stat</span>
+                    <input type="hidden" name="scoring" value="off">
+                    <button class="btn btn-sm btn-ghost-secondary" type="submit">Clear<span class="visually-hidden"> {{ event_type.name }} as the {{ event_type.sport.name }} scoring stat</span></button>
+                  {% else %}
+                    <input type="hidden" name="scoring" value="on">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit"><i aria-hidden="true" class="ti ti-target"></i>Set<span class="visually-hidden"> {{ event_type.sport.name }} {{ event_type.name }}</span> as scoring</button>
+                  {% endif %}
+                </form>
               </div>
             {% endfor %}
           </div>
+          <div class="card-footer small text-secondary">The scoring stat adds up to a team's final score. Each sport has at most one. Setting a new one clears the old one.</div>
         {% else %}
           <div class="card-body">
             <div class="empty py-3">

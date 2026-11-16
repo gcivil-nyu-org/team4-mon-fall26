@@ -77,7 +77,9 @@ class SplitTotalTests(SimpleTestCase):
                 self.assertTrue(all(part >= 0 for part in split))
 
 
-class SeedMatchDetailsTests(TestCase):
+class SeededLeagueTestCase(TestCase):
+    """The class league, scored, with EVENT_TYPES. It holds no tests."""
+
     @classmethod
     def setUpTestData(cls):
         for name in SPORTS:
@@ -159,6 +161,8 @@ class SeedMatchDetailsTests(TestCase):
                     )
                     self.assertLessEqual(given, goals)
 
+
+class SeedMatchDetailsTests(SeededLeagueTestCase):
     def test_basketball_quarters_and_points_add_up(self):
         output = self.run_command()
         self.assertIn("Basketball: updated 18 matches", output)
@@ -379,3 +383,105 @@ class SeedMatchDetailsTests(TestCase):
         match.cancel()
         with self.assertRaisesMessage(ValidationError, "can no longer be scored"):
             save_match_sheet(match, allow_closed=True, **sheet)
+
+    def test_seed_uses_the_marked_scoring_type(self):
+        # Rebounds is marked, so it adds up to the score; Points is a plain stat.
+        EventType.objects.filter(sport__name="Basketball", name="Rebounds").update(
+            is_scoring=True
+        )
+        self.run_command("--season", str(self.season("Basketball").pk))
+        self.assert_stats_match_score("Basketball", "Rebounds")
+
+    def test_marked_type_beats_the_name_fallback(self):
+        # Goals is the name fallback; the mark on Yellow cards wins over it.
+        EventType.objects.filter(sport__name="Futsal", name="Yellow cards").update(
+            is_scoring=True
+        )
+        self.run_command("--season", str(self.season("Futsal").pk))
+        cards = self.event_type("Futsal", "Yellow cards")
+        goals = self.event_type("Futsal", "Goals")
+        goal_totals = []
+        for match in self.scored("Futsal"):
+            stats = PlayerStat.objects.filter(match=match)
+            total = sum(stats.filter(event_type=cards).values_list("value", flat=True))
+            self.assertEqual(total, match.home_score + match.away_score)
+            goal_totals.append(
+                sum(stats.filter(event_type=goals).values_list("value", flat=True))
+            )
+        finals = [m.home_score + m.away_score for m in self.scored("Futsal")]
+        self.assertNotEqual(goal_totals, finals)
+
+
+class DefaultEventTypesCommandTests(SeededLeagueTestCase):
+    """--default-event-types on a league with no event types."""
+
+    def setUp(self):
+        EventType.objects.all().delete()
+
+    def types(self):
+        return sorted(
+            EventType.objects.values_list("sport__name", "name", "is_scoring")
+        )
+
+    def test_creates_types_only_for_empty_sports(self):
+        futsal = Sport.objects.get(name="Futsal")
+        EventType.objects.create(sport=futsal, name="Fouls")
+
+        output = self.run_command("--default-event-types")
+
+        self.assertEqual(
+            self.types(),
+            [
+                ("Basketball", "Assists", False),
+                ("Basketball", "Points", True),
+                ("Basketball", "Rebounds", False),
+                ("Futsal", "Fouls", False),
+                ("Volleyball", "Aces", False),
+                ("Volleyball", "Kills", False),
+            ],
+        )
+        self.assertIn(
+            "Basketball: created event types Points, Assists, Rebounds "
+            "(scoring stat: Points).",
+            output,
+        )
+        self.assertIn(
+            "Volleyball: created event types Kills, Aces (no scoring stat).", output
+        )
+        self.assertNotIn("Futsal: created", output)
+
+    def test_rerun_creates_nothing(self):
+        self.run_command("--default-event-types")
+        first = self.types()
+        first_details = details()
+
+        output = self.run_command("--default-event-types")
+
+        self.assertEqual(self.types(), first)
+        self.assertEqual(details(), first_details)
+        self.assertIn("Created 0 event types.", output)
+
+    def test_dry_run_writes_nothing(self):
+        output = self.run_command("--default-event-types", "--dry-run")
+
+        self.assertFalse(EventType.objects.exists())
+        self.assertEqual(details(), ([], [], []))
+        self.assertIn("Basketball: would create event types Points", output)
+        self.assertIn("Would create 8 event types.", output)
+        # The run counts the stats it would add with the new types.
+        self.assertRegex(
+            output, r"Basketball: would update 18 matches .* [1-9]\d* player"
+        )
+        self.assertIn("Dry run: nothing saved.", output)
+
+    def test_default_points_add_up_to_the_final_score(self):
+        self.run_command("--default-event-types")
+        self.assert_stats_match_score("Basketball", "Points")
+        self.assert_stats_match_score("Futsal", "Goals")
+        kills = self.event_type("Volleyball", "Kills")
+        self.assertTrue(PlayerStat.objects.filter(event_type=kills).exists())
+
+    def test_without_the_option_no_types_are_created(self):
+        output = self.run_command()
+        self.assertFalse(EventType.objects.exists())
+        self.assertNotIn("create", output.lower())

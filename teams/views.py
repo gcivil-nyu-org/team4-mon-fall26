@@ -722,6 +722,30 @@ def manage_event_types(request):
     )
 
 
+@login_required
+@require_POST
+def set_scoring_event_type(request, pk):
+    """League Admins mark (scoring=on) or clear the sport's scoring stat."""
+    _require_league_admin(request.user)
+    event_type = get_object_or_404(EventType.objects.select_related("sport"), pk=pk)
+    sport = event_type.sport
+    mark = request.POST.get("scoring") == "on"
+    with transaction.atomic():
+        # Lock the sport's types, so two admins can't mark two at once.
+        list(EventType.objects.select_for_update().filter(sport=sport))
+        EventType.objects.filter(sport=sport, is_scoring=True).exclude(
+            pk=event_type.pk
+        ).update(is_scoring=False)
+        event_type.is_scoring = mark
+        event_type.save(update_fields=["is_scoring"])
+    if mark:
+        text = f"{event_type.name} is now the scoring stat for {sport.name}."
+    else:
+        text = f"{sport.name} has no scoring stat."
+    messages.success(request, text)
+    return redirect("teams:manage_event_types")
+
+
 def _season_transitions(season):
     return [
         {"state": target, "label": TRANSITION_LABELS[(season.state, target)]}

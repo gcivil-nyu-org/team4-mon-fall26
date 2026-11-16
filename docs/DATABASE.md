@@ -70,8 +70,18 @@ Do not commit the roster file. It holds real names and emails, and the repo is p
 `seed_match_details` adds period scores, appearances and player stats to scored matches that have none. It never changes a final score or standings. Run it by hand, after `seed_class_league`.
 
 1. Connect and load the app, as in steps 1 and 3 above.
-2. Check: `python manage.py seed_match_details --dry-run`.
-3. Run: `python manage.py seed_match_details`.
+2. Check: `python manage.py seed_match_details --default-event-types --dry-run`.
+3. Run: `python manage.py seed_match_details --default-event-types`.
+
+`--default-event-types` adds stat types to each sport that has none, before it fills the matches:
+
+| Sport | Event types | Scoring stat |
+|---|---|---|
+| Basketball | Points, Assists, Rebounds | Points |
+| Futsal | Goals, Assists, Yellow cards | Goals |
+| Volleyball | Kills, Aces | None (the final score is sets won) |
+
+A sport with any event type keeps its types. The scoring stat adds up to each team's final score. A League Admin changes it on the event types page. `--dry-run` saves no event types and no match details.
 
 A second run changes nothing. Volleyball matches get no period scores, because their final score counts sets won. The command docstring has the details.
 
