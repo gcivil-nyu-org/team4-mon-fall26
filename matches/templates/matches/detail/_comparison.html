@@ -10,7 +10,7 @@
       <div class="{% if not forloop.last %}mb-3{% endif %}">
         <div class="d-flex justify-content-between align-items-baseline gap-2 mb-1">
           <span class="pn-num{% if row.home > row.away %} fw-bold{% endif %}">{{ row.home }}</span>
-          <span class="small text-secondary text-center">{{ row.event_type.name }}</span>
+          <span class="small text-secondary text-center flex-fill">{{ row.event_type.name }}</span>
           <span class="pn-num{% if row.away > row.home %} fw-bold{% endif %}">{{ row.away }}</span>
         </div>
         <div class="progress progress-sm" aria-hidden="true">

@@ -40,8 +40,8 @@
     <div class="card h-100">
       <div class="card-header"><h2 class="card-title">Head-to-head</h2></div>
       {% if h2h.meetings %}
-        <div class="card-body pb-2">
-          <div class="pn-num">{{ match.home_team.name }} <span class="fw-bold">{{ h2h.home_wins }}</span> · Draws <span class="fw-bold">{{ h2h.draws }}</span> · {{ match.away_team.name }} <span class="fw-bold">{{ h2h.away_wins }}</span></div>
+        <div class="card-body flex-grow-0 pb-2">
+          <div class="pn-num"><span class="text-nowrap">{{ match.home_team.name }} <span class="fw-bold">{{ h2h.home_wins }}</span></span> · <span class="text-nowrap">Draws <span class="fw-bold">{{ h2h.draws }}</span></span> · <span class="text-nowrap">{{ match.away_team.name }} <span class="fw-bold">{{ h2h.away_wins }}</span></span></div>
         </div>
         <div class="list-group list-group-flush">
           {% for r in h2h.meetings %}
