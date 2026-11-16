@@ -358,3 +358,13 @@ Expected: Futsal and Soccer `2, 'Half'`, Volleyball `5, 'Set'`, Ultimate frisbee
 git add <fixed files>
 git commit -m "#262: Fix lint"
 ```
+
+---
+
+## Changes during the build
+
+- Task 3: two more tests. `test_explicit_initial_is_kept` covers the `initial=` rule. `test_blank_name_shows_error` also checks the name error.
+- Task 4: the test helper is `run_command`, not `run`. `run` replaces `unittest.TestCase.run`, and no test runs.
+- Task 4: a sport that already has its mapping value gets no line and no count. The table said "kept (2 Half, set by an admin)", which is false for that sport. The fresh DB dry run found this.
+- Task 4: the command runs in one `transaction.atomic()` block.
+- Task 5: the fresh DB check uses a file in the session scratchpad, not `/private/tmp/sport-periods.sqlite3`.
