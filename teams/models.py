@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator
 from django.db import models, transaction
 
+from core.names import display_name
+
 from .catalog_rules import name_key, validate_catalog_name
 from .season_rules import (
     SeasonState,
@@ -432,7 +434,7 @@ class Roster(models.Model):
             super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.player} on {self.team} ({self.role})"
+        return f"{display_name(self.player)} on {self.team} ({self.role})"
 
 
 class FreeAgentRequest(models.Model):
@@ -489,4 +491,4 @@ class FreeAgentRequest(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.player} seeking placement in {self.season}"
+        return f"{display_name(self.player)} seeking placement in {self.season}"

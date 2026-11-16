@@ -1,18 +1,8 @@
-"""Display names for people and conversations. Never an email address."""
+"""Display names for conversations. Never an email address."""
 
-FALLBACK_NAME = "PlayNYU player"
+from core.names import FALLBACK_NAME, display_name
 
-
-def display_name(user):
-    """Full name, else first name, else the fallback. ``None`` falls back."""
-    if user is None:
-        return FALLBACK_NAME
-    full_name = (user.get_full_name() or "").strip()
-    if full_name:
-        return full_name
-    if user.first_name:
-        return user.first_name
-    return FALLBACK_NAME
+__all__ = ["FALLBACK_NAME", "conversation_label", "display_name"]
 
 
 def conversation_label(conversation, viewer, members=None):
