@@ -44,7 +44,7 @@ Open http://127.0.0.1:8000/ to see the home page and http://127.0.0.1:8000/healt
 ## Run the tests
 
 ```bash
-python manage.py test
+python manage.py test --parallel auto
 ```
 
 ## CI and deployment (Travis CI)
@@ -59,7 +59,7 @@ Run the same checks locally:
 pip install -r requirements-dev.txt
 black --check .
 flake8 .
-coverage run manage.py test && coverage report
+coverage run manage.py test --parallel auto && coverage combine && coverage report
 ```
 
 Travis needs these variables (Settings > Environment Variables, "Display value in build log" off):
