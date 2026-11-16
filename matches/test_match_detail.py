@@ -10,7 +10,8 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 from teams.models import EventType, Roster
 from teams.season_rules import SeasonState
 
-from .models import MatchAppearance, MatchPeriodScore, PlayerStat
+from .match_context import season_results, season_teams
+from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
 from .test_match_sheet import SheetFixtures, named_user
 from .tests import make_user
 
@@ -336,3 +337,50 @@ class MatchRowLinkTests(SheetFixtures):
             team_url = reverse("teams:detail", args=[team.pk])
             self.assertContains(response, f'href="{team_url}"')
             self.assertEqual(self.client.get(team_url).status_code, 200)
+
+
+class SeasonQueryTests(SheetFixtures):
+    def day(self, offset, **overrides):
+        start = self.match.starts_at + datetime.timedelta(days=offset)
+        values = dict(starts_at=start, ends_at=start + HOUR)
+        values.update(overrides)
+        match = self.build(**values)
+        match.save()
+        return match
+
+    def test_season_results_skip_cancelled_unscored_and_other_seasons(self):
+        scored = self.day(1, home_score=2, away_score=1)
+        cancelled = self.day(2, home_score=1, away_score=1)
+        Match.objects.filter(pk=cancelled.pk).update(status=Match.Status.CANCELLED)
+        self.day(3)  # No score.
+        other_home = self.make_team("Other home", self.soccer, self.other_season)
+        other_away = self.make_team("Other away", self.soccer, self.other_season)
+        self.day(
+            4,
+            season=self.other_season,
+            home_team=other_home,
+            away_team=other_away,
+            home_score=1,
+            away_score=0,
+        )
+        with self.assertNumQueries(1):
+            got = season_results(self.match)
+        self.assertEqual([r.pk for r in got], [scored.pk])
+        self.assertEqual(
+            (got[0].home_id, got[0].away_id, got[0].home_score, got[0].away_score),
+            (self.home.pk, self.away.pk, 2, 1),
+        )
+
+    def test_season_results_ordered_by_start_then_pk(self):
+        late = self.day(2, home_score=1, away_score=0)
+        first = self.day(1, home_score=1, away_score=0)
+        second = self.day(1, home_score=0, away_score=0)
+        got = [r.pk for r in season_results(self.match)]
+        self.assertEqual(got, [first.pk, second.pk, late.pk])
+
+    def test_season_teams_one_query_by_name(self):
+        with self.assertNumQueries(1):
+            teams = season_teams(self.match)
+            [t.division for t in teams]
+        self.assertEqual([t.name for t in teams], sorted(t.name for t in teams))
+        self.assertIn(self.home, teams)
