@@ -56,9 +56,7 @@ class Command(BaseCommand):
         for name in SPORTS:
             if name_key(name) not in existing:
                 count, label = default_periods(name)
-                Sport.objects.create(
-                    name=name, period_count=count, period_label=label
-                )
+                Sport.objects.create(name=name, period_count=count, period_label=label)
                 created += 1
         self.stdout.write(
             f"Sports: {created} created, {len(SPORTS) - created} already there."

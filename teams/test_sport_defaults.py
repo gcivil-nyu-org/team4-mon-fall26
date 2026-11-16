@@ -6,13 +6,16 @@ from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
-from matches.tests import make_user
+from matches.models import MatchPeriodScore
+from matches.tests import MatchFixtures, make_user
 
 from .forms import SportForm
 from .models import Sport
 from .sport_defaults import DEFAULT_PERIODS, SPORT_PERIODS, default_periods
 
-period_migration = importlib.import_module("teams.migrations.0014_sport_period_defaults")
+period_migration = importlib.import_module(
+    "teams.migrations.0014_sport_period_defaults"
+)
 
 
 def periods(name):
@@ -140,3 +143,50 @@ class NewSportPeriodsTests(TestCase):
         self.client.force_login(self.root)
         self.client.post(reverse("admin:teams_sport_add"), {"name": "Volleyball"})
         self.assertEqual(periods("Volleyball"), (5, "Set"))
+
+
+class FixSportPeriodsTests(MatchFixtures):
+    # Not "run": unittest.TestCase.run runs the test itself.
+    def run_command(self, *args):
+        out = StringIO()
+        call_command("fix_sport_periods", *args, stdout=out)
+        return out.getvalue()
+
+    def test_fixes_default_valued_known_sport(self):
+        futsal = Sport.objects.create(name="Futsal")
+        output = self.run_command()
+        futsal.refresh_from_db()
+        self.assertEqual((futsal.period_count, futsal.period_label), (2, "Half"))
+        self.assertIn("Futsal: fixed to 2 Half.", output)
+
+    def test_keeps_custom_values_unknown_sports_and_basketball(self):
+        Sport.objects.create(name="Volleyball", period_count=3, period_label="Set")
+        Sport.objects.create(name="Rugby")
+        output = self.run_command()
+        self.assertEqual(periods("Volleyball"), (3, "Set"))
+        self.assertEqual(periods("Rugby"), (4, "Q"))
+        self.assertEqual(periods("Basketball"), (4, "Q"))
+        self.assertIn("Volleyball: kept (3 Set, set by an admin).", output)
+        self.assertNotIn("Rugby", output)
+        self.assertNotIn("Basketball", output)
+        self.assertIn("Fixed 1, kept 1, skipped 0.", output)
+
+    def test_skips_sport_with_period_scores(self):
+        match = self.build()
+        match.save()
+        MatchPeriodScore.objects.create(
+            match=match, period=1, home_points=1, away_points=0
+        )
+        output = self.run_command()
+        self.assertEqual(periods("Soccer"), (4, "Q"))
+        self.assertIn("Soccer: skipped (period scores stored).", output)
+        self.assertIn("Fixed 0, kept 0, skipped 1.", output)
+
+    def test_dry_run_writes_nothing(self):
+        Sport.objects.create(name="Futsal")
+        output = self.run_command("--dry-run")
+        self.assertEqual(periods("Futsal"), (4, "Q"))
+        self.assertEqual(periods("Soccer"), (4, "Q"))
+        self.assertIn("Futsal: would fix to 2 Half.", output)
+        # self.soccer is also a 4 Q Soccer with no period scores, so 2 fixes.
+        self.assertIn("Dry run: Fixed 2, kept 0, skipped 0.", output)
