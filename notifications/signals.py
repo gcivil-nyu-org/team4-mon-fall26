@@ -20,6 +20,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
 
+from accounts.role_admin import role_changed
+from accounts.roles import LEAGUE_ADMIN_ROLE, SCOREKEEPER_ROLE
 from core.names import display_name
 from matches.models import Match
 from teams.models import Roster, Team
@@ -216,3 +218,21 @@ def roster_entry_removed(sender, instance, **kwargs):
         f"{display_name(instance.player)} left {team}",
         reverse("teams:detail", args=[team.pk]),
     )
+
+
+@receiver(role_changed, dispatch_uid="notify-role-changed")
+def role_changed_handler(sender, user, role, granted, actor, **kwargs):
+    """Tell only the user whose role changed (#261). The verb never has an email."""
+    by = display_name(actor)
+    link = ""
+    if not granted:
+        verb = f"{by} removed your {role} role."
+    elif role == SCOREKEEPER_ROLE:
+        verb = f"{by} made you a Scorekeeper. Your matches are on My matches."
+        link = reverse("matches:mine")
+    elif role == LEAGUE_ADMIN_ROLE:
+        verb = f"{by} made you a League Admin."
+        link = reverse("core:overview")
+    else:
+        return
+    _notify_ids({user.pk}, verb, link)
