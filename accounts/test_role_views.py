@@ -1,5 +1,7 @@
 """The roles page (#261): list, filters, POST changes, entry points."""
 
+import datetime
+
 from django.db import connection
 from django.test import Client
 from django.test.utils import CaptureQueriesContext
@@ -12,7 +14,11 @@ from accounts.roles import (
     assign_role,
     has_role,
 )
+from accounts import role_admin
 from accounts.test_role_admin import RoleFixtures, make_user, role_rows
+from matches.forms import MatchForm
+from teams.models import Season
+from teams.season_rules import SeasonState
 
 ROLES_URL = reverse("accounts:roles")
 
@@ -315,3 +321,99 @@ class ChangeRoleViewTests(RoleFixtures):
             self.messages_of(response),
             [("success", "PlayNYU player is now a Scorekeeper.")],
         )
+
+
+class EntryPointTests(RoleFixtures):
+    def setUp(self):
+        self.client.force_login(self.boss)
+
+    def test_league_setup_links_roles_with_counts(self):
+        response = self.client.get(reverse("teams:league_setup"))
+        self.assertContains(response, f'href="{ROLES_URL}"')
+        self.assertContains(
+            response,
+            '<span class="pn-num">1</span> League Admin · '
+            '<span class="pn-num">0</span> Scorekeepers',
+        )
+        self.assertContains(response, "matches, facilities and roles.")
+
+    def test_league_setup_counts_listable_holders_only(self):
+        assign_role(self.alex, SCOREKEEPER_ROLE)
+        assign_role(self.ghost, SCOREKEEPER_ROLE)
+        assign_role(self.root, LEAGUE_ADMIN_ROLE)
+        response = self.client.get(reverse("teams:league_setup"))
+        self.assertEqual(
+            (
+                response.context["counts"]["league_admins"],
+                response.context["counts"]["scorekeepers"],
+            ),
+            (2, 1),
+        )
+
+    def test_overview_quick_links_roles(self):
+        response = self.client.get(reverse("core:overview"))
+        self.assertContains(response, f'href="{ROLES_URL}"')
+        self.assertContains(response, "matches, facilities and roles show up here.")
+
+    def test_overview_shows_role_change_in_recent_changes(self):
+        role_admin.change_role(self.boss, self.alex, SCOREKEEPER_ROLE, True)
+        response = self.client.get(reverse("core:overview"))
+        self.assertContains(response, "Granted role")
+        self.assertContains(response, "Scorekeeper to Alex Lee")
+
+    def test_match_form_hint_with_no_scorekeepers(self):
+        help_text = MatchForm(season=self.make_season()).fields["scorekeeper"].help_text
+        self.assertIn("No one has the Scorekeeper role yet.", help_text)
+        self.assertIn(f'href="{ROLES_URL}"', help_text)
+        self.assertIn("Grant the role", help_text)
+
+    def test_match_form_hint_with_scorekeepers(self):
+        assign_role(self.alex, SCOREKEEPER_ROLE)
+        help_text = MatchForm(season=self.make_season()).fields["scorekeeper"].help_text
+        self.assertIn("Only Scorekeepers are listed.", help_text)
+        self.assertIn(f'href="{ROLES_URL}"', help_text)
+        self.assertIn("Manage roles", help_text)
+
+    def make_season(self):
+        return Season.objects.create(
+            name="Fall", start_date=datetime.date(2026, 9, 1), state=SeasonState.OPEN
+        )
+
+
+class RolesPermSweepTests(RoleFixtures):
+    """Like teams/test_perm_sweep_teams.py: 302 to login, 403, then through."""
+
+    def requests(self):
+        return [
+            ("get", ROLES_URL, 200),
+            (
+                "post",
+                reverse("accounts:change_role", args=[self.alex.pk]),
+                302,
+            ),
+        ]
+
+    def call(self, method, url):
+        data = {"role": "scorekeeper", "action": "add"}
+        if method == "post":
+            return self.client.post(url, data)
+        return self.client.get(url)
+
+    def test_anonymous_goes_to_login(self):
+        for method, url, _ in self.requests():
+            with self.subTest(method):
+                response = self.call(method, url)
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("/accounts/login/", response["Location"])
+
+    def test_casual_player_gets_403(self):
+        self.client.force_login(make_user("casual@nyu.edu", role=CASUAL_PLAYER_ROLE))
+        for method, url, _ in self.requests():
+            with self.subTest(method):
+                self.assertEqual(self.call(method, url).status_code, 403)
+
+    def test_league_admin_gets_through(self):
+        self.client.force_login(self.boss)
+        for method, url, expected in self.requests():
+            with self.subTest(method):
+                self.assertEqual(self.call(method, url).status_code, expected)
