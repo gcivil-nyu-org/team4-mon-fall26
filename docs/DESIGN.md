@@ -156,6 +156,12 @@ Sizes (default `sm`): `xs` 20px (inline in text), `sm` 32px (list rows, tables, 
 
 Same as the avatar, but a rounded square instead of a circle. Until logo uploads exist it shows the team's sport icon (`{{ team.sport|sport_icon }}`) on violet tint. In the header of a team page, the logo is `xl`. Takes `labelled=True` the same way. Icons that aren't a person or team (status icons, feature tiles) may use either shape; keep each page consistent.
 
+### Team link
+
+`{% include "components/team_link.html" with team=team size="sm" %}`
+
+The logo, then a `text-reset fw-medium text-break` link with the team name to its page (`teams:detail`). Use it wherever a team name appears outside its own page. Do not use `stretched-link` in a row that holds a team link.
+
 ### Cards
 
 ```html
@@ -218,9 +224,9 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 `{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
 
-The "Home vs Away" matchup is a `text-reset` link to the match page (`matches:detail`). Don't use `stretched-link`, because the facility link and the action are separate links.
+Each team name links to its team page (`components/team_link.html`). The time and the final score are `text-reset` links to the match page (`matches:detail`). Don't wrap the matchup in a link, because links can't nest. Don't use `stretched-link`, because the row holds several links. `matches/_my_match_row.html` on My matches uses the same links.
 
-On My matches, a row in a draft season doesn't link, because players get a 404 on that match page.
+On My matches, a row in a draft season doesn't link its time or score, because players get a 404 on that match page.
 
 On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
 
@@ -371,15 +377,16 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 |---|---|
 | **Home / dashboard** | Page header ("Hi, {first name}") → 4 stat cards: next match, record, games played, unread → `col-lg-8`: my teams, upcoming matches, standings (one tab per sport) → `col-lg-4`: matches to score (scorekeepers only), team chat, forum, recent activity, teammates. See the panel rules below. |
 | **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches). Flagged content counts the messages, topics and replies in the moderation queue → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
-| **Team** | Header: logo `xl`, name, sport · season, primary action (Add player / Leave team) → `col-lg-8`: roster list card, upcoming matches → `col-lg-4`: team stats card, past matches |
+| **Team** | Header: logo `xl`, name, sport · season (· division), Captain name linked to their profile → members-only actions (Team chat, Add player / Leave team) → `col-lg-8`: roster list card, player stats leaderboard card (Player, GP, one column per event type), upcoming matches → `col-lg-4`: team info card (record W–D–L · Pts, position `nth of N` plus division position), team stats card, past matches. Members-only controls stay hidden from other viewers. |
 | **Season schedule** | Page header with the season state badge → division `form-select`, only if the season has divisions → one full-width card of match rows |
 | **Match** | Page header: `subheader` season (· division), h1 "Home vs Away", meta line with time and facility (link if active), "Record score" (`btn-primary`) only for a League Admin or the assigned scorekeeper who may score it now → scoreboard card: `row text-center`, `col-4` each: home logo `xl` and name, score (`h1 mb-0 pn-num`) with a badge (Final `bg-green-lt`, Scheduled or Cancelled `bg-secondary-lt`, Awaiting score `bg-yellow-lt`), away logo `xl` and name. A team name links to the team page only for its members → Periods card (only with stored periods): `card-table`, Team, one column per period (OT only if stored), T (bold) → before a result, the line "Stats appear after the score is in." → `col-lg-6` per team: table of players (avatar `sm`, name via `player_name`, profile link if active, `pn-row-me` for the viewer) and one `pn-num text-end` column per event type. Badges: "Left team" and "Did not play" (`bg-secondary-lt`). A blank stat shows `0` in `text-secondary`. Cancelled: no score, periods or stat columns. Never show an email. |
 | **Record the score** | `container-xl` page, not `pn-auth`. Page header (`subheader` season, h1 "Record the score", meta "Home vs Away · time") → overwrite warning (`alert alert-warning text-body`) → sheet errors (`alert-danger`) → `col-lg-4`: "Final score" card (`form_fields.html`), "Periods" card (table: Period, Home, Away; OT1 and OT2 rows blank unless stored) → `col-lg-8`: one card per team (table: Player, Played checkbox, one number input per event type; a player who left shows stored values as text with a "Left team" badge) → "Save score" (primary) and "Cancel" (ghost, to the match page). Inputs: `{{ field|control:"form-control-sm pn-num text-end pn-sheet-input" }}`, with `aria-label` "Alex Lee, Goal" / "Alex Lee played". Tables scroll in `table-responsive`. |
 | **My matches (scorekeeper)** | Page header → one card per section, in this order: Needs a score, Upcoming, Scored → each card holds match rows with both team logos and its own empty state. Only the first row of Needs a score has the primary button. |
 | **Generate a round-robin (League Admin)** | Page header with Back to matches (ghost) → `col-lg-4`: form card (season, division, first date, time, match length, days between rounds, facilities) → `col-lg-8`: Preview card: counts in `card-actions`, the overlap warning (`alert alert-warning text-body`), then one `subheader` and one list of match rows for each round, with an `Overlap` badge (`bg-yellow-lt`) on a row that clashes → `card-footer` with the primary action. Before a preview, the primary action is "Preview schedule". After it, the primary action is "Create N matches" ("... anyway" with overlaps) and the form button becomes "Update preview" (outline). |
 | **Facility** | Page header → three stat cards (Next game, Upcoming, This semester; `col-6 col-lg-4`). The Next game value is a date, so it uses `h3` in place of `h1` to fit at phone width → `col-lg-8`: Upcoming games grouped by day (`subheader` per day, match rows with `facility_page=True`, pager), Recent results, map → `col-lg-4`: Sports with games by sport |
-| **Profile** | Header: avatar `xl`, name, NetID (owner only), Edit button (owner only) → teams card grid → stats card |
+| **Profile** | Header: avatar `xl`, name, team count, Edit button (owner only) → `col-lg-8`: teams card (linked names, position · record or record), season stats card (one table per team, season name and `GP n`, per-game `–` with no games), recent matches card (match rows with the player's `N Stat` line) → `col-lg-4`: owner-only details card (N number, NetID). Private fields stay hidden from other viewers. |
 | **Leaderboard** | Page header with a season `form-select` on the right, and a division `form-select` beside it only if the season has divisions → one full-width leaderboard table. All divisions: each team shows its division in `small text-secondary` under its name. One division: only its teams, and a `card-footer` line says that records count all season matches. |
+| **Teams directory** | Page header with \"My teams\" (outline) on the right → filter card (sport, season, division only with a season, name search) → one full-width leaderboard table: Team (linked), W, D, L, Pts, Pos (`nth of N`, \"–\" with no season). Your teams get `pn-row-me`. Pagination in the `card-footer` keeps the filters. No `btn-primary`. |
 | **Free agents** | Page header → Request placement and Your requests cards → full-width Free agents card: GET filter (season, sport, division), list rows (avatar `sm`, linked name, sport · division · requested date), own row `pn-row-me`, pager in `card-footer` |
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
 | **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body, Report → Replies card: list rows, oldest first, with Report and Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
@@ -422,7 +429,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-sheet-input`) | `static/css/playnyu.css` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
-| Template filters (`initials`, `sport_icon`, `control` with optional extra classes, `player_name`: full name or "PlayNYU player", never the email) | `core/templatetags/ui.py` |
+| Template filters (`initials`, `sport_icon`, `control` with optional extra classes, `player_name` and `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)
 

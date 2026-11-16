@@ -199,5 +199,5 @@ class TeamPageChatLinkTests(TestCase):
     def test_non_member_gets_no_chat_link(self):
         self.client.force_login(make_user("outsider"))
         response = self.client.get(self.team_url)
-        self.assertEqual(response.status_code, 404)
-        self.assertNotIn(self.thread_url, response.content.decode())
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, self.thread_url)

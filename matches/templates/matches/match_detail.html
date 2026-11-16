@@ -17,7 +17,7 @@
         <div class="col-4">
           <div class="d-flex flex-column align-items-center gap-2 min-w-0">
             {% include "components/team_logo.html" with team=match.home_team size="xl" %}
-            {% if match.home_team_id in member_team_ids %}<a class="fw-medium text-break" href="{% url 'teams:detail' match.home_team_id %}">{{ match.home_team.name }}</a>{% else %}<span class="fw-medium text-break">{{ match.home_team.name }}</span>{% endif %}
+            <a class="fw-medium text-break" href="{% url 'teams:detail' match.home_team_id %}">{{ match.home_team.name }}</a>
           </div>
         </div>
         <div class="col-4">
@@ -32,7 +32,7 @@
         <div class="col-4">
           <div class="d-flex flex-column align-items-center gap-2 min-w-0">
             {% include "components/team_logo.html" with team=match.away_team size="xl" %}
-            {% if match.away_team_id in member_team_ids %}<a class="fw-medium text-break" href="{% url 'teams:detail' match.away_team_id %}">{{ match.away_team.name }}</a>{% else %}<span class="fw-medium text-break">{{ match.away_team.name }}</span>{% endif %}
+            <a class="fw-medium text-break" href="{% url 'teams:detail' match.away_team_id %}">{{ match.away_team.name }}</a>
           </div>
         </div>
       </div>

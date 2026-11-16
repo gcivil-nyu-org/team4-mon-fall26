@@ -6,7 +6,7 @@ from django.urls import reverse
 from teams.models import Roster
 from teams.tests import make_team, make_user
 
-from .templatetags.ui import control, initials, sport_icon
+from .templatetags.ui import control, display_name, initials, ordinal, sport_icon
 
 
 class SmokeTests(TestCase):
@@ -43,6 +43,35 @@ class UiFilterTests(TestCase):
         form.is_valid()
         self.assertIn('class="form-control is-invalid"', control(form["name"]))
         self.assertIn('class="form-select is-invalid"', control(form["kind"]))
+
+
+class NameFilterTests(TestCase):
+    def test_display_name_uses_full_name(self):
+        user = get_user_model()(
+            first_name="Alex", last_name="Lee", email="al@nyu.edu", username="al"
+        )
+        self.assertEqual(display_name(user), "Alex Lee")
+
+    def test_display_name_never_shows_email_or_username(self):
+        self.assertEqual(
+            display_name(get_user_model()(email="al@nyu.edu", username="al@nyu.edu")),
+            "PlayNYU player",
+        )
+
+    def test_ordinal(self):
+        for n, text in [
+            (1, "1st"),
+            (2, "2nd"),
+            (3, "3rd"),
+            (4, "4th"),
+            (11, "11th"),
+            (12, "12th"),
+            (13, "13th"),
+            (21, "21st"),
+            (22, "22nd"),
+            (111, "111th"),
+        ]:
+            self.assertEqual(ordinal(n), text)
 
 
 class DashboardTests(TestCase):

@@ -7,6 +7,7 @@
       <div class="page-meta">Teams you captain or play on.</div>
     </div>
     <a class="btn btn-primary" href="{% url 'teams:create' %}"><i aria-hidden="true" class="ti ti-plus me-1"></i>Create a team</a>
+    <a class="btn btn-outline-secondary" href="{% url 'teams:directory' %}"><i aria-hidden="true" class="ti ti-list-search me-1"></i>Browse all teams</a>
   </div>
   {% if teams %}
     <div class="row row-cards">

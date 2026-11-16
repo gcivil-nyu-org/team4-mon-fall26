@@ -1,6 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
+
+from facilities.models import Facility
+from matches.models import Match, MatchAppearance, PlayerStat
+from teams.models import EventType, Roster, Season, Sport, Team
+from teams.season_rules import SeasonState
 
 from .models import PlayerProfile
 
@@ -209,11 +215,10 @@ class ProfileDetailTests(TestCase):
         self.assertContains(response, "al1234")
         self.assertContains(response, reverse("profiles:edit", args=[self.owner.pk]))
 
-    def test_only_shared_teams_are_links(self):
+    def test_other_players_teams_link_to_team_page(self):
         response = self.client.get(self.url)
-        self.assertContains(response, reverse("teams:detail", args=[self.shared.pk]))
-        other = self.owner.roster_entries.exclude(team=self.shared).get().team
-        self.assertNotContains(response, reverse("teams:detail", args=[other.pk]))
+        for entry in self.owner.roster_entries.all():
+            self.assertContains(response, reverse("teams:detail", args=[entry.team_id]))
 
     def test_player_without_teams(self):
         response = self.client.get(reverse("profiles:detail", args=[self.viewer.pk]))
@@ -221,6 +226,167 @@ class ProfileDetailTests(TestCase):
         loner = make_user("loner")
         response = self.client.get(reverse("profiles:detail", args=[loner.pk]))
         self.assertContains(response, "Not on any teams yet.")
+
+    def make_season(self, name, state=SeasonState.OPEN):
+        return Season.objects.create(name=name, start_date="2026-09-01", state=state)
+
+    def make_match(self, season, home_team, away_team, **scores):
+        field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
+        now = timezone.now()
+        return Match.objects.create(
+            season=season,
+            home_team=home_team,
+            away_team=away_team,
+            facility=field,
+            starts_at=now - timezone.timedelta(days=2),
+            ends_at=now - timezone.timedelta(days=2, hours=-2),
+            **scores,
+        )
+
+    def test_current_team_shows_position_and_record(self):
+        season = self.make_season("Fall")
+        self.shared.season = season
+        self.shared.save()
+        rival = Team.objects.create(
+            name="Rivals",
+            sport=self.shared.sport,
+            season=season,
+            captain=self.viewer,
+        )
+        self.make_match(season, self.shared, rival, home_score=2, away_score=0)
+        response = self.client.get(self.url)
+        self.assertContains(response, "1st · 1–0–0")
+
+    def other_team(self):
+        return self.owner.roster_entries.exclude(team=self.shared).get().team
+
+    def test_closed_season_shows_record_and_stats(self):
+        season = self.make_season("Fall", state=SeasonState.CLOSED)
+        self.shared.season = season
+        self.shared.save()
+        goal = EventType.objects.create(sport=self.shared.sport, name="Goal")
+        rival = Team.objects.create(
+            name="Rivals",
+            sport=self.shared.sport,
+            season=season,
+            captain=self.viewer,
+        )
+        first = self.make_match(season, self.shared, rival, home_score=2, away_score=0)
+        second = self.make_match(season, rival, self.shared, home_score=1, away_score=0)
+        for match in (first, second):
+            MatchAppearance.objects.create(
+                match=match, player=self.owner, team=self.shared
+            )
+        PlayerStat.objects.create(
+            match=first,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=2,
+        )
+        PlayerStat.objects.create(
+            match=second,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=1,
+        )
+        response = self.client.get(self.url)
+        self.assertContains(response, "1–0–1")
+        self.assertContains(response, "1.5")
+        self.assertContains(response, "GP 2")
+
+    def test_draft_teams_hidden_from_other_players(self):
+        season = self.make_season("Spring", state=SeasonState.DRAFT)
+        hidden = make_user("hidden")
+        team = Team.objects.create(
+            name="Ghosts",
+            sport=Sport.objects.create(name="Ghostball"),
+            season=season,
+            captain=hidden,
+        )
+        Roster.objects.create(team=team, player=hidden, role=Roster.Role.CAPTAIN)
+        response = self.client.get(reverse("profiles:detail", args=[hidden.pk]))
+        self.assertEqual(response.context["teams"], [])
+        self.assertContains(response, "Not on any teams yet.")
+        self.assertContains(response, "No stats yet.")
+        self.assertContains(response, "No matches played yet.")
+
+    def test_recent_matches_show_the_players_line(self):
+        season = self.make_season("Fall")
+        self.shared.season = season
+        self.shared.save()
+        goal = EventType.objects.create(sport=self.shared.sport, name="Goal")
+        match = self.make_match(
+            season, self.shared, self.other_team(), home_score=2, away_score=0
+        )
+        MatchAppearance.objects.create(match=match, player=self.owner, team=self.shared)
+        PlayerStat.objects.create(
+            match=match,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=2,
+        )
+        self.assertContains(self.client.get(self.url), "2 Goals")
+
+    def test_empty_stats_and_matches(self):
+        loner = make_user("loner")
+        response = self.client.get(reverse("profiles:detail", args=[loner.pk]))
+        self.assertContains(response, "No stats yet.")
+        self.assertContains(response, "No matches played yet.")
+
+    def test_private_fields_hidden_from_others(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, "N12345678")
+        self.assertNotContains(response, "al1234")
+        self.assertNotContains(response, "owner@nyu.edu")
+
+    def test_query_count_is_fixed(self):
+        from matches.test_stats import count_queries
+
+        season = self.make_season("Fall")
+        other = self.other_team()
+        self.shared.season = season
+        self.shared.save()
+        goal = EventType.objects.create(sport=self.shared.sport, name="Goal")
+        match = self.make_match(season, self.shared, other, home_score=2, away_score=0)
+        MatchAppearance.objects.create(match=match, player=self.owner, team=self.shared)
+        PlayerStat.objects.create(
+            match=match,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=1,
+        )
+        small = count_queries(lambda: self.client.get(self.url))
+        for index in range(2):
+            extra_season = self.make_season(f"Extra {index}")
+            extra = Team.objects.create(
+                name=f"Extra {index}",
+                sport=self.shared.sport,
+                season=extra_season,
+                captain=self.owner,
+            )
+            Roster.objects.create(team=extra, player=self.owner)
+            extra_match = self.make_match(
+                extra_season,
+                extra,
+                other,
+                home_score=1,
+                away_score=0,
+            )
+            MatchAppearance.objects.create(
+                match=extra_match, player=self.owner, team=extra
+            )
+            PlayerStat.objects.create(
+                match=extra_match,
+                player=self.owner,
+                team=extra,
+                event_type=goal,
+                value=1,
+            )
+        self.assertEqual(count_queries(lambda: self.client.get(self.url)), small)
 
     def test_unknown_or_unverified_player_is_404(self):
         self.assertEqual(

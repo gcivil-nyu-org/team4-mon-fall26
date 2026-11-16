@@ -2,8 +2,14 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+
+from matches.schedule import seasons_visible_to
+from matches.standings import standings_by_team, team_records
+from matches.stats import player_recent_lines, player_season_stats
+from teams.season_rules import SeasonState
 
 from .forms import ProfileForm
 from .models import PlayerProfile
@@ -19,12 +25,34 @@ def profile_detail(request, pk):
     N number and NetID are shown only to the profile's owner."""
     player = get_object_or_404(get_user_model(), pk=pk, is_active=True)
     profile = PlayerProfile.objects.filter(user=player).first()
-    my_team_ids = set(request.user.roster_entries.values_list("team_id", flat=True))
-    roster = player.roster_entries.select_related("team", "team__season").order_by(
-        "-joined_at"
+    visible_seasons = seasons_visible_to(request.user)
+    roster = list(
+        player.roster_entries.filter(
+            Q(team__season__isnull=True) | Q(team__season__in=visible_seasons)
+        )
+        .select_related("team__sport", "team__season", "team__division")
+        .order_by("-joined_at")
     )
+    open_season_ids = [
+        entry.team.season_id
+        for entry in roster
+        if entry.team.season_id is not None
+        and entry.team.season.state != SeasonState.CLOSED
+    ]
+    closed_team_ids = [
+        entry.team_id
+        for entry in roster
+        if entry.team.season_id is None or entry.team.season.state == SeasonState.CLOSED
+    ]
+    standings = standings_by_team(open_season_ids)
+    records = team_records(closed_team_ids)
     teams = [
-        {"entry": entry, "can_open": entry.team_id in my_team_ids} for entry in roster
+        {
+            "entry": entry,
+            "standing": standings.get(entry.team_id),
+            "record": records.get(entry.team_id),
+        }
+        for entry in roster
     ]
     return render(
         request,
@@ -34,6 +62,8 @@ def profile_detail(request, pk):
             "profile": profile,
             "teams": teams,
             "is_owner": player.pk == request.user.pk,
+            "season_stats": player_season_stats(player, request.user),
+            "recent_lines": player_recent_lines(player, request.user),
         },
     )
 

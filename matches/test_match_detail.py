@@ -1,4 +1,5 @@
 import datetime
+from html.parser import HTMLParser
 
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -45,9 +46,9 @@ class MatchDetailTests(SheetFixtures):
         response = self.get()
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Violets vs Bobcats")
-        # Team pages are for members, so only the viewer's team links.
+        # Team pages are public, so both team names link.
         self.assertContains(response, reverse("teams:detail", args=[self.home.pk]))
-        self.assertNotContains(response, reverse("teams:detail", args=[self.away.pk]))
+        self.assertContains(response, reverse("teams:detail", args=[self.away.pk]))
         facility_url = reverse("facilities:detail", args=[self.field.pk])
         self.assertContains(response, facility_url)
         self.field.is_active = False
@@ -233,9 +234,54 @@ class MatchDetailTests(SheetFixtures):
         self.assertEqual(len(response.context["tables"][0][1]), 11)
 
 
+class LinkCollector(HTMLParser):
+    """Collects hrefs and records any <a> opened inside another <a>."""
+
+    def __init__(self):
+        super().__init__()
+        self.depth = 0
+        self.nested = []
+        self.hrefs = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "a":
+            return
+        href = dict(attrs).get("href")
+        if self.depth:
+            self.nested.append(href)
+        self.depth += 1
+        self.hrefs.append(href)
+
+    def handle_endtag(self, tag):
+        if tag == "a" and self.depth:
+            self.depth -= 1
+
+
 class MatchRowLinkTests(SheetFixtures):
     def href(self):
         return f'href="{reverse("matches:detail", args=[self.match.pk])}"'
+
+    def assert_row_links(self, response):
+        """The page links the match and both teams, with no nested links."""
+        parser = LinkCollector()
+        parser.feed(response.content.decode())
+        self.assertEqual(parser.nested, [])
+        self.assertIn(reverse("matches:detail", args=[self.match.pk]), parser.hrefs)
+        for team in (self.home, self.away):
+            self.assertIn(reverse("teams:detail", args=[team.pk]), parser.hrefs)
+
+    def test_season_schedule_row_has_no_nested_links(self):
+        self.client.force_login(self.player)
+        response = self.client.get(
+            reverse("matches:season_schedule", args=[self.season.pk])
+        )
+        self.assert_row_links(response)
+
+    def test_my_matches_row_has_no_nested_links(self):
+        self.match.scorekeeper = self.keeper
+        self.match.save()
+        self.client.force_login(self.keeper)
+        self.assert_row_links(self.client.get(reverse("matches:mine")))
 
     def test_season_schedule_links_match(self):
         self.client.force_login(self.player)

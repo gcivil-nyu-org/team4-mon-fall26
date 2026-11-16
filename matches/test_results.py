@@ -306,6 +306,14 @@ class ResultDisplayTests(ScorekeeperFixtures):
         rows = {row["team"].name: row for row in response.context["rows"]}
         self.assertEqual(rows["Violets"]["points"], 3)
 
+    def test_standings_rows_link_teams(self):
+        self.client.force_login(self.player)
+        response = self.client.get(
+            reverse("matches:season_standings", args=[self.season.pk])
+        )
+        for team in (self.home, self.away):
+            self.assertContains(response, reverse("teams:detail", args=[team.pk]))
+
     def test_standings_list_links_to_the_season(self):
         self.client.force_login(self.player)
         response = self.client.get(reverse("matches:standings"))

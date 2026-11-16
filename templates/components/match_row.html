@@ -1,14 +1,14 @@
 {# One match in a list-group. See docs/DESIGN.md, "Match rows". #}
 <div class="list-group-item d-flex align-items-center gap-3">
   <div class="flex-fill min-w-0">
-    <a class="text-reset d-inline-flex flex-wrap align-items-center gap-2 fw-medium mw-100" href="{% url 'matches:detail' match.pk %}">
-      <span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="d-inline-flex flex-shrink-0">{% include "components/team_logo.html" with team=match.home_team size="sm" %}</span><span class="text-break">{{ match.home_team.name }}</span></span>
+    <div class="d-inline-flex flex-wrap align-items-center gap-2 fw-medium mw-100">
+      {% include "components/team_link.html" with team=match.home_team size="sm" %}
       <span class="text-secondary fw-normal">vs</span>
-      <span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="d-inline-flex flex-shrink-0">{% include "components/team_logo.html" with team=match.away_team size="sm" %}</span><span class="text-break">{{ match.away_team.name }}</span></span>
-    </a>
-    <div class="small text-secondary"><span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span> · {% if facility_page %}{{ match.home_team.sport.name }}{% else %}{% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}{% endif %}</div>
+      {% include "components/team_link.html" with team=match.away_team size="sm" %}
+    </div>
+    <div class="small text-secondary"><a class="pn-num text-reset" href="{% url 'matches:detail' match.pk %}" title="Match page">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</a> · {% if facility_page %}{{ match.home_team.sport.name }}{% else %}{% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}{% endif %}</div>
   </div>
-  {% if match.has_result %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% endif %}
+  {% if match.has_result %}<a class="pn-num fw-bold text-reset flex-shrink-0" href="{% url 'matches:detail' match.pk %}" title="Final score, open the match page">{{ match.home_score }} – {{ match.away_score }}</a>{% endif %}
   {% if match.is_cancelled %}<span class="badge bg-secondary-lt flex-shrink-0">Cancelled</span>{% endif %}
   {% if action_url %}<a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
 </div>
