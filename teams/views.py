@@ -23,6 +23,7 @@ from .forms import (
     AddPlayerForm,
     DivisionCreateForm,
     EventTypeForm,
+    FreeAgentFilterForm,
     FreeAgentRequestForm,
     SeasonForm,
     SportForm,
@@ -52,6 +53,8 @@ TRANSITION_LABELS = {
     (SeasonState.OPEN, SeasonState.ACTIVE): "Start season",
     (SeasonState.ACTIVE, SeasonState.CLOSED): "Close season",
 }
+
+FREE_AGENTS_PER_PAGE = 20
 
 
 @login_required
@@ -399,6 +402,21 @@ def free_agent_pool(request):
             messages.info(request, "You already requested placement this season.")
             return redirect("teams:free_agent_pool")
 
+    # Every signed-in player sees the pool. No emails: see the template.
+    filter_form = FreeAgentFilterForm(request.GET or None)
+    pool = filter_form.filter(
+        FreeAgentRequest.objects.filter(
+            season__in=filter_form.fields["season"].queryset, player__is_active=True
+        )
+        .select_related("player", "sport", "division", "season")
+        .order_by("requested_at", "pk")
+    )
+    free_agents = Paginator(pool, FREE_AGENTS_PER_PAGE).get_page(
+        request.GET.get("page")
+    )
+    querystring = request.GET.copy()
+    querystring.pop("page", None)
+
     return render(
         request,
         "teams/free_agent_pool.html",
@@ -406,6 +424,9 @@ def free_agent_pool(request):
             "form": form,
             "requests": current_requests,
             "has_available_seasons": form.fields["season"].queryset.exists(),
+            "filter_form": filter_form,
+            "free_agents": free_agents,
+            "querystring": querystring.urlencode(),
         },
     )
 

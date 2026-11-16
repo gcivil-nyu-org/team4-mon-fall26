@@ -282,6 +282,7 @@ class MatchSheetFormTests(SheetFixtures):
         stat = f"stat-{self.home.pk}-{self.alex.pk}-{self.goal.pk}"
         for data in (
             {"home_score": "1", "away_score": "0", stat: "10000"},
+            {"home_score": "10000", "away_score": "0"},
             self.periods((10000, 0), (0, 0), (0, 0), (0, 0)),
         ):
             with self.subTest(data=data):
