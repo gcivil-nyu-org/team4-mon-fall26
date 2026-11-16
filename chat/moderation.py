@@ -2,12 +2,17 @@
 
 from forums.selectors import flagged_replies, flagged_topics
 
-from .models import Message
+from .models import Conversation, Message
+from .names import conversation_label
 
 
 def flagged_messages():
-    """Reported team chat messages for the moderation queue."""
-    return Message.objects.filter(is_flagged=True).select_related("team", "author")
+    """Reported chat messages for the moderation queue."""
+    return (
+        Message.objects.filter(is_flagged=True)
+        .select_related("conversation__team", "author")
+        .prefetch_related("conversation__memberships__user")
+    )
 
 
 def flagged_content():
@@ -22,3 +27,12 @@ def flagged_content():
 def flagged_total():
     """How many rows the moderation queue lists. One COUNT per section."""
     return sum(rows.count() for rows in flagged_content().values())
+
+
+def queue_label(conversation):
+    """What the moderation queue calls one conversation."""
+    if conversation.kind == Conversation.Kind.TEAM:
+        return conversation.team.name
+    if conversation.kind == Conversation.Kind.DIRECT:
+        return "Direct message"
+    return f"Group: {conversation_label(conversation, None)}"
