@@ -7,6 +7,15 @@ from django.test import SimpleTestCase
 
 from .match_context import Result, head_to_head, standings_movement, team_context
 from .standings import positions, rank_rows
+from .stats import (
+    Leader,
+    SheetRow,
+    TeamSheet,
+    comparison_rows,
+    ordered_event_types,
+    team_totals,
+    top_performers,
+)
 
 
 def team(pk, name, division=None):
@@ -217,3 +226,132 @@ class MovementTests(SimpleTestCase):
         cancelled = match(10, 5, self.zed, self.b, is_cancelled=True)
         self.assertIsNone(standings_movement(unscored, self.teams, self.earlier))
         self.assertIsNone(standings_movement(cancelled, self.teams, self.earlier))
+
+
+def person(pk, first="", last=""):
+    full = f"{first} {last}".strip()
+    return SimpleNamespace(
+        pk=pk, first_name=first, last_name=last, get_full_name=lambda: full
+    )
+
+
+def stat_type(pk, name):
+    return SimpleNamespace(pk=pk, name=name)
+
+
+class TopPerformerTests(SimpleTestCase):
+    def setUp(self):
+        self.assist = stat_type(1, "Assist")
+        self.points = stat_type(2, "Points")
+        self.rebound = stat_type(3, "Rebound")
+        self.steal = stat_type(4, "Steal")
+        # The match page loads event types by name.
+        self.types = [self.assist, self.points, self.rebound, self.steal]
+        self.kim = person(1, "Sam", "Kim")
+        self.lee = person(2, "Alex", "Lee")
+        self.nameless = person(3)
+        self.home, self.away = team(1, "Home"), team(2, "Away")
+
+    def sheet(self, team_, *rows):
+        return TeamSheet(team_, list(rows))
+
+    def row(self, player, on_roster=True, **stats):
+        by_name = {t.name: t.pk for t in self.types}
+        values = {by_name[name.capitalize()]: value for name, value in stats.items()}
+        return SheetRow(player, on_roster, True, values)
+
+    def test_ordered_event_types(self):
+        self.assertEqual(
+            ordered_event_types(self.types, self.points),
+            [self.points, self.assist, self.rebound, self.steal],
+        )
+        self.assertEqual(ordered_event_types(self.types, None), self.types)
+        other = stat_type(9, "Kills")
+        self.assertEqual(ordered_event_types(self.types, other), self.types)
+
+    def test_scoring_type_first_and_capped_at_three(self):
+        sheets = [
+            self.sheet(
+                self.home,
+                self.row(self.lee, points=24, assist=3, rebound=8, steal=2),
+            ),
+            self.sheet(self.away),
+        ]
+        tp = top_performers(sheets, self.types, self.points)
+        self.assertEqual(
+            [leader.event_type for leader in tp[0].leaders],
+            [self.points, self.assist, self.rebound],
+        )
+        self.assertEqual(tp[0].team, self.home)
+        self.assertEqual(tp[1].leaders, [])
+
+    def test_tie_goes_by_name_and_named_first(self):
+        sheets = [
+            self.sheet(
+                self.home,
+                self.row(self.nameless, points=5),
+                self.row(self.lee, points=5),
+                self.row(self.kim, points=5),
+            )
+        ]
+        leader = top_performers(sheets, self.types, self.points)[0].leaders[0]
+        self.assertEqual(leader.player, self.lee)  # "Alex Lee" before "Sam Kim".
+        self.assertEqual(leader.value, 5)
+
+    def test_zero_never_leads(self):
+        sheets = [self.sheet(self.home, self.row(self.lee, points=4, rebound=0))]
+        tp = top_performers(sheets, self.types, self.points)
+        self.assertEqual([l.event_type for l in tp[0].leaders], [self.points])
+
+    def test_player_who_left_can_lead(self):
+        sheets = [
+            self.sheet(
+                self.home,
+                self.row(self.kim, points=10),
+                self.row(self.lee, on_roster=False, points=30),
+            )
+        ]
+        tp = top_performers(sheets, self.types, self.points)
+        self.assertEqual(tp[0].leaders[0].player, self.lee)
+
+    def test_no_scoring_type_orders_by_name(self):
+        sheets = [self.sheet(self.home, self.row(self.lee, points=4, assist=1))]
+        tp = top_performers(sheets, self.types, None)
+        self.assertEqual(
+            [l.event_type for l in tp[0].leaders], [self.assist, self.points]
+        )
+
+    def test_no_event_types_no_leaders(self):
+        sheets = [self.sheet(self.home, self.row(self.lee, points=4))]
+        self.assertEqual(top_performers(sheets, [], None)[0].leaders, [])
+
+    def test_short_name(self):
+        self.assertEqual(Leader(self.lee, 24, self.points).short_name, "Lee")
+        self.assertEqual(
+            Leader(self.nameless, 1, self.points).short_name, "PlayNYU player"
+        )
+        first_only = person(4, "Mo")
+        self.assertEqual(Leader(first_only, 1, self.points).short_name, "Mo")
+
+    def test_totals_include_leavers(self):
+        sheet = self.sheet(
+            self.home,
+            self.row(self.kim, points=1, assist=1),
+            self.row(self.lee, on_roster=False, points=2),
+        )
+        self.assertEqual(team_totals(sheet, [self.points, self.assist]), [3, 1])
+
+    def test_comparison_skips_zero_rows_and_rounds(self):
+        rows = comparison_rows(
+            [self.assist, self.points], [1, 0], [2, 0], self.points
+        )
+        self.assertEqual([r.event_type for r in rows], [self.assist])
+        self.assertEqual((rows[0].home, rows[0].away), (1, 2))
+        self.assertEqual((rows[0].home_pct, rows[0].away_pct), (33, 67))
+
+    def test_comparison_scoring_first(self):
+        rows = comparison_rows(
+            [self.assist, self.points], [1, 3], [0, 1], self.points
+        )
+        self.assertEqual([r.event_type for r in rows], [self.points, self.assist])
+        self.assertEqual((rows[1].home_pct, rows[1].away_pct), (100, 0))
