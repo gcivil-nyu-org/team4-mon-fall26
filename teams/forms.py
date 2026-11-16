@@ -357,15 +357,21 @@ class FreeAgentFilterForm(forms.Form):
             del cleaned["division"]
         return cleaned
 
-    def filter(self, queryset):
+    FILTERS = ("season", "sport", "division")
+
+    def active_filters(self):
+        """The cleaned filter values that narrow the list, by field name."""
         # An unbound form has no cleaned_data, and fields with errors are missing.
         self.is_valid()
         cleaned = getattr(self, "cleaned_data", {})
-        for name in ("season", "sport", "division"):
-            value = cleaned.get(name)
-            if value is not None:
-                queryset = queryset.filter(**{name: value})
-        return queryset
+        return {
+            name: cleaned[name]
+            for name in self.FILTERS
+            if cleaned.get(name) is not None
+        }
+
+    def filter(self, queryset):
+        return queryset.filter(**self.active_filters())
 
 
 class SeasonForm(forms.ModelForm):

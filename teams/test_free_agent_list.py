@@ -4,9 +4,9 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 from .forms import FreeAgentFilterForm
-from .models import Division, FreeAgentRequest, Sport
+from .models import Division, FreeAgentRequest, Roster, Sport
 from .season_rules import SeasonState
-from .tests import make_season, make_user
+from .tests import make_season, make_team, make_user
 
 
 class FreeAgentFilterFormTests(TestCase):
@@ -155,19 +155,41 @@ class FreeAgentListPageTests(TestCase):
         self.assertContains(response, 'aria-label="Free agent pages"')
 
     def test_query_count_is_constant(self):
-        def count():
+        captain = make_user("captain")
+        make_team(captain, season=self.season)
+        other_season = make_season(name="Spring 2027")
+        make_team(captain, name="Spring Violets", season=other_season)
+
+        def count(viewer):
+            self.client.force_login(viewer)
             with CaptureQueriesContext(connection) as queries:
                 self.client.get(self.url)
             return len(queries)
 
-        few = count()
+        few = {viewer: count(viewer) for viewer in (self.viewer, captain)}
         for i in range(30):
-            self.add_request(make_user(f"q{i}"))
-        self.assertEqual(count(), few)
+            season = self.season if i % 2 else other_season
+            self.add_request(make_user(f"q{i}"), season=season)
+        for viewer, expected in few.items():
+            with self.subTest(viewer.username):
+                self.assertEqual(count(viewer), expected)
 
     def test_empty_state(self):
         FreeAgentRequest.objects.all().delete()
         self.assertContains(self.client.get(self.url), "No free agents yet")
+
+    def test_empty_state_with_blank_filters(self):
+        FreeAgentRequest.objects.all().delete()
+        response = self.client.get(
+            self.url, {"season": "", "sport": "", "division": ""}
+        )
+        self.assertContains(response, "No free agents yet")
+        self.assertNotContains(response, "No free agents match these filters.")
+
+    def test_empty_state_with_dropped_filter(self):
+        FreeAgentRequest.objects.all().delete()
+        response = self.client.get(self.url, {"season": "abc"})
+        self.assertContains(response, "No free agents yet")
 
     def test_filtered_empty_state(self):
         other = Sport.objects.create(name="Volleyball")
@@ -180,3 +202,68 @@ class FreeAgentListPageTests(TestCase):
             self.client.get(self.url),
             "Other players can see your name, sport and division.",
         )
+
+
+class FreeAgentMessageLinkTests(TestCase):
+    def setUp(self):
+        self.season = make_season()
+        self.other_season = make_season(name="Spring 2027")
+        self.sport = Sport.objects.get_or_create(name="Soccer")[0]
+        self.captain = make_user("captain")
+        self.team = make_team(self.captain, season=self.season)
+        self.player = make_user("player")
+        FreeAgentRequest.objects.create(
+            player=self.player, season=self.season, sport=self.sport
+        )
+        self.url = reverse("teams:free_agent_pool")
+        self.link = f'{reverse("chat:new")}?to={self.player.pk}'
+
+    def page(self, viewer):
+        self.client.force_login(viewer)
+        return self.client.get(self.url)
+
+    def test_captain_in_the_season_sees_the_link(self):
+        response = self.page(self.captain)
+        self.assertContains(response, f'href="{self.link}"', count=1)
+        self.assertContains(response, "btn btn-sm btn-outline-secondary")
+
+    def test_link_starts_a_chat_with_the_player(self):
+        self.client.force_login(self.captain)
+        response = self.client.get(self.link)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["chosen"], [self.player])
+
+    def test_player_does_not_see_the_link(self):
+        self.assertNotContains(self.page(make_user("viewer")), reverse("chat:new"))
+
+    def test_teammate_who_is_not_captain_does_not_see_the_link(self):
+        teammate = make_user("teammate")
+        Roster.objects.create(team=self.team, player=teammate)
+        self.assertNotContains(self.page(teammate), reverse("chat:new"))
+
+    def test_captain_in_another_season_does_not_see_the_link(self):
+        other = make_user("other")
+        make_team(other, name="Spring Violets", season=self.other_season)
+        self.assertNotContains(self.page(other), reverse("chat:new"))
+
+    def test_captain_of_a_team_with_no_season_does_not_see_the_link(self):
+        loose = make_user("loose")
+        make_team(loose, name="Pickup")
+        self.assertNotContains(self.page(loose), reverse("chat:new"))
+
+    def test_link_only_on_rows_in_the_captains_season(self):
+        elsewhere = make_user("elsewhere")
+        FreeAgentRequest.objects.create(
+            player=elsewhere, season=self.other_season, sport=self.sport
+        )
+        response = self.page(self.captain)
+        self.assertContains(response, f'href="{self.link}"', count=1)
+        self.assertNotContains(response, f"?to={elsewhere.pk}")
+
+    def test_no_link_on_own_row(self):
+        FreeAgentRequest.objects.create(
+            player=self.captain, season=self.season, sport=self.sport
+        )
+        response = self.page(self.captain)
+        self.assertNotContains(response, f"?to={self.captain.pk}")
+        self.assertContains(response, f'href="{self.link}"', count=1)
