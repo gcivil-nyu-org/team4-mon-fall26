@@ -166,6 +166,18 @@ class NamelessPageTests(TestCase):
             scorekeeper=scorekeeper,
         )
 
+    def test_roles_page_labels_the_email(self):
+        # The roles page is the one League Admin page that shows the email (#261).
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("accounts:roles"))
+        self.assertContains(response, FALLBACK_NAME)
+        self.assertContains(
+            response,
+            f'<span class="visually-hidden">Email: </span>{NAMELESS_EMAIL}',
+            count=1,
+        )
+        self.assertContains(response, NAMELESS_EMAIL, count=1)
+
     def test_manage_matches_scorekeeper(self):
         assign_role(self.nameless, SCOREKEEPER_ROLE)
         self.make_match(self.nameless)

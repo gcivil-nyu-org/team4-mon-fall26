@@ -1,0 +1,14 @@
+{# One role action on the roles page: a POST form with one button. Takes row, name, role, label, held and an optional reason (disables the button). #}
+<form method="post" action="{% url 'accounts:change_role' row.pk %}">
+  {% csrf_token %}
+  <input type="hidden" name="role" value="{{ role }}">
+  <input type="hidden" name="action" value="{% if held %}remove{% else %}add{% endif %}">
+  <input type="hidden" name="q" value="{{ filters.q|default:'' }}">
+  <input type="hidden" name="role_filter" value="{{ filters.role|default:'' }}">
+  <input type="hidden" name="page" value="{{ page_obj.number }}">
+  {% if held %}
+    <button class="btn btn-sm btn-ghost-danger" type="submit"{% if reason %} disabled title="{{ reason }}"{% endif %}><i aria-hidden="true" class="ti ti-user-minus"></i>Remove {{ label }}<span class="visually-hidden"> for {{ name }}{% if reason %}. {{ reason }}{% endif %}</span></button>
+  {% else %}
+    <button class="btn btn-sm btn-outline-secondary" type="submit"><i aria-hidden="true" class="ti ti-user-plus"></i>Add {{ label }}<span class="visually-hidden"> for {{ name }}</span></button>
+  {% endif %}
+</form>

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Roles · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div class="subheader">League Admin</div>
+      <h1>Roles</h1>
+      <div class="page-meta">Who keeps score and who runs the league.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'teams:league_setup' %}">League setup</a>
+  </div>
+
+  <div class="row row-cards">
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">People</h2>
+          <div class="card-actions"><span class="text-secondary small"><span class="pn-num">{{ page_obj.paginator.count }}</span> {% if page_obj.paginator.count == 1 %}person{% else %}people{% endif %}</span></div>
+        </div>
+        <div class="card-body">
+          <form method="get" class="row g-2 align-items-end">
+            <div class="col-sm-6">
+              <label class="form-label" for="{{ filter_form.q.id_for_label }}">{{ filter_form.q.label }}</label>
+              {{ filter_form.q|control }}
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label" for="{{ filter_form.role.id_for_label }}">{{ filter_form.role.label }}</label>
+              {{ filter_form.role|control }}
+            </div>
+            <div class="col-12">
+              <button class="btn btn-outline-secondary" type="submit">Filter</button>
+            </div>
+          </form>
+        </div>
+        {% if page_obj.object_list %}
+          <div class="list-group list-group-flush pn-roles">
+            {% for row in page_obj %}
+              {% with name=row|display_name %}
+                <div class="list-group-item d-flex flex-wrap align-items-center gap-3{% if row.pk == user.pk %} pn-row-me{% endif %}">
+                  {% include "components/avatar.html" with person=row size="sm" %}
+                  <div class="flex-fill min-w-0">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                      <span class="fw-medium text-break">{{ name }}{% if row.pk == user.pk %}<span class="visually-hidden"> (you)</span>{% endif %}</span>
+                      {% if row.is_league_admin %}<span class="badge bg-primary-lt">League Admin</span>{% endif %}
+                      {% if row.is_scorekeeper %}<span class="badge bg-primary-lt">Scorekeeper</span>{% endif %}
+                      {% if row.is_superuser %}<span class="badge bg-secondary-lt" title="Has League Admin access whether or not they hold the role">Site admin</span>{% endif %}
+                      {% if row.unscored_matches and not row.is_scorekeeper %}<span class="badge bg-yellow-lt">Needs reassigning</span>{% endif %}
+                    </div>
+                    <div class="small text-secondary text-break"><span class="visually-hidden">Email: </span>{{ row.email }}{% if row.unscored_matches %} · Assigned to <span class="pn-num">{{ row.unscored_matches }}</span> unscored match{{ row.unscored_matches|pluralize:"es" }}{% endif %}</div>
+                  </div>
+                  <div class="d-flex flex-wrap gap-2">
+                    {% include "accounts/_role_button.html" with role="scorekeeper" label="Scorekeeper" held=row.is_scorekeeper %}
+                    {% if row.is_league_admin and row.pk == user.pk %}
+                      {% include "accounts/_role_button.html" with role="league_admin" label="League Admin" held=True reason="You can't remove your own League Admin role" %}
+                    {% elif row.is_league_admin and league_admin_count <= 1 %}
+                      {% include "accounts/_role_button.html" with role="league_admin" label="League Admin" held=True reason="The league needs at least one League Admin" %}
+                    {% else %}
+                      {% include "accounts/_role_button.html" with role="league_admin" label="League Admin" held=row.is_league_admin %}
+                    {% endif %}
+                  </div>
+                </div>
+              {% endwith %}
+            {% endfor %}
+          </div>
+          {% include "components/pager.html" with page_obj=page_obj querystring=querystring label="People pages" %}
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-3">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-users"></i></div>
+              {% if filters %}
+                <p class="empty-title">No one matches these filters.</p>
+                <p class="empty-subtitle text-secondary">Try another name, email or role.</p>
+                <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'accounts:roles' %}">Clear filters</a></div>
+              {% else %}
+                <p class="empty-title">No signed-up users yet.</p>
+                <p class="empty-subtitle text-secondary">People show up here after they sign up and confirm their email.</p>
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-header"><h2 class="card-title">About roles</h2></div>
+        <div class="card-body">
+          <h3 class="h4 mb-1">Scorekeeper</h3>
+          <p class="text-secondary">Records scores for the matches assigned to them.</p>
+          <h3 class="h4 mb-1">League Admin</h3>
+          <p class="text-secondary">Runs every League Admin page, this one included.</p>
+          <h3 class="h4 mb-1">Rules</h3>
+          <ul class="text-secondary mb-0 ps-3">
+            <li>The league keeps at least one League Admin.</li>
+            <li>You can't remove your own League Admin role.</li>
+            <li>Site admins have League Admin access without the role.</li>
+            <li>A Scorekeeper who loses the role keeps their matches. Choose another scorekeeper on Manage matches.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
