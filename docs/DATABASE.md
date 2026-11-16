@@ -96,7 +96,7 @@ Travis runs the tests twice: on SQLite with coverage, and on Postgres. SQLite ig
 To run the tests on Postgres locally:
 
 ```bash
-DATABASE_URL='postgres://USER:PASSWORD@localhost:5432/playnyu' python manage.py test
+DATABASE_URL='postgres://USER:PASSWORD@localhost:5432/playnyu' python manage.py test --parallel auto
 ```
 
 Use `select_for_update(of=("self",))` when the query also uses `select_related` on a nullable field. Otherwise Postgres rejects it with "FOR UPDATE cannot be applied to the nullable side of an outer join".

@@ -1,4 +1,4 @@
-# CI: every push and pull request runs lint, tests and coverage.
+# CI: every pull request, and every push to testing or main, runs lint, tests and coverage.
 # CD: a passing push to `testing` deploys to the testing environment,
 #     and a passing push to `main` deploys to production. Pull request builds never deploy.
 # AWS keys are set in Travis: Settings > Environment Variables.
@@ -8,13 +8,19 @@ python:
   - "3.12"
 cache: pip
 
+# Build pull requests, and pushes to testing and main. A pushed feature branch
+# gets its build from its PR, so it doesn't build twice.
+if: type = pull_request OR branch IN (testing, main)
+
 install:
   - pip install -r requirements-dev.txt
 
 script:
   - black --check .
   - flake8 .
-  - coverage run manage.py test
+  # Coverage settings for parallel runs are in setup.cfg.
+  - coverage run manage.py test --parallel auto
+  - coverage combine
   - coverage report --fail-under=80
   - python manage.py makemigrations --check --dry-run
 
@@ -33,7 +39,7 @@ jobs:
         - docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=playnyu -p 5433:5432 public.ecr.aws/docker/library/postgres:17
         - for i in $(seq 30); do docker exec postgres pg_isready -U postgres -h localhost && break; sleep 2; done
       script:
-        - python manage.py test
+        - python manage.py test --parallel auto
 
 # Only the SQLite job deploys, so a build deploys once.
 deploy:
