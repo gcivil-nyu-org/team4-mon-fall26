@@ -103,6 +103,9 @@
                   <a class="fw-medium" href="{% profile_url item.player %}">{{ item.player.get_full_name|default:"PlayNYU player" }}</a>
                   <div class="small text-secondary">{{ item.sport }} · {{ item.division.name|default:"Any division" }} · Requested {{ item.requested_at|date:"M j" }}</div>
                 </div>
+                {% if item.season_id in captain_season_ids and item.player_id != user.pk %}
+                  <a class="btn btn-sm btn-outline-secondary" href="{% url 'chat:new' %}?to={{ item.player_id }}"><i aria-hidden="true" class="ti ti-message me-1"></i>Message<span class="visually-hidden"> {{ item.player.get_full_name|default:"PlayNYU player" }}</span></a>
+                {% endif %}
               </div>
             {% endfor %}
           </div>
@@ -111,7 +114,7 @@
           <div class="card-body">
             <div class="empty py-3">
               <div class="empty-icon"><i aria-hidden="true" class="ti ti-users"></i></div>
-              {% if querystring %}
+              {% if is_filtered %}
                 <p class="empty-title">No free agents match these filters.</p>
                 <p class="empty-subtitle text-secondary">Choose another season, sport or division.</p>
               {% else %}

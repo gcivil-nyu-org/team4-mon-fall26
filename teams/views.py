@@ -416,6 +416,12 @@ def free_agent_pool(request):
     )
     querystring = request.GET.copy()
     querystring.pop("page", None)
+    # One query: the seasons where the viewer captains a team get a Message link.
+    captain_season_ids = set(
+        Team.objects.filter(captain=request.user, season__isnull=False).values_list(
+            "season_id", flat=True
+        )
+    )
 
     return render(
         request,
@@ -425,8 +431,10 @@ def free_agent_pool(request):
             "requests": current_requests,
             "has_available_seasons": form.fields["season"].queryset.exists(),
             "filter_form": filter_form,
+            "is_filtered": bool(filter_form.active_filters()),
             "free_agents": free_agents,
             "querystring": querystring.urlencode(),
+            "captain_season_ids": captain_season_ids,
         },
     )
 
