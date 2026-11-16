@@ -224,7 +224,7 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 `{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
 
-The "Home vs Away" matchup is a `text-reset` link to the match page (`matches:detail`). Don't use `stretched-link`, because the facility link and the action are separate links.
+Each team name links to its team page (`components/team_link.html`). The time and the final score are `text-reset` links to the match page (`matches:detail`). Don't wrap the matchup in a link, because links can't nest. Don't use `stretched-link`, because the row holds several links. `matches/_my_match_row.html` on My matches uses the same links.
 
 On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
 

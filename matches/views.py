@@ -227,13 +227,6 @@ def match_detail(request, pk):
         (sheet, [(row, row.values(event_types)) for row in sheet.rows])
         for sheet in sheets
     ]
-    # Team pages are for members only, so link just the viewer's own teams.
-    member_team_ids = {
-        sheet.team.pk
-        for sheet in sheets
-        for row in sheet.rows
-        if row.on_roster and row.player.pk == user.pk
-    }
     if match.is_cancelled:
         status = "cancelled"
     elif match.has_result:
@@ -252,7 +245,6 @@ def match_detail(request, pk):
             "event_types": event_types,
             "periods": [] if match.is_cancelled else period_rows(match),
             "status": status,
-            "member_team_ids": member_team_ids,
             "score_url": _score_url(user, match),
             "nav_section": "schedule",
         },
