@@ -125,23 +125,54 @@ class MatchStatModelTests(MatchFixtures):
         with self.assertRaises(ProtectedError):
             self.goal.delete()
 
-    def test_has_periods(self):
-        self.assertFalse(self.match.has_periods)
-        MatchPeriodScore.objects.create(
-            match=self.match, period=1, home_points=1, away_points=0
+    def period(self, period):
+        return MatchPeriodScore.objects.create(
+            match=self.match, period=period, home_points=1, away_points=0
         )
-        self.assertTrue(self.match.has_periods)
 
-    def test_sport_cannot_drop_below_stored_periods(self):
-        MatchPeriodScore.objects.create(
-            match=self.match, period=4, home_points=1, away_points=0
-        )
-        self.soccer.period_count = 1
+    def assert_period_count_locked(self):
         with self.assertRaises(ValidationError) as caught:
             self.soccer.full_clean()
         self.assertEqual(
             caught.exception.message_dict,
-            {"period_count": ["Matches already have scores for period 4."]},
+            {
+                "period_count": [
+                    "Matches of this sport already have period scores. "
+                    "A new period count would relabel them."
+                ]
+            },
         )
+
+    def test_sport_cannot_drop_period_count_with_stored_periods(self):
+        # 4 to 2 would show Q3 and Q4 as OT1 and OT2.
+        self.period(3)
         self.soccer.period_count = 2
+        self.assert_period_count_locked()
+
+    def test_sport_cannot_raise_period_count_with_stored_periods(self):
+        # 2 to 4 would show OT1 as Q3, and OT2 rows could no longer be saved.
+        self.soccer.period_count = 2
+        self.soccer.save()
+        self.period(4)
+        self.soccer.period_count = 4
+        self.assert_period_count_locked()
+
+    def test_sport_period_count_changes_without_stored_periods(self):
+        self.soccer.period_count = 2
+        self.soccer.save()
+        self.soccer.refresh_from_db()
+        self.assertEqual(self.soccer.period_count, 2)
+        # Another sport's periods don't lock this one.
+        rivals = self.make_team("Rivals", self.hoops, self.season)
+        hoops_match = self.build(home_team=self.hoops_team, away_team=rivals)
+        hoops_match.save()
+        MatchPeriodScore.objects.create(
+            match=hoops_match, period=1, home_points=1, away_points=0
+        )
+        self.soccer.period_count = 4
+        self.soccer.full_clean()
+
+    def test_sport_keeps_period_count_with_stored_periods(self):
+        self.period(1)
+        self.soccer.period_label = "Half"
         self.soccer.full_clean()

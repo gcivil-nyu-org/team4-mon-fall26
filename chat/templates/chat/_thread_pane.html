@@ -1,0 +1,103 @@
+{% load chat_tags %}
+<div class="card">
+  <div class="card-header">
+    <div class="d-flex align-items-center gap-3 min-w-0">
+      {% if active.kind == "team" %}
+        {% include "components/team_logo.html" with team=active.team size="md" %}
+      {% elif other_user %}
+        {% include "components/avatar.html" with person=other_user size="md" %}
+      {% else %}
+        <span class="avatar avatar-md rounded-circle bg-primary-lt" aria-hidden="true">?</span>
+      {% endif %}
+      <div class="min-w-0">
+        <h3 class="card-title text-truncate">{{ active_label }}</h3>
+        <div class="card-subtitle">{{ active_meta }}</div>
+      </div>
+    </div>
+    <div class="card-actions d-flex align-items-center gap-2">
+      <a class="btn btn-sm btn-ghost-secondary" href="{% url 'chat:conversation' active.pk %}#latest">Refresh</a>
+      {% if active.kind == "team" %}
+        <a class="btn btn-sm btn-ghost-secondary" href="{% url 'teams:detail' active.team.pk %}">Team page</a>
+      {% endif %}
+      {% if active.kind == "direct" and other_user %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-ghost-secondary" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Chat options"><i aria-hidden="true" class="ti ti-dots-vertical"></i></button>
+          <div class="dropdown-menu dropdown-menu-end">
+            {% if is_blocked %}
+              <form method="post" action="{% url 'chat:block' other_user.pk %}" onsubmit="return confirm('Unblock {{ other_user|chat_display_name }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="unblock">
+                <input type="hidden" name="next" value="{{ active.pk }}">
+                <button class="dropdown-item" type="submit">Unblock {{ other_user|chat_display_name }}</button>
+              </form>
+            {% else %}
+              <form method="post" action="{% url 'chat:block' other_user.pk %}" onsubmit="return confirm('Block {{ other_user|chat_display_name }}? You will not see their messages.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="block">
+                <input type="hidden" name="next" value="{{ active.pk }}">
+                <button class="dropdown-item text-danger" type="submit">Block {{ other_user|chat_display_name }}</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% elif active.kind == "group" %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-ghost-secondary" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Chat options"><i aria-hidden="true" class="ti ti-dots-vertical"></i></button>
+          <div class="dropdown-menu dropdown-menu-end">
+            <form method="post" action="{% url 'chat:leave' active.pk %}" onsubmit="return confirm('Leave this chat?');">
+              {% csrf_token %}
+              <button class="dropdown-item text-danger" type="submit">Leave chat</button>
+            </form>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body py-2 d-lg-none">
+    <a href="{% url 'chat:inbox' %}"><i aria-hidden="true" class="ti ti-arrow-left me-1"></i>All chats</a>
+  </div>
+  {% if older_before %}
+    <div class="card-body py-2 border-bottom">
+      <a href="{% url 'chat:conversation' active.pk %}?before={{ older_before }}">Older messages</a>
+    </div>
+  {% endif %}
+  {% if chat_messages %}
+    <div class="list-group list-group-flush pn-chat-messages">
+      {% for message in chat_messages %}
+        <div class="list-group-item d-flex align-items-start gap-3{% if message.author_id == user.pk %} pn-row-me{% endif %}"{% if forloop.last %} id="latest"{% endif %}>
+          {% include "components/avatar.html" with person=message.author size="sm" %}
+          <div class="flex-fill min-w-0">
+            <div class="fw-medium">{{ message.author|chat_display_name }}</div>
+            <div class="small text-secondary">{{ message.created_at|date:"M j, Y g:i a" }}</div>
+            <div class="mt-1">{{ message.body|linebreaksbr }}</div>
+          </div>
+          {% if message.is_flagged %}
+            <span class="badge bg-yellow-lt">Reported</span>
+          {% elif message.author_id != user.pk %}
+            <form method="post" action="{% url 'chat:flag' active.pk message.pk %}">
+              {% csrf_token %}
+              <button class="btn btn-sm btn-ghost-danger" type="submit">Report</button>
+            </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon"><i aria-hidden="true" class="ti ti-messages"></i></div>
+      <p class="empty-title">No messages yet</p>
+      <p class="empty-subtitle text-secondary">Say hello below.</p>
+    </div>
+  {% endif %}
+  <div class="card-body">
+    {% if can_post %}
+      <form method="post" action="{% url 'chat:conversation' active.pk %}#latest">
+        {% csrf_token %}
+        {% include "components/form_fields.html" %}
+        <button class="btn btn-primary" type="submit"><i aria-hidden="true" class="ti ti-send me-1"></i>Send</button>
+      </form>
+    {% else %}
+      <p class="text-secondary mb-0">You can't message this person.</p>
+    {% endif %}
+  </div>
+</div>

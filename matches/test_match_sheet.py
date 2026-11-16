@@ -2,15 +2,17 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
 from core.templatetags.ui import player_name
-from teams.models import EventType, Roster
+from teams.models import EventType, Roster, Season
 from teams.season_rules import SeasonState
 
 from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
-from .sheet_forms import MatchSheet
+from .sheet_forms import MatchSheet, played_name, stat_name
 from .stats import period_rows, save_match_sheet, team_sheets
 from .tests import MatchFixtures, ScorekeeperFixtures, make_user
 
@@ -161,6 +163,38 @@ class SaveMatchSheetTests(SheetFixtures):
         self.assertEqual(period_rows(self.match), [("Q1", 1, 0)])
         self.assertFalse(PlayerStat.objects.exists())
 
+    def test_match_closed_since_it_was_read(self):
+        # Another request closes the season or cancels the match before the save.
+        seasons = Season.objects.filter(pk=self.season.pk)
+        matches = Match.objects.filter(pk=self.match.pk)
+        for case, close, reopen in (
+            (
+                "closed season",
+                lambda: seasons.update(state=SeasonState.CLOSED),
+                lambda: seasons.update(state=SeasonState.OPEN),
+            ),
+            (
+                "cancelled match",
+                lambda: matches.update(status=Match.Status.CANCELLED),
+                lambda: matches.update(status=Match.Status.SCHEDULED),
+            ),
+        ):
+            with self.subTest(case=case):
+                close()
+                with self.assertRaises(ValidationError) as caught:
+                    self.save(
+                        periods=[(1, 1, 0)],
+                        stats={self.key(self.home, self.alex): 1},
+                    )
+                self.assertEqual(
+                    caught.exception.messages, ["This match can no longer be scored."]
+                )
+                self.assertFalse(MatchPeriodScore.objects.exists())
+                self.assertFalse(PlayerStat.objects.exists())
+                self.match.refresh_from_db()
+                self.assertIsNone(self.match.home_score)
+                reopen()
+
 
 class TeamSheetsTests(SheetFixtures):
     def test_team_sheets_rows(self):
@@ -277,6 +311,23 @@ class MatchSheetFormTests(SheetFixtures):
         self.match.refresh_from_db()
         self.assertEqual((self.match.home_score, self.match.away_score), (18, 15))
         self.assertEqual(self.match.period_scores.count(), 4)
+
+    def test_periods_ignore_bad_final(self):
+        # With every period filled, the final score fields don't count at all.
+        for final in (
+            {"home_score": "5", "away_score": ""},
+            {"home_score": "", "away_score": "3"},
+            {"home_score": "10000", "away_score": "0"},
+            {"home_score": "-1", "away_score": "x"},
+        ):
+            with self.subTest(final=final):
+                data = self.periods((1, 0), (2, 0), (0, 1), (0, 0))
+                data.update(final)
+                sheet = self.sheet(data)
+                self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+                self.assertTrue(sheet.save())
+                self.match.refresh_from_db()
+                self.assertEqual((self.match.home_score, self.match.away_score), (3, 1))
 
     def test_number_limit(self):
         stat = f"stat-{self.home.pk}-{self.alex.pk}-{self.goal.pk}"
@@ -503,3 +554,79 @@ class ScoreViewTests(SheetFixtures):
         response = self.client.get(self.score_url())
         self.assertNotContains(response, 'name="period-0-home_points"')
         self.assertContains(response, 'name="home_score"')
+
+
+class ScoreQueryCountTests(ScorekeeperFixtures):
+    """One score post runs a fixed number of queries, whatever the roster size."""
+
+    EVENT_TYPES = ("Assist", "Foul", "Goal", "Save", "Shot")
+
+    def setUp(self):
+        self.event_types = [
+            EventType.objects.create(sport=self.soccer, name=name)
+            for name in self.EVENT_TYPES
+        ]
+        self.client.force_login(self.admin)
+
+    def sheet_post(self, size):
+        """A new match with `size` players across both teams, and a full sheet."""
+        home = self.make_team(f"Home {size}", self.soccer, self.season)
+        away = self.make_team(f"Away {size}", self.soccer, self.season)
+        match = self.build(home_team=home, away_team=away)
+        match.save()
+        data = {}
+        for index in range(4):
+            data[f"period-{index}-home_points"] = "1"
+            data[f"period-{index}-away_points"] = "0"
+        for index in range(size):
+            team = (home, away)[index % 2]
+            player = make_user(f"p{size}-{index}")
+            Roster.objects.create(team=team, player=player)
+            data[played_name(team.pk, player.pk)] = "on"
+            for event_type in self.event_types:
+                data[stat_name(team.pk, player.pk, event_type.pk)] = "1"
+        return match, data
+
+    def count_queries(self, size, change=None):
+        match, data = self.sheet_post(size)
+        url = reverse("matches:score", args=[match.pk])
+        if change:
+            # Store the sheet first, so the measured post updates and deletes rows.
+            self.client.post(url, data)
+            data = change(data)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.post(url, data)
+        self.assertRedirects(
+            response,
+            reverse("matches:detail", args=[match.pk]),
+            fetch_redirect_response=False,
+        )
+        self.assertEqual(
+            PlayerStat.objects.filter(match=match).count(),
+            size * len(self.event_types) if not change else size * 2,
+        )
+        return len(queries)
+
+    def test_new_sheet_query_count_is_fixed(self):
+        small, large = self.count_queries(2), self.count_queries(20)
+        self.assertEqual(small, large)
+        self.assertLessEqual(large, 30)
+
+    def test_changed_sheet_query_count_is_fixed(self):
+        def change(data):
+            # Half the stats change, the rest go to 0, and Played boxes clear.
+            changed = {}
+            for name, value in data.items():
+                if name.startswith("played-"):
+                    continue
+                if name.startswith("stat-"):
+                    event_type = int(name.rsplit("-", 1)[1])
+                    keep = event_type in {e.pk for e in self.event_types[:2]}
+                    value = "3" if keep else "0"
+                changed[name] = value
+            return changed
+
+        small = self.count_queries(2, change)
+        large = self.count_queries(20, change)
+        self.assertEqual(small, large)
+        self.assertLessEqual(large, 30)

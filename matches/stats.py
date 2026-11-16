@@ -131,64 +131,114 @@ def check_one_team(match, *, stats, played, players):
     _check_one_team(keep, set(players), *_stored(match))
 
 
+def _check_new_rows(match, new_pairs):
+    """The rules of validate_match_player, for many new rows in 1 query.
+
+    Only new rows get the roster check, so players who left keep their rows.
+    """
+    team_ids = {match.home_team_id, match.away_team_id}
+    if any(team_id not in team_ids for team_id, _ in new_pairs):
+        raise ValidationError("Choose a team in this match.")
+    roster = set(
+        Roster.objects.filter(team_id__in=team_ids).values_list("team_id", "player_id")
+    )
+    if new_pairs - roster:
+        raise ValidationError("That player isn't on this team.")
+
+
+def _check_periods(match, periods):
+    """MatchPeriodScore.clean, without a query for each row."""
+    sport = match.home_team.sport
+    highest = sport.period_count + sport.MAX_OVERTIME_PERIODS
+    if any(period > highest for period, _, _ in periods):
+        raise ValidationError("Matches have at most 2 overtime periods.")
+
+
 def save_match_sheet(match, *, periods, final, stats, played, players):
     """Write periods, the final score, stats and appearances in one transaction.
 
     periods: [(period, home, away)], complete rows only. Their sums are the score.
     final: (home, away), used only when periods is empty.
     stats: {(team_id, player_id, event_type_id): value}. 0 deletes the row.
+        MatchSheet only posts the sport's event types, so they aren't checked here.
     played: {(team_id, player_id)} with a Played box checked.
     players: the (team_id, player_id) pairs this sheet edits. Rows of other
         pairs (players who left) stay as they are.
+
+    The query count doesn't grow with the roster or the number of event types.
     """
     with transaction.atomic():
-        locked = Match.objects.select_for_update().get(pk=match.pk)
+        locked = (
+            Match.objects.select_for_update(of=("self",))
+            .select_related("season", "home_team__sport")
+            .get(pk=match.pk)
+        )
+        # The season or match may have closed since the caller read it.
+        if not locked.can_change:
+            raise ValidationError("This match can no longer be scored.")
         players = set(players)
         stored_stats, stored_appearances = _stored(locked)
         keep = _appearances_to_keep(stats, played, players)
         _check_one_team(keep, players, stored_stats, stored_appearances)
 
+        new_stats = [
+            key for key, value in stats.items() if value and key not in stored_stats
+        ]
+        new_appearances = keep - set(stored_appearances)
+        _check_new_rows(
+            locked,
+            {(team, player) for team, player, _ in new_stats} | new_appearances,
+        )
+        _check_periods(locked, periods)
+
         MatchPeriodScore.objects.filter(match=locked).delete()
-        for period, home, away in periods:
-            row = MatchPeriodScore(
-                match=match, period=period, home_points=home, away_points=away
+        MatchPeriodScore.objects.bulk_create(
+            MatchPeriodScore(
+                match=locked, period=period, home_points=home, away_points=away
             )
-            row.full_clean(validate_unique=False)
-            row.save()
+            for period, home, away in periods
+        )
         if periods:
             final = (sum(p[1] for p in periods), sum(p[2] for p in periods))
         locked.home_score, locked.away_score = final
         locked.save(update_fields=["home_score", "away_score"])
 
+        changed, removed = [], []
         for key, value in stats.items():
             row = stored_stats.get(key)
+            if row is None:
+                continue
             if not value:
-                if row is not None:
-                    row.delete()
-                continue
-            if row is not None:
-                if row.value != value:
-                    row.value = value
-                    row.save(update_fields=["value"])
-                continue
-            team_id, player_id, event_type_id = key
-            row = PlayerStat(
-                match=match,
+                removed.append(row.pk)
+            elif row.value != value:
+                row.value = value
+                changed.append(row)
+        if removed:
+            PlayerStat.objects.filter(pk__in=removed).delete()
+        if changed:
+            PlayerStat.objects.bulk_update(changed, ["value"])
+        PlayerStat.objects.bulk_create(
+            PlayerStat(
+                match=locked,
                 team_id=team_id,
                 player_id=player_id,
                 event_type_id=event_type_id,
-                value=value,
+                value=stats[(team_id, player_id, event_type_id)],
             )
-            row.full_clean(validate_unique=False)
-            row.save()
+            for team_id, player_id, event_type_id in new_stats
+        )
 
-        for pair, row in stored_appearances.items():
-            if pair in players and pair not in keep:
-                row.delete()
-        for team_id, player_id in keep - set(stored_appearances):
-            row = MatchAppearance(match=match, team_id=team_id, player_id=player_id)
-            row.full_clean(validate_unique=False)
-            row.save()
+        gone = [
+            row.pk
+            for pair, row in stored_appearances.items()
+            if pair in players and pair not in keep
+        ]
+        if gone:
+            MatchAppearance.objects.filter(pk__in=gone).delete()
+        MatchAppearance.objects.bulk_create(
+            MatchAppearance(match=locked, team_id=team_id, player_id=player_id)
+            for team_id, player_id in new_appearances
+        )
 
     match.home_score, match.away_score = locked.home_score, locked.away_score
 

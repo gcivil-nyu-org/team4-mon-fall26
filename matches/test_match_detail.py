@@ -191,29 +191,47 @@ class MatchDetailTests(SheetFixtures):
         self.season.save()
         self.assertIsNone(self.get(self.admin).context["score_url"])
 
-    def test_query_count_fixed(self):
-        self.score(stats={self.key(self.home, self.alex): 1})
-        self.client.force_login(self.player)
-        small = self.count_queries()
-        for name in ("p1", "p2"):
-            user = make_user(name)
-            Roster.objects.create(team=self.away, player=user)
-            PlayerStat.objects.create(
-                match=self.match,
-                team=self.away,
-                player=user,
-                event_type=self.goal,
-                value=1,
+    def scored_match(self, size):
+        """A scored match with `size` players, periods, stats and one leaver."""
+        home = self.make_team(f"Home {size}", self.soccer, self.season)
+        away = self.make_team(f"Away {size}", self.soccer, self.season)
+        match = self.build(home_team=home, away_team=away, home_score=4, away_score=0)
+        match.save()
+        for period in range(1, 5):
+            MatchPeriodScore.objects.create(
+                match=match, period=period, home_points=1, away_points=0
             )
-            MatchAppearance.objects.create(
-                match=self.match, team=self.away, player=user
-            )
-        self.assertEqual(self.count_queries(), small)
+        players = [named_user(f"p{size}-{i}", "P", str(i)) for i in range(size + 1)]
+        for index, player in enumerate(players):
+            team = (home, away)[index % 2]
+            Roster.objects.create(team=team, player=player)
+            MatchAppearance.objects.create(match=match, team=team, player=player)
+            for event_type in (self.goal, self.assist):
+                PlayerStat.objects.create(
+                    match=match,
+                    team=team,
+                    player=player,
+                    event_type=event_type,
+                    value=1,
+                )
+        # The last player left the team after the match.
+        Roster.objects.filter(player=players[-1]).delete()
+        # players[0] views the page as a home team member.
+        return match, players[0]
 
-    def count_queries(self):
+    def test_query_count_fixed(self):
+        small, small_viewer = self.scored_match(2)
+        large, large_viewer = self.scored_match(20)
+        self.client.force_login(small_viewer)
         with CaptureQueriesContext(connection) as captured:
-            self.assertEqual(self.client.get(self.url()).status_code, 200)
-        return len(captured)
+            self.assertEqual(self.client.get(self.url(small)).status_code, 200)
+        expected = len(captured)
+        self.assertLessEqual(expected, 20)
+        self.client.force_login(large_viewer)
+        with self.assertNumQueries(expected):
+            response = self.client.get(self.url(large))
+        self.assertContains(response, "Left team")
+        self.assertEqual(len(response.context["tables"][0][1]), 11)
 
 
 class LinkCollector(HTMLParser):
@@ -283,3 +301,16 @@ class MatchRowLinkTests(SheetFixtures):
         self.match.save()
         self.client.force_login(self.keeper)
         self.assertContains(self.client.get(reverse("matches:mine")), self.href())
+
+    def test_my_matches_draft_season_not_linked(self):
+        # The match page is 404 for a scorekeeper while the season is a draft.
+        self.match.scorekeeper = self.keeper
+        self.match.save()
+        self.season.state = SeasonState.DRAFT
+        self.season.save()
+        self.client.force_login(self.keeper)
+        response = self.client.get(reverse("matches:mine"))
+        self.assertContains(response, "Violets")
+        self.assertNotContains(response, self.href())
+        detail = reverse("matches:detail", args=[self.match.pk])
+        self.assertEqual(self.client.get(detail).status_code, 404)

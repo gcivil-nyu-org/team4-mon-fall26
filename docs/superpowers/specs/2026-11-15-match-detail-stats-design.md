@@ -76,7 +76,6 @@ Pick A.
 
 ### `Match` helpers
 
-- `Match.has_periods`: `period_scores` exist.
 - `matches/stats.py`: `save_match_sheet(match, periods, final, stats, played)` writes periods, appearances, stats and the final score in one `transaction.atomic()` with `select_for_update()` on the match. It is the only writer.
 
 ## URLs and views

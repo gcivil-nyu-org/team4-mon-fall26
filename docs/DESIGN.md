@@ -226,6 +226,8 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 Each team name links to its team page (`components/team_link.html`). The time and the final score are `text-reset` links to the match page (`matches:detail`). Don't wrap the matchup in a link, because links can't nest. Don't use `stretched-link`, because the row holds several links. `matches/_my_match_row.html` on My matches uses the same links.
 
+On My matches, a row in a draft season doesn't link its time or score, because players get a 404 on that match page.
+
 On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
 
 A row can end with one action. Pass `action_url` and `action_label`: `{% include "components/match_row.html" with action_url=url action_label="Record score" %}`. The action renders as `btn btn-sm btn-outline-secondary`.
@@ -389,6 +391,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **Forum** | Page header with the primary action (Start a topic) → sport `form-select` filter (All topics, General, each sport) → one full-width card of topic rows: author avatar `sm`, linked title, meta line (author · sport · last activity), reply count on the right → pagination in the `card-footer` |
 | **Forum topic** | Page header: `subheader` "Forum · {sport}", title, Back to forum (outline), Delete topic (League Admin only, `btn-outline-danger`) → topic card: author avatar `md`, name, time, body, Report → Replies card: list rows, oldest first, with Report and Delete (League Admin only, `btn-ghost-danger`) → reply form card with the primary action (Post reply) |
 | **Moderation queue** | Page header: `subheader` "League Admin", title "Flagged content" → three full-width cards (Messages, Topics, Replies), each with a count and its own empty state → list rows: author avatar `sm`, name, meta line (team or sport · linked topic · time), excerpt, Dismiss (`btn-sm btn-outline-secondary`) and Delete (`btn-sm btn-outline-danger`) |
+| **Chat inbox** | Page header (`h1` "Chat", "Start a chat" action) → `row`: `col-lg-4 pn-chat-list` conversation list, `col-lg-8 pn-chat-thread` thread pane. The pane shows the label, one meta line, Refresh (`#latest`) and Team page (team chats) links, messages in `.pn-chat-messages` (newest last, `id="latest"`), an "Older messages" pager, and the composer (or "You can't message this person."). On a phone only one pane shows: the list hides on a conversation page, the thread hides on the inbox, and a d-lg-none "All chats" link goes back. One primary button in view: the Send action on a conversation page, the "Start a chat" action on the other inbox pages. |
 | **Auth (sign up, log in, verify, claim a placeholder)** | `pn-auth` card: page header, form, full-width primary button; one secondary link below the card |
 
 ### Home / dashboard panels
