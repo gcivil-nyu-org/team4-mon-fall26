@@ -38,6 +38,8 @@ class Command(BaseCommand):
                 if target is None or target == DEFAULT_PERIODS:
                     continue
                 stored = (sport.period_count, sport.period_label)
+                if stored == target:
+                    continue  # Already right: nothing to say.
                 if stored != DEFAULT_PERIODS:
                     kept += 1
                     self.stdout.write(

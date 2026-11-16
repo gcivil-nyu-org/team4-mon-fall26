@@ -264,6 +264,7 @@ Rules, per sport in name order. `periods(name)` in the tests returns the stored 
 | Condition | Action | Output line |
 |---|---|---|
 | Name not in `SPORT_PERIODS`, or mapping value is `DEFAULT_PERIODS` | none | no line |
+| Stored values already equal the mapping value (added in the build) | none | no line, not counted |
 | Stored values are not `DEFAULT_PERIODS` | none | `{name}: kept ({count} {label}, set by an admin).` |
 | A period score exists for the sport | none | `{name}: skipped (period scores stored).` |
 | Else | set the mapping value with `sport.save(update_fields=["period_count", "period_label"])` | `{name}: fixed to {count} {label}.` (dry run: `would fix to`) |

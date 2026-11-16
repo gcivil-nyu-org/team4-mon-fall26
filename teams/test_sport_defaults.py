@@ -190,3 +190,9 @@ class FixSportPeriodsTests(MatchFixtures):
         self.assertIn("Futsal: would fix to 2 Half.", output)
         # self.soccer is also a 4 Q Soccer with no period scores, so 2 fixes.
         self.assertIn("Dry run: Fixed 2, kept 0, skipped 0.", output)
+
+    def test_sport_already_at_its_periods_is_not_reported(self):
+        Sport.objects.create(name="Futsal", period_count=2, period_label="Half")
+        output = self.run_command("--dry-run")
+        self.assertNotIn("Futsal", output)
+        self.assertIn("Dry run: Fixed 1, kept 0, skipped 0.", output)
