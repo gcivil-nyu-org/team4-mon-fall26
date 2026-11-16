@@ -49,8 +49,14 @@ python manage.py test
 
 ## CI and deployment (Travis CI)
 
-Every push and pull request runs `black --check`, `flake8`, the tests and a coverage check (`.travis.yml`).
-When the build passes, a push to `testing` deploys to the testing environment and a push to
+Every push and pull request runs two jobs (`.travis.yml`):
+
+- **Lint, tests and coverage (SQLite):** `black --check`, `flake8`, the tests, a coverage check
+  (at least 80%), and a check that fails the build when a model change has no migration.
+- **Tests on Postgres:** the tests again on Postgres 17, because SQLite ignores some database
+  behavior, such as `select_for_update` ([docs/DATABASE.md](docs/DATABASE.md)).
+
+When both jobs pass, a push to `testing` deploys to the testing environment and a push to
 `main` deploys to production (`playnyu-prod`, us-east-2). Pull request builds never deploy.
 
 Run the same checks locally:
@@ -59,8 +65,11 @@ Run the same checks locally:
 pip install -r requirements-dev.txt
 black --check .
 flake8 .
-coverage run manage.py test && coverage report
+coverage run manage.py test && coverage report --fail-under=80
+python manage.py makemigrations --check --dry-run
 ```
+
+To run the tests on Postgres locally, see [docs/DATABASE.md](docs/DATABASE.md).
 
 Travis needs these variables (Settings > Environment Variables, "Display value in build log" off):
 
@@ -106,8 +115,21 @@ The roster file holds real names and emails. Keep it out of the repo: `.gitignor
 
 ```
 manage.py
-playnyu/    project settings and root URLs
-core/       starter app (home page and health check)
+playnyu/        project settings, root URLs and the database setting
+core/           home dashboard, League Admin overview and health check
+accounts/       sign up, email verification, log in and the roles page
+profiles/       player profiles
+teams/          sports, event types, seasons, divisions, teams, rosters and free agents
+matches/        matches, the schedule, scores and stats, standings and round-robin scheduling
+facilities/     NYU and NYC facilities, the map and facility pages
+chat/           team, direct and group chat, blocking, and the moderation queue
+forums/         forum topics and replies
+notifications/  in-app notifications
+audit/          audit log of League Admin changes
+templates/      the base layout and shared partials (templates/components/)
+static/         CSS and JavaScript
+docs/           team docs (see Docs above)
+.ebextensions/  Elastic Beanstalk deploy config
 ```
 
 Database: SQLite locally (`db.sqlite3`, not committed), Postgres on Neon for the deployed sites ([docs/DATABASE.md](docs/DATABASE.md)).
