@@ -3,11 +3,13 @@
 Cancelled matches stay in on purpose: the pages mark them instead of hiding them.
 """
 
-from django.db.models import Q
+from django.core.paginator import Paginator
+from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from teams.models import Roster, Season
+from teams.semesters import current_semester
 
 from .models import Match
 
@@ -68,3 +70,63 @@ def _split(matches):
     past = [match for match in matches if match.ends_at < now]
     past.reverse()
     return upcoming, past
+
+
+FACILITY_UPCOMING_PER_PAGE = 20
+FACILITY_RECENT_LIMIT = 5
+
+
+def group_by_local_date(matches):
+    """[(date, [matches])] in input order, by the local (New York) start date.
+
+    `{% regroup %}` on `starts_at.date` would use the UTC date, which is wrong
+    for a late-evening match.
+    """
+    groups = []
+    for match in matches:
+        day = timezone.localdate(match.starts_at)
+        if groups and groups[-1][0] == day:
+            groups[-1][1].append(match)
+        else:
+            groups.append((day, [match]))
+    return groups
+
+
+def facility_schedule(facility, user, page_number):
+    """Upcoming games, recent results and game counts at one facility.
+
+    Cancelled matches stay in the upcoming list, with their badge, but are
+    never the next game and never count in the stats.
+    """
+    base = schedule_matches().filter(
+        facility=facility, season__in=seasons_visible_to(user)
+    )
+    scheduled = base.scheduled()
+    now = timezone.now()
+    upcoming = base.filter(ends_at__gte=now).order_by("starts_at", "pk")
+    page_obj = Paginator(upcoming, FACILITY_UPCOMING_PER_PAGE).get_page(page_number)
+    semester = current_semester(timezone.localdate())
+    counts = scheduled.aggregate(
+        upcoming=Count("pk", filter=Q(ends_at__gte=now)),
+        semester=Count(
+            "pk",
+            filter=Q(starts_at__date__range=(semester.start_date, semester.end_date)),
+        ),
+    )
+    recent = scheduled.filter(
+        ends_at__lt=now, home_score__isnull=False, away_score__isnull=False
+    ).order_by("-starts_at", "-pk")[:FACILITY_RECENT_LIMIT]
+    sport_counts = (
+        scheduled.values(name=F("home_team__sport__name"))
+        .annotate(count=Count("pk"))
+        .order_by("-count", "name")
+    )
+    return {
+        "page_obj": page_obj,
+        "days": group_by_local_date(page_obj.object_list),
+        "next_game": upcoming.scheduled().first(),
+        "recent": list(recent),
+        "upcoming_count": counts["upcoming"],
+        "semester_count": counts["semester"],
+        "sport_counts": list(sport_counts),
+    }

@@ -2,9 +2,10 @@
 <div class="list-group-item d-flex flex-wrap align-items-center gap-3">
   <div class="flex-fill min-w-0">
     {% include "matches/_match_teams.html" %}
-    <div class="small text-secondary">{{ match.season.name }} · <span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span> · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
+    {# Players can't open a draft season's match page, so draft rows don't link to it. #}
+    <div class="small text-secondary">{{ match.season.name }} · {% if match.season.state == "draft" %}<span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span>{% else %}<a class="pn-num text-reset" href="{% url 'matches:detail' match.pk %}" title="Match page">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</a>{% endif %} · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
   </div>
-  {% if match.has_result %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% endif %}
+  {% if match.has_result %}{% if match.season.state == "draft" %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% else %}<a class="pn-num fw-bold text-reset flex-shrink-0" href="{% url 'matches:detail' match.pk %}" title="Final score, open the match page">{{ match.home_score }} – {{ match.away_score }}</a>{% endif %}{% endif %}
   {% if match.is_cancelled %}
     <span class="badge bg-secondary-lt flex-shrink-0">Cancelled</span>
   {% elif not match.can_change %}

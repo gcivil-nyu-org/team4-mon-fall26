@@ -146,6 +146,15 @@ class DashboardStandingsTests(TestCase):
         self.assertIn("Basketball", names)
         self.assertContains(response, "Basketball")
 
+    def test_standings_rows_link_teams(self):
+        term = current_semester(timezone.localdate()).term
+        Season.objects.filter(sport=self.hoops).update(term=term)
+        team = self.make_team("Hoopers", self.hoops)
+        self.join(team)
+        self.client.force_login(self.player)
+        response = self.client.get(reverse("core:home"))
+        self.assertContains(response, reverse("teams:detail", args=[team.pk]))
+
     def test_tab_row_contains_hidden_labels(self):
         """position-relative keeps visually-hidden tab text inside the scrolling row."""
         term = current_semester(timezone.localdate()).term

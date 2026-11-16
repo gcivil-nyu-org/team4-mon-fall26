@@ -24,8 +24,34 @@ class SportForm(forms.ModelForm):
 
     class Meta:
         model = Sport
-        fields = ["name"]
-        labels = {"name": "Sport name"}
+        fields = ["name", "period_count", "period_label"]
+        labels = {
+            "name": "Sport name",
+            "period_count": "Periods per match",
+            "period_label": "Period label",
+        }
+        help_texts = {
+            "period_count": "Use 0 for a sport with no periods.",
+            "period_label": "Q gives Q1, Q2. Half gives Half 1, Half 2.",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A blank period field keeps the current value (the default for a new sport).
+        for name in ("period_count", "period_label"):
+            self.fields[name].required = False
+
+    def _keep_current(self, name):
+        value = self.cleaned_data.get(name)
+        if value in (None, ""):
+            return getattr(self.instance, name)
+        return value
+
+    def clean_period_count(self):
+        return self._keep_current("period_count")
+
+    def clean_period_label(self):
+        return self._keep_current("period_label")
 
 
 class EventTypeForm(forms.ModelForm):
@@ -272,6 +298,80 @@ class FreeAgentRequestForm(SeasonFieldsMixin, forms.Form):
         if FreeAgentRequest.objects.filter(player=self.user, season=season).exists():
             raise forms.ValidationError("You already requested placement this season.")
         return season
+
+
+class FreeAgentFilterForm(forms.Form):
+    """GET filters for the public free agent list.
+
+    Every field is optional. A value that doesn't clean (a stale bookmark, a
+    closed season) is dropped, and the other filters still apply.
+    """
+
+    season = forms.ModelChoiceField(
+        queryset=Season.objects.none(),
+        label="Season",
+        required=False,
+        empty_label="All seasons",
+    )
+    sport = forms.ModelChoiceField(
+        queryset=Sport.objects.order_by("name"),
+        label="Sport",
+        required=False,
+        empty_label="All sports",
+    )
+    division = forms.ModelChoiceField(
+        queryset=Division.objects.none(),
+        label="Division",
+        required=False,
+        empty_label="Any division",
+    )
+
+    def __init__(self, *args, **kwargs):
+        # Unique IDs, so static/js/season_fields.js leaves this form alone.
+        kwargs.setdefault("auto_id", "filter_%s")
+        super().__init__(*args, **kwargs)
+        seasons = (
+            Season.objects.allowing(SeasonAction.MATCH_FREE_AGENTS)
+            .select_related("sport")
+            .order_by("start_date", "name")
+        )
+        self.fields["season"].queryset = seasons
+        self.fields["season"].label_from_instance = season_label
+        division = self.fields["division"]
+        division.queryset = Division.objects.filter(season__in=seasons)
+        # One optgroup for each season, so the list reads well with no JavaScript.
+        groups = {}
+        for item in division.queryset.select_related("season__sport").order_by(
+            "season__start_date", "season__name", "name", "pk"
+        ):
+            groups.setdefault(item.season, []).append((item.pk, item.name))
+        division.choices = [("", division.empty_label)] + [
+            (season_label(season), choices) for season, choices in groups.items()
+        ]
+
+    def clean(self):
+        cleaned = super().clean()
+        season, division = cleaned.get("season"), cleaned.get("division")
+        if season and division and division.season_id != season.pk:
+            # Drop it quietly: a division from another season would match nothing.
+            del cleaned["division"]
+        return cleaned
+
+    FILTERS = ("season", "sport", "division")
+
+    def active_filters(self):
+        """The cleaned filter values that narrow the list, by field name."""
+        # An unbound form has no cleaned_data, and fields with errors are missing.
+        self.is_valid()
+        cleaned = getattr(self, "cleaned_data", {})
+        return {
+            name: cleaned[name]
+            for name in self.FILTERS
+            if cleaned.get(name) is not None
+        }
+
+    def filter(self, queryset):
+        return queryset.filter(**self.active_filters())
 
 
 class SeasonForm(forms.ModelForm):

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}All teams · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+      <h1>All teams</h1>
+      <div class="page-meta">Every team you can see, across seasons.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'teams:list' %}"><i aria-hidden="true" class="ti ti-users-group me-1"></i>My teams</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" action="{% url 'teams:directory' %}" class="row g-2 align-items-end">
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label" for="directory-sport">Sport</label>
+          <select class="form-select" id="directory-sport" name="sport">
+            <option value="">All sports</option>
+            {% for sport in sports %}
+              <option value="{{ sport.pk }}"{% if selected.sport == sport.pk %} selected{% endif %}>{{ sport.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label" for="directory-season">Season</label>
+          <select class="form-select" id="directory-season" name="season">
+            <option value="">All seasons</option>
+            {% for season in seasons %}
+              <option value="{{ season.pk }}"{% if selected.season == season.pk %} selected{% endif %}>{{ season.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if divisions %}
+          <div class="col-sm-6 col-lg-3">
+            <label class="form-label" for="directory-division">Division</label>
+            <select class="form-select" id="directory-division" name="division">
+              <option value="">All divisions</option>
+              {% for division in divisions %}
+                <option value="{{ division.pk }}"{% if selected.division == division.pk %} selected{% endif %}>{{ division.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label" for="directory-q">Search</label>
+          <input class="form-control" id="directory-q" type="search" name="q" value="{{ selected.q }}" placeholder="Team name">
+        </div>
+        <div class="col-12">
+          <button class="btn btn-outline-secondary" type="submit">Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    {% if rows %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              <th class="text-end" title="Won">W</th>
+              <th class="text-end" title="Drawn">D</th>
+              <th class="text-end" title="Lost">L</th>
+              <th class="text-end" title="Points">Pts</th>
+              <th class="text-end" title="Position">Pos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr{% if row.is_mine %} class="pn-row-me"{% endif %}>
+                <td>
+                  {% include "components/team_link.html" with team=row.team size="sm" %}
+                  <div class="small text-secondary">{{ row.team.sport }}{% if row.team.season %} · {{ row.team.season.name }}{% endif %}{% if row.team.division %} · {{ row.team.division.name }}{% endif %}</div>
+                </td>
+                {% if row.standing and row.standing.row.played %}
+                  <td class="text-end pn-num">{{ row.standing.row.won }}</td>
+                  <td class="text-end pn-num">{{ row.standing.row.drawn }}</td>
+                  <td class="text-end pn-num">{{ row.standing.row.lost }}</td>
+                  <td class="text-end pn-num fw-bold">{{ row.standing.row.points }}</td>
+                  <td class="text-end pn-num">{{ row.standing.position|ordinal }} of {{ row.standing.of }}</td>
+                {% else %}
+                  <td class="text-end pn-num text-secondary">–</td>
+                  <td class="text-end pn-num text-secondary">–</td>
+                  <td class="text-end pn-num text-secondary">–</td>
+                  <td class="text-end pn-num text-secondary">–</td>
+                  <td class="text-end pn-num text-secondary">–</td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer d-flex align-items-center">
+          <p class="m-0 small text-secondary pn-num">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+          <nav class="ms-auto" aria-label="Team pages">
+            <ul class="pagination m-0">
+              {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link"><i aria-hidden="true" class="ti ti-chevron-left"></i>Previous</span></li>
+              {% endif %}
+              {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></a></li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">Next<i aria-hidden="true" class="ti ti-chevron-right"></i></span></li>
+              {% endif %}
+            </ul>
+          </nav>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-users-group"></i></div>
+        <p class="empty-title">No teams match these filters</p>
+        <p class="empty-subtitle text-secondary">Try different filters, or browse every team.</p>
+        <div class="empty-action"><a class="btn btn-outline-secondary" href="{% url 'teams:directory' %}">Show all teams</a></div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

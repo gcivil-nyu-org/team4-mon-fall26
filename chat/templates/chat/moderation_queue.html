@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load chat_tags %}
 {% block title %}Flagged content · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -16,8 +17,8 @@
           <div class="list-group-item d-flex align-items-start gap-3">
             {% include "components/avatar.html" with person=message.author size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ message.author.get_full_name|default:message.author.email|default:message.author.username }}</div>
-              <div class="small text-secondary">{{ message.team.name }} · {{ message.created_at|date:"M j, Y g:i a" }}</div>
+              <div class="fw-medium">{{ message.author|chat_display_name }}</div>
+              <div class="small text-secondary">{{ message.conversation|chat_queue_label }} · {{ message.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1">{{ message.body|linebreaksbr }}</div>
             </div>
             <div class="d-flex gap-2">

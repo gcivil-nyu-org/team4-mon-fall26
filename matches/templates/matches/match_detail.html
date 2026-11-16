@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load ui teams_extras %}
+{% block title %}{{ match }} · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div class="min-w-0">
+      <div class="subheader">{{ match.season.name }}{% if match.home_team.division %} · {{ match.home_team.division.name }}{% endif %}</div>
+      <h1 class="text-break">{{ match.home_team.name }} vs {{ match.away_team.name }}</h1>
+      <div class="page-meta"><span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span> · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
+    </div>
+    {% if score_url %}<a class="btn btn-primary" href="{{ score_url }}">Record score</a>{% endif %}
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row align-items-center text-center g-2">
+        <div class="col-4">
+          <div class="d-flex flex-column align-items-center gap-2 min-w-0">
+            {% include "components/team_logo.html" with team=match.home_team size="xl" %}
+            <a class="fw-medium text-break" href="{% url 'teams:detail' match.home_team_id %}">{{ match.home_team.name }}</a>
+          </div>
+        </div>
+        <div class="col-4">
+          {% if match.has_result %}
+            <div class="h1 mb-1 pn-num">{{ match.home_score }} – {{ match.away_score }}</div>
+          {% endif %}
+          {% if status == "final" %}<span class="badge bg-green-lt">Final</span>
+          {% elif status == "cancelled" %}<span class="badge bg-secondary-lt">Cancelled</span>
+          {% elif status == "awaiting" %}<span class="badge bg-yellow-lt">Awaiting score</span>
+          {% else %}<span class="badge bg-secondary-lt">Scheduled</span>{% endif %}
+        </div>
+        <div class="col-4">
+          <div class="d-flex flex-column align-items-center gap-2 min-w-0">
+            {% include "components/team_logo.html" with team=match.away_team size="xl" %}
+            <a class="fw-medium text-break" href="{% url 'teams:detail' match.away_team_id %}">{{ match.away_team.name }}</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if periods %}
+    <div class="card mb-3">
+      <div class="card-header"><h2 class="card-title">Periods</h2></div>
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              {% for label, home, away in periods %}<th class="text-end">{{ label }}</th>{% endfor %}
+              <th class="text-end" title="Total">T</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="d-flex align-items-center gap-2">{% include "components/team_logo.html" with team=match.home_team size="sm" %}<span class="fw-medium text-break">{{ match.home_team.name }}</span></div></td>
+              {% for label, home, away in periods %}<td class="text-end pn-num">{{ home }}</td>{% endfor %}
+              <td class="text-end pn-num fw-bold">{{ match.home_score }}</td>
+            </tr>
+            <tr>
+              <td><div class="d-flex align-items-center gap-2">{% include "components/team_logo.html" with team=match.away_team size="sm" %}<span class="fw-medium text-break">{{ match.away_team.name }}</span></div></td>
+              {% for label, home, away in periods %}<td class="text-end pn-num">{{ away }}</td>{% endfor %}
+              <td class="text-end pn-num fw-bold">{{ match.away_score }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if not match.has_result and not match.is_cancelled %}
+    <p class="text-secondary">Stats appear after the score is in.</p>
+  {% endif %}
+
+  <div class="row row-cards">
+    {% for sheet, rows in tables %}
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header">
+            <div class="d-flex align-items-center gap-2 min-w-0">
+              {% include "components/team_logo.html" with team=sheet.team size="sm" %}
+              <h2 class="card-title text-break">{{ sheet.team.name }}</h2>
+            </div>
+            <div class="card-actions"><span class="small text-secondary pn-num">{{ rows|length }} player{{ rows|length|pluralize }}</span></div>
+          </div>
+          {% if rows %}
+            <div class="table-responsive">
+              <table class="table table-vcenter card-table">
+                <thead>
+                  <tr>
+                    <th>Player</th>
+                    {% for event_type in event_types %}<th class="text-end" title="{{ event_type.name }}">{{ event_type.name }}</th>{% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row, values in rows %}
+                    <tr{% if row.player.pk == user.pk %} class="pn-row-me"{% endif %}>
+                      <td class="text-nowrap">
+                        <div class="d-flex align-items-center gap-2">
+                          {% include "components/avatar.html" with person=row.player size="sm" %}
+                          {% if row.player.is_active %}
+                            <a class="text-reset fw-medium" href="{% profile_url row.player %}">{{ row.player|player_name }}</a>
+                          {% else %}
+                            <span class="fw-medium">{{ row.player|player_name }}</span>
+                          {% endif %}
+                          {% if not row.on_roster %}<span class="badge bg-secondary-lt">Left team</span>
+                          {% elif match.has_result and not match.is_cancelled and not row.played %}<span class="badge bg-secondary-lt">Did not play</span>{% endif %}
+                        </div>
+                      </td>
+                      {% if row.played or not row.on_roster %}
+                        {% for value in values %}<td class="text-end pn-num{% if not value %} text-secondary{% endif %}">{{ value }}</td>{% endfor %}
+                      {% else %}
+                        {% for value in values %}<td></td>{% endfor %}
+                      {% endif %}
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="card-body">
+              <div class="empty py-3">
+                <div class="empty-icon"><i aria-hidden="true" class="ti ti-users"></i></div>
+                <p class="empty-title">No players on this roster.</p>
+                <p class="empty-subtitle text-secondary">The team's captain adds players from the team page.</p>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

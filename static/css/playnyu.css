@@ -110,3 +110,10 @@
   height: 420px;
   border-radius: inherit;
 }
+
+/* Record the score: number inputs in the match sheet tables keep room for 4 digits. */
+.pn-sheet-input { min-width: 4.5rem; }
+
+/* Chat inbox */
+.pn-chat-messages { max-height: 60vh; overflow-y: auto; }
+.pn-chat-list .list-group-item[aria-current="page"] { background: var(--pn-primary-tint); }

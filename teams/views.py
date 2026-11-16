@@ -1,9 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
-from django.db.models import Count
-from django.http import Http404
+from django.db.models import Count, F, Q
+from django.http import Http404, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
@@ -14,13 +15,15 @@ from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
-from matches.standings import compute_standings
+from matches.standings import standings_by_team
+from matches.stats import team_player_stats, team_stat_totals
 
 from .default_seasons import created_seasons_message, ensure_default_seasons
 from .forms import (
     AddPlayerForm,
     DivisionCreateForm,
     EventTypeForm,
+    FreeAgentFilterForm,
     FreeAgentRequestForm,
     SeasonForm,
     SportForm,
@@ -51,6 +54,8 @@ TRANSITION_LABELS = {
     (SeasonState.ACTIVE, SeasonState.CLOSED): "Close season",
 }
 
+FREE_AGENTS_PER_PAGE = 20
+
 
 @login_required
 def team_list(request):
@@ -58,6 +63,104 @@ def team_list(request):
         "season", "division"
     )
     return render(request, "teams/team_list.html", {"teams": teams})
+
+
+TEAMS_PER_PAGE = 20
+
+
+def _clean_filter_id(value):
+    """An int primary key from the query string, or None when it is missing."""
+    if value and value.isdecimal():
+        return int(value)
+    return None
+
+
+@login_required
+def team_directory(request):
+    """Every team the viewer can see, with filters and standings."""
+    visible_seasons = seasons_visible_to(request.user)
+    teams = (
+        Team.objects.filter(Q(season__isnull=True) | Q(season__in=visible_seasons))
+        .select_related("sport", "season", "division")
+        .order_by(F("season__start_date").desc(nulls_last=True), "name")
+    )
+    sports = (
+        Sport.objects.filter(
+            Q(teams__season__isnull=True) | Q(teams__season__in=visible_seasons)
+        )
+        .distinct()
+        .order_by("name")
+    )
+    seasons = visible_seasons.order_by(F("start_date").desc(nulls_last=True), "name")
+    sport_id = _clean_filter_id(request.GET.get("sport"))
+    season_id = _clean_filter_id(request.GET.get("season"))
+    if sport_id is not None and not Sport.objects.filter(pk=sport_id).exists():
+        sport_id = None
+    if season_id is not None and not visible_seasons.filter(pk=season_id).exists():
+        season_id = None
+    if sport_id is not None:
+        teams = teams.filter(sport_id=sport_id)
+    if season_id is not None:
+        teams = teams.filter(season_id=season_id)
+    division_id = _clean_filter_id(request.GET.get("division"))
+    if (
+        division_id is None
+        or season_id is None
+        or not Division.objects.filter(pk=division_id, season_id=season_id).exists()
+    ):
+        division_id = None
+    if division_id is not None:
+        teams = teams.filter(division_id=division_id)
+    divisions = (
+        Division.objects.filter(season_id=season_id).order_by("name")
+        if season_id is not None
+        else []
+    )
+    query = (request.GET.get("q") or "").strip()
+    if query:
+        teams = teams.filter(name__icontains=query)
+    page_obj = Paginator(teams, TEAMS_PER_PAGE).get_page(request.GET.get("page"))
+    standings = standings_by_team(
+        {team.season_id for team in page_obj if team.season_id is not None}
+    )
+    mine = set(
+        Roster.objects.filter(player=request.user).values_list("team_id", flat=True)
+    )
+    rows = [
+        {
+            "team": team,
+            "standing": standings.get(team.pk),
+            "is_mine": team.pk in mine,
+        }
+        for team in page_obj
+    ]
+    params = QueryDict(mutable=True)
+    if sport_id is not None:
+        params["sport"] = sport_id
+    if season_id is not None:
+        params["season"] = season_id
+    if division_id is not None:
+        params["division"] = division_id
+    if query:
+        params["q"] = query
+    return render(
+        request,
+        "teams/team_directory.html",
+        {
+            "page_obj": page_obj,
+            "rows": rows,
+            "sports": sports,
+            "seasons": seasons,
+            "divisions": divisions,
+            "selected": {
+                "sport": sport_id,
+                "season": season_id,
+                "division": division_id,
+                "q": query,
+            },
+            "querystring": params.urlencode(),
+        },
+    )
 
 
 @login_required
@@ -115,43 +218,50 @@ def create_team(request):
 @login_required
 def team_detail(request, pk):
     team = get_object_or_404(
-        Team.objects.select_related("captain", "season", "division"), pk=pk
+        Team.objects.select_related("captain", "season", "division", "sport"), pk=pk
     )
-    # Rosters show members' emails, so only teammates can see them.
-    if not team.roster.filter(player=request.user).exists():
+    visible_seasons = seasons_visible_to(request.user)
+    if (
+        team.season_id is not None
+        and not visible_seasons.filter(pk=team.season_id).exists()
+    ):
         raise Http404
     # Captain first, then players in the order they joined.
-    roster = team.roster.select_related("player").order_by("role", "joined_at")
+    roster = list(team.roster.select_related("player").order_by("role", "joined_at"))
+    is_member = any(entry.player_id == request.user.pk for entry in roster)
     upcoming_matches, past_matches = team_schedule(team, request.user)
-    record = None
-    if team.season_id:
-        record = next(
-            (
-                row
-                for row in compute_standings(team.season)
-                if row["team"].pk == team.pk
-            ),
-            None,
+    standing = None
+    if team.season_id is not None:
+        standing = standings_by_team([team.season_id]).get(team.pk)
+    team_stats = team_stat_totals(team, request.user)
+    stat_event_types, player_stats = team_player_stats(team, request.user)
+    if not any(row["games"] or any(row["values"]) for row in player_stats):
+        player_stats = []
+        team_stats = []
+    context = {
+        "team": team,
+        "is_member": is_member,
+        "is_captain": team.captain_id == request.user.pk,
+        "roster": roster,
+        "standing": standing,
+        "upcoming_matches": upcoming_matches,
+        "past_matches": past_matches,
+        "team_stats": team_stats,
+        "stat_event_types": stat_event_types,
+        "player_stats": player_stats,
+        "can_view_schedule": team.season_id is not None
+        and visible_seasons.filter(pk=team.season_id).exists(),
+    }
+    if is_member:
+        context.update(
+            {
+                "can_add": team.allows(SeasonAction.ADD_PLAYER),
+                "can_remove": team.allows(SeasonAction.REMOVE_PLAYER),
+                "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
+                "is_full": len(roster) >= team.max_roster_size,
+            }
         )
-    return render(
-        request,
-        "teams/team_detail.html",
-        {
-            "team": team,
-            "roster": roster,
-            "is_captain": team.captain_id == request.user.pk,
-            "is_full": len(roster) >= team.max_roster_size,
-            "can_add": team.allows(SeasonAction.ADD_PLAYER),
-            "can_remove": team.allows(SeasonAction.REMOVE_PLAYER),
-            "can_leave": team.allows(SeasonAction.LEAVE_TEAM),
-            "upcoming_matches": upcoming_matches,
-            "past_matches": past_matches,
-            "record": record,
-            "can_view_schedule": seasons_visible_to(request.user)
-            .filter(pk=team.season_id)
-            .exists(),
-        },
-    )
+    return render(request, "teams/team_detail.html", context)
 
 
 @login_required
@@ -292,6 +402,27 @@ def free_agent_pool(request):
             messages.info(request, "You already requested placement this season.")
             return redirect("teams:free_agent_pool")
 
+    # Every signed-in player sees the pool. No emails: see the template.
+    filter_form = FreeAgentFilterForm(request.GET or None)
+    pool = filter_form.filter(
+        FreeAgentRequest.objects.filter(
+            season__in=filter_form.fields["season"].queryset, player__is_active=True
+        )
+        .select_related("player", "sport", "division", "season")
+        .order_by("requested_at", "pk")
+    )
+    free_agents = Paginator(pool, FREE_AGENTS_PER_PAGE).get_page(
+        request.GET.get("page")
+    )
+    querystring = request.GET.copy()
+    querystring.pop("page", None)
+    # One query: the seasons where the viewer captains a team get a Message link.
+    captain_season_ids = set(
+        Team.objects.filter(captain=request.user, season__isnull=False).values_list(
+            "season_id", flat=True
+        )
+    )
+
     return render(
         request,
         "teams/free_agent_pool.html",
@@ -299,6 +430,11 @@ def free_agent_pool(request):
             "form": form,
             "requests": current_requests,
             "has_available_seasons": form.fields["season"].queryset.exists(),
+            "filter_form": filter_form,
+            "is_filtered": bool(filter_form.active_filters()),
+            "free_agents": free_agents,
+            "querystring": querystring.urlencode(),
+            "captain_season_ids": captain_season_ids,
         },
     )
 
@@ -539,6 +675,23 @@ def manage_sports(request):
         request,
         "teams/manage_sports.html",
         {"form": form, "sports": sports, "nav_section": "league_setup"},
+    )
+
+
+@login_required
+def edit_sport(request, pk):
+    """League Admins change a sport's name and its periods."""
+    _require_league_admin(request.user)
+    sport = get_object_or_404(Sport, pk=pk)
+    form = SportForm(request.POST or None, instance=sport)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, f"Saved {sport}.")
+        return redirect("teams:manage_sports")
+    return render(
+        request,
+        "teams/edit_sport.html",
+        {"form": form, "sport": sport, "nav_section": "league_setup"},
     )
 
 

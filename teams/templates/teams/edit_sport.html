@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ sport.name }} · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="page-header mb-4">
+          <div class="subheader">League Admin</div>
+          <h1>Edit {{ sport.name }}</h1>
+          <div class="page-meta">The periods set the score rows on each match of this sport.</div>
+        </div>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "components/form_fields.html" %}
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Save sport</button>
+            <a class="btn btn-ghost-secondary" href="{% url 'teams:manage_sports' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}
