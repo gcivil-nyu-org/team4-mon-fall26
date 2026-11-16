@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
-from teams.models import EventType, Roster
+from teams.models import Division, EventType, Roster, Team
 from teams.season_rules import SeasonState
 
 from .match_context import season_results, season_teams
@@ -353,29 +353,103 @@ class MatchPageSectionTests(SheetFixtures):
         self.assertContains(response, '<span aria-hidden="true">Lee</span>')
         self.assertContains(response, '<span class="pn-num fw-bold">2</span>')
 
-    def test_movement_card(self):
-        # Bobcats beat Violets the day before: Violets 3rd of 3.
+    def standings_rows(self, response):
+        """The <tr> markup of the match page's standings table."""
+        html = response.content.decode()
+        start = html.index(
+            '<table class="table table-vcenter card-table pn-match-table"'
+        )
+        end = html.index("</table>", start)
+        return html[start:end]
+
+    def test_standings_table_renders_every_team(self):
+        # Bobcats beat Violets the day before: Bobcats 1st, Hoopers 2nd, Violets 3rd.
         self.earlier(self.away, self.home, 1, 0)
-        self.score()  # Violets 2-1: 2nd of 3.
+        self.score()  # Violets 2-1: Bobcats 1st, Violets 2nd, Hoopers 3rd.
         response = self.get()
-        self.assertContains(response, "ti-arrow-up")
-        self.assertContains(response, "Up 1 place, from 3rd to 2nd of the season")
-        self.assertContains(response, "No change")
+        table = self.standings_rows(response)
+        for header in ("#", "Team", "P", "W", "D", "L", "Pts"):
+            self.assertIn(f">{header}</th>", table)
+        spots = [table.index(name) for name in ("Bobcats", "Violets", "Hoopers")]
+        self.assertEqual(spots, sorted(spots))
+        rows = response.context["standings_table"].rows
+        self.assertEqual(
+            [r.row["team"] for r in rows], [self.away, self.home, self.hoops_team]
+        )
         self.assertContains(
             response, reverse("matches:season_standings", args=[self.season.pk])
         )
         self.assertContains(response, "Full standings")
 
-    def test_movement_down_words(self):
-        self.earlier(self.home, self.away, 1, 0)
-        self.score(final=(0, 1))
-        response = self.get()
-        self.assertContains(response, "ti-arrow-down")
-        self.assertContains(response, "Down 1 place, from 1st to 2nd of the season")
-
-    def test_first_result_text(self):
+    def test_both_match_teams_highlighted(self):
+        self.earlier(self.away, self.home, 1, 0)
         self.score()
-        self.assertContains(self.get(), "First result", count=2)
+        table = self.standings_rows(self.get())
+        self.assertEqual(table.count('<tr class="pn-row-match">'), 2)
+        row_start = table.rindex("<tr", 0, table.index("Hoopers"))
+        hoopers_row = table[row_start:]
+        self.assertTrue(hoopers_row.startswith("<tr>"))
+
+    def test_up_and_same_markers(self):
+        self.earlier(self.away, self.home, 1, 0)
+        self.score()
+        response = self.get()
+        self.assertContains(
+            response,
+            '<span class="text-green fw-bold pn-num" role="img" '
+            'aria-label="Up 1 place, from 3rd to 2nd">▲1</span>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<span class="text-secondary fw-bold" role="img" '
+            'aria-label="No change, 1st">–</span>',
+            html=True,
+        )
+
+    def test_down_marker(self):
+        # Violets 1st; Bobcats and Hoopers 0 pts, by name.
+        self.earlier(self.home, self.away, 1, 0)
+        self.score(final=(0, 1))  # Bobcats 1st, Violets 2nd.
+        response = self.get()
+        self.assertContains(
+            response,
+            '<span class="text-red fw-bold pn-num" role="img" '
+            'aria-label="Down 1 place, from 1st to 2nd">▼1</span>',
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<span class="text-green fw-bold pn-num" role="img" '
+            'aria-label="Up 1 place, from 2nd to 1st">▲1</span>',
+            html=True,
+        )
+
+    def test_new_marker_for_a_first_result(self):
+        self.score()
+        response = self.get()
+        self.assertContains(
+            response,
+            '<span class="badge bg-secondary-lt" role="img" '
+            'aria-label="First result, 1st">New</span>',
+            html=True,
+        )
+        self.assertContains(response, ">New</span>", count=2)
+        self.assertNotContains(response, "▲")
+
+    def test_division_table_when_both_teams_share_one(self):
+        east = Division.objects.create(season=self.season, name="East")
+        Team.objects.filter(pk__in=[self.home.pk, self.away.pk]).update(division=east)
+        self.score()
+        response = self.get()
+        table = self.standings_rows(response)
+        self.assertNotIn("Hoopers", table)
+        self.assertContains(response, "East standings")
+        self.assertEqual(
+            response.context["standings_url"],
+            reverse("matches:season_standings", args=[self.season.pk])
+            + f"?division={east.pk}",
+        )
 
     def test_totals_row(self):
         self.score(stats={self.key(self.home, self.alex): 2})
@@ -485,7 +559,7 @@ class MatchPageSectionTests(SheetFixtures):
             "Top performers",
             "Team comparison",
             "Team totals",
-            "ti-arrow-up",
+            "pn-match-table",
             "Full standings",
         ):
             self.assertNotContains(response, text)
@@ -680,6 +754,6 @@ class SeasonQueryTests(SheetFixtures):
     def test_season_teams_one_query_by_name(self):
         with self.assertNumQueries(1):
             teams = season_teams(self.match)
-            [t.division for t in teams]
+            [(t.division, t.sport) for t in teams]
         self.assertEqual([t.name for t in teams], sorted(t.name for t in teams))
         self.assertIn(self.home, teams)

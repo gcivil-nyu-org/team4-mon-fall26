@@ -25,7 +25,7 @@ from .match_context import (
     head_to_head,
     season_results,
     season_teams,
-    standings_movement,
+    standings_table,
     team_context,
 )
 from .models import Match
@@ -282,9 +282,10 @@ def match_detail(request, pk):
     else:
         status = "scheduled"
     facility = match.facility
+    table = standings_table(match, teams, results)
     standings_url = reverse("matches:season_standings", args=[match.season_id])
-    if match.home_team.division_id is not None:
-        standings_url += f"?division={match.home_team.division_id}"
+    if table is not None and table.division is not None:
+        standings_url += f"?division={table.division.pk}"
     return render(
         request,
         "matches/match_detail.html",
@@ -297,7 +298,8 @@ def match_detail(request, pk):
             "status": status,
             "score_url": _score_url(user, match),
             "top_performers": leaders,
-            "movement": standings_movement(match, teams, results),
+            "standings_table": table,
+            "movement": table.movements if table is not None else None,
             "context_rows": team_context(match, teams, results),
             "h2h": head_to_head(match, results),
             "season_closed": match.season.state == SeasonState.CLOSED,

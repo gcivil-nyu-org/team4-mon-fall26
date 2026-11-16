@@ -5,7 +5,13 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
-from .match_context import Result, head_to_head, standings_movement, team_context
+from .match_context import (
+    Result,
+    head_to_head,
+    standings_movement,
+    standings_table,
+    team_context,
+)
 from .standings import positions, rank_rows
 from .stats import (
     Leader,
@@ -197,18 +203,30 @@ class MovementTests(SimpleTestCase):
         self.assertEqual(m[0].change, 0)
         self.assertEqual((m[0].after_position, m[0].after_points), (1, 3))
 
-    def test_division_table_for_division_team(self):
+    def test_shared_division_uses_the_division_table(self):
+        east = SimpleNamespace(pk=1, name="East")
+        home, away, x = team(1, "H", east), team(2, "Aw", east), team(3, "X", east)
+        q, r = team(4, "Q"), team(5, "R")
+        this = match(1, 1, home, away)
+        teams = [home, away, x, q, r]
+        table = standings_table(this, teams, [result(1, 1, home, away, 1, 0)])
+        self.assertEqual(table.division, east)
+        self.assertEqual([row.row["team"] for row in table.rows], [home, away, x])
+        m = table.movements
+        self.assertEqual((m[0].table_label, m[0].of), ("East", 3))
+        self.assertEqual(m[0].after_position, 1)
+
+    def test_one_team_without_division_uses_the_season_table(self):
         east = SimpleNamespace(pk=1, name="East")
         home, x, y = team(1, "H", east), team(2, "X", east), team(3, "Y", east)
         away, q = team(4, "Aw"), team(5, "Q")
         this = match(1, 1, home, away)
         teams = [home, x, y, away, q]
         m = standings_movement(this, teams, [result(1, 1, home, away, 1, 0)])
-        self.assertEqual((m[0].table_label, m[0].of), ("East", 3))
-        self.assertEqual(m[0].after_position, 1)
+        self.assertEqual((m[0].table_label, m[0].of), (None, 5))
         self.assertEqual((m[1].table_label, m[1].of), (None, 5))
 
-    def test_cross_division_each_own_table(self):
+    def test_cross_division_uses_the_season_table(self):
         east = SimpleNamespace(pk=1, name="East")
         west = SimpleNamespace(pk=2, name="West")
         home, x = team(1, "H", east), team(2, "X", east)
@@ -216,16 +234,34 @@ class MovementTests(SimpleTestCase):
         earlier = result(1, 1, w, v, 1, 0)
         this = match(2, 2, home, away)
         teams = [home, x, away, w, v]
-        m = standings_movement(this, teams, [earlier, result(2, 2, home, away, 0, 1)])
-        self.assertEqual((m[0].table_label, m[0].of), ("East", 2))
-        self.assertEqual((m[1].table_label, m[1].of), ("West", 3))
-        self.assertEqual(m[1].after_position, 1)
+        table = standings_table(this, teams, [earlier, result(2, 2, home, away, 0, 1)])
+        self.assertIsNone(table.division)
+        self.assertEqual(len(table.rows), 5)
+        self.assertEqual(
+            (table.movements[1].table_label, table.movements[1].of), (None, 5)
+        )
+        # Aw and W both have 3 points and 1 win; "Aw" sorts first.
+        self.assertEqual(table.movements[1].after_position, 1)
+
+    def test_table_rows_mark_only_the_match_teams(self):
+        this_result = result(10, 5, self.zed, self.b, 2, 1)
+        table = standings_table(self.this, self.teams, [*self.earlier, this_result])
+        self.assertEqual([row.position for row in table.rows], [1, 2, 3, 4, 5])
+        self.assertEqual(
+            [row.row["team"].name for row in table.rows], ["C", "E", "Zed", "B", "D"]
+        )
+        marked = {row.row["team"].name: row.movement for row in table.rows}
+        self.assertEqual(marked["Zed"].direction, "up")
+        self.assertEqual(marked["B"].direction, "down")
+        self.assertIsNone(marked["C"])
+        self.assertIsNone(marked["D"])
 
     def test_none_without_result_or_cancelled(self):
         unscored = match(10, 5, self.zed, self.b, has_result=False)
         cancelled = match(10, 5, self.zed, self.b, is_cancelled=True)
         self.assertIsNone(standings_movement(unscored, self.teams, self.earlier))
         self.assertIsNone(standings_movement(cancelled, self.teams, self.earlier))
+        self.assertIsNone(standings_table(unscored, self.teams, self.earlier))
 
 
 def person(pk, first="", last=""):

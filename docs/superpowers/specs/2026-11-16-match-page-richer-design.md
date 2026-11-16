@@ -12,7 +12,7 @@ The work starts after PR #254 (`nihal/scoring-event-types`) merges. It uses `Eve
 2. **Team context:** each team's season record and position, its last 5 results as W/D/L chips that link to those matches, and this season's head-to-head.
 3. **Box score totals:** a totals row in each team's stats table, and a side-by-side team comparison with CSS bars.
 4. **Venue and officials:** a small map, the address, a link to the venue page, and the scorekeeper's display name.
-5. **Standings movement:** each team's position and points before and after this match, with an arrow and the change, for example "▲2 (5th → 3rd)".
+5. **Standings movement:** the standings table after this match, with both teams tinted and a ▲/▼/–/New marker for each (see Decisions, 6).
 6. The page stays at a fixed number of queries, whatever the roster size or the season size.
 
 ## Non-goals
@@ -315,3 +315,4 @@ The user approved these on 2026-11-16. They replace the open questions.
 3. **`scoring_event_type` signature.** #256 ships `scoring_event_type(sport)` with 1 query. This PR adds an optional `event_types` argument: with a loaded list, it picks from the list and runs no query. The current callers keep working. The budget is `B + 2`.
 4. **Cap on top performers.** At most 3 stats per team: the scoring stat first, then the others by event type order (name). A 0 never leads.
 5. **Section order.** Scoreboard, standings movement, top performers, box score, team context, venue. If the page gets busy, cut in this order: the comparison bars, then the head-to-head list, then the map.
+6. **Standings movement is a table (changed 2026-11-16, overrides section 5 and "Rendering" below).** The card shows the full standings table as it stood after this match, with the leaderboard columns (#, Team, P, W, D, L, Pts). Both match teams' rows are tinted (`pn-row-match`). Only those two rows get a marker against the table before the match: green "▲N", red "▼N", neutral "–", or "New" for a team's first result. Each marker has `role="img"` and an `aria-label` ("Up 2 places, from 5th to 3rd", "No change, 3rd", "First result, 3rd"). Table choice: the division table when both teams share a division, else the season table (the simpler of the two options; a cross-division match shows the season table). Below 576px, P and D hide, and the table sits in `table-responsive`. No table for an upcoming, awaiting-score or cancelled match. `season_teams` now also selects `sport` (team logos), so the query count stays `B + 2`.

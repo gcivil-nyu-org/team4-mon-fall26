@@ -71,7 +71,7 @@
 .pn-num { font-variant-numeric: tabular-nums; }
 
 /* The current user's row in a table (lists use .list-group-item.pn-row-me below). */
-.table .pn-row-me > * { --tblr-table-accent-bg: var(--pn-primary-tint); background-color: var(--pn-primary-tint); }
+.table .pn-row-me > *, .table .pn-row-match > * { --tblr-table-accent-bg: var(--pn-primary-tint); background-color: var(--pn-primary-tint); }
 
 /* Narrow single-card pages: auth and simple forms. */
 .pn-auth { max-width: 26rem; margin: 2rem auto; }

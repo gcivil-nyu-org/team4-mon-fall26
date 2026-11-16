@@ -35,6 +35,10 @@
 4. **Nameless people.** A top performer and the scorekeeper have no first or last name. The page shows "PlayNYU player" and no email (Task 7).
 5. **Inactive venue.** The facility is inactive but has coordinates. No map (the marker popup would link to a 404) and no venue link; the address still shows (Task 5, Task 7).
 
+## Change after approval (2026-11-16)
+
+Standings movement renders as the full standings table after the match (spec Decisions, 6). `matches/match_context.py` gains `table_division`, `TableRow`, `StandingsTable` and `standings_table(match, teams, results)`; `standings_movement` returns `standings_table(...).movements`. The table is the shared division, else the season table. The view passes `standings_table`. `_movement.html` renders the leaderboard with `pn-row-match` rows and ▲/▼/–/New markers with `aria-label`s. Tests: full table, both teams tinted, each marker's text, colour class and label, the division table, and the unchanged query count.
+
 ---
 
 ## File structure

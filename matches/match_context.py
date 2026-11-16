@@ -41,10 +41,10 @@ def season_results(match):
 
 
 def season_teams(match):
-    """The season's teams with their divisions, by name, in 1 query."""
+    """The season's teams with their divisions and sports, by name, in 1 query."""
     return list(
         Team.objects.filter(season_id=match.season_id)
-        .select_related("division")
+        .select_related("division", "sport")
         .order_by("name")
     )
 
@@ -177,54 +177,83 @@ class Movement:
         return self.after_points - self.before_points
 
 
-def _place(standing, team):
-    """(position, of, label) in the team's division table, else the season's."""
-    if team.division_id is not None:
-        return (
-            standing["division_position"],
-            standing["division_of"],
-            team.division.name,
-        )
-    return standing["position"], standing["of"], None
+def table_division(match):
+    """The division both teams share, else None for the season table."""
+    home, away = match.home_team, match.away_team
+    if home.division_id is not None and home.division_id == away.division_id:
+        return home.division
+    return None
 
 
-def standings_movement(match, teams, results):
-    """[home, away] Movement across this match, or None when it isn't counted.
+def _table(teams, results, division):
+    """{team id: (position, row)} in the season table, or in one division's."""
+    rows = rank_rows(teams, _scores(results))
+    if division is not None:
+        rows = [row for row in rows if row["team"].division_id == division.pk]
+    return {row["team"].pk: (position, row) for position, row in enumerate(rows, 1)}
 
-    "Before" is every counted result with a smaller (starts_at, pk) key.
-    "After" is before plus this match. Later matches change neither.
+
+@dataclass
+class TableRow:
+    position: int
+    row: dict  # The rank_rows() row, after this match.
+    movement: object  # Movement for the two match teams, else None.
+
+
+@dataclass
+class StandingsTable:
+    division: object  # The shared division, or None for the season table.
+    rows: list  # TableRow per team, by position after this match.
+    movements: list  # [home, away] Movement.
+
+
+def standings_table(match, teams, results):
+    """The table after this match, with movement markers, or None.
+
+    It is None when the match isn't counted. The table is the division
+    both teams share, else the season table. "Before" is every counted
+    result with a smaller (starts_at, pk) key; "after" adds this match.
+    Later matches change neither.
     """
     if not match.has_result or match.is_cancelled:
         return None
     key = (match.starts_at, match.pk)
-    before = positions(
-        rank_rows(teams, _scores(r for r in results if (r.starts_at, r.pk) < key))
-    )
-    after = positions(
-        rank_rows(teams, _scores(r for r in results if (r.starts_at, r.pk) <= key))
-    )
-    movements = []
+    division = table_division(match)
+    before = _table(teams, [r for r in results if (r.starts_at, r.pk) < key], division)
+    after = _table(teams, [r for r in results if (r.starts_at, r.pk) <= key], division)
+    label = division.name if division is not None else None
+    movements = {}
     for team in (match.home_team, match.away_team):
         if team.pk not in after:
             continue
-        before_position, _, _ = _place(before[team.pk], team)
-        after_position, of, label = _place(after[team.pk], team)
-        if before[team.pk]["row"]["played"] == 0:
+        before_position, before_row = before[team.pk]
+        after_position, after_row = after[team.pk]
+        if before_row["played"] == 0:
             direction, change, before_position = "first", 0, None
         else:
             change = before_position - after_position
             direction = "up" if change > 0 else "down" if change < 0 else "same"
-        movements.append(
-            Movement(
-                team,
-                label,
-                before_position,
-                after_position,
-                of,
-                before[team.pk]["row"]["points"],
-                after[team.pk]["row"]["points"],
-                direction,
-                change,
-            )
+        movements[team.pk] = Movement(
+            team,
+            label,
+            before_position,
+            after_position,
+            len(after),
+            before_row["points"],
+            after_row["points"],
+            direction,
+            change,
         )
-    return movements
+    rows = [
+        TableRow(position, row, movements.get(team_id))
+        for team_id, (position, row) in sorted(
+            after.items(), key=lambda item: item[1][0]
+        )
+    ]
+    return StandingsTable(division, rows, list(movements.values()))
+
+
+def standings_movement(match, teams, results):
+    """[home, away] Movement across this match, or None when it isn't counted."""
+    table = standings_table(match, teams, results)
+    return None if table is None else table.movements
