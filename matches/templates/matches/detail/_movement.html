@@ -1,0 +1,50 @@
+{% load ui %}{# The standings table after this match, with movement markers for the two match teams. Only for a counted match. See docs/DESIGN.md, "Movement". #}
+{% with table=standings_table %}
+  <div class="card mb-3">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">{% if table.division %}{{ table.division.name }} standings{% else %}Standings{% endif %}</h2>
+        <div class="small text-secondary">After this match</div>
+      </div>
+      <div class="card-actions"><a href="{{ standings_url }}">Full standings</a></div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table pn-match-table">
+        <thead>
+          <tr>
+            <th class="w-1">#</th>
+            <th>Team</th>
+            <th class="text-end d-none d-sm-table-cell" title="Played">P</th>
+            <th class="text-end" title="Won">W</th>
+            <th class="text-end d-none d-sm-table-cell" title="Drawn">D</th>
+            <th class="text-end" title="Lost">L</th>
+            <th class="text-end" title="Points">Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in table.rows %}
+            {% with row=entry.row m=entry.movement %}
+              <tr{% if m %} class="pn-row-match"{% endif %}>
+                <td class="pn-num text-nowrap">
+                  <span class="{% if m %}fw-bold{% else %}text-secondary{% endif %}">{{ entry.position }}</span>
+                  {% if m %}
+                    {% if m.direction == "up" %}<span class="text-green fw-bold pn-num" role="img" aria-label="Up {{ m.places }} place{{ m.places|pluralize }}, from {{ m.before_position|ordinal }} to {{ m.after_position|ordinal }}">▲{{ m.places }}</span>
+                    {% elif m.direction == "down" %}<span class="text-red fw-bold pn-num" role="img" aria-label="Down {{ m.places }} place{{ m.places|pluralize }}, from {{ m.before_position|ordinal }} to {{ m.after_position|ordinal }}">▼{{ m.places }}</span>
+                    {% elif m.direction == "same" %}<span class="text-secondary fw-bold" role="img" aria-label="No change, {{ m.after_position|ordinal }}">–</span>
+                    {% else %}<span class="badge bg-secondary-lt" role="img" aria-label="First result, {{ m.after_position|ordinal }}">New</span>{% endif %}
+                  {% endif %}
+                </td>
+                <td>{% include "components/team_link.html" with team=row.team size="sm" %}</td>
+                <td class="text-end pn-num d-none d-sm-table-cell">{{ row.played }}</td>
+                <td class="text-end pn-num">{{ row.won }}</td>
+                <td class="text-end pn-num d-none d-sm-table-cell">{{ row.drawn }}</td>
+                <td class="text-end pn-num">{{ row.lost }}</td>
+                <td class="text-end pn-num fw-bold">{{ row.points }}</td>
+              </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endwith %}

@@ -82,7 +82,7 @@ class NotificationFixtures(TestCase):
 class MatchScheduledTests(NotificationFixtures):
     def test_scheduled_match_notifies_both_teams(self):
         self.make_match()
-        link = reverse("matches:season_schedule", args=[self.season.pk])
+        link = f"{reverse('matches:schedule')}?season={self.season.pk}"
         for user in (
             self.alice,
             self.bob,
@@ -185,7 +185,7 @@ class MatchChangeFixtures(NotificationFixtures):
         self.members = (self.alice, self.bob, self.home_captain, self.away_captain)
 
     def assert_one_each(self, text):
-        link = reverse("matches:season_schedule", args=[self.season.pk])
+        link = f"{reverse('matches:schedule')}?season={self.season.pk}"
         for user in self.members:
             notes = Notification.objects.filter(recipient=user)
             self.assertEqual(notes.count(), 1)
@@ -332,7 +332,7 @@ class OpenNotificationTests(NotificationFixtures):
         return reverse("notifications:open", args=[note.pk])
 
     def test_view_marks_read_and_goes_to_the_link(self):
-        link = reverse("matches:season_schedule", args=[self.season.pk])
+        link = f"{reverse('matches:schedule')}?season={self.season.pk}"
         note = Notification.objects.create(recipient=self.alice, verb="One", link=link)
         self.client.force_login(self.alice)
         response = self.client.get(self.open_url(note))

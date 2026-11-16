@@ -1,13 +1,28 @@
 from django.urls import path
 
-from . import round_robin_views, views
+from . import comment_views, round_robin_views, views
 
 app_name = "matches"
 
 urlpatterns = [
     path("<int:pk>/", views.match_detail, name="detail"),
+    path(
+        "<int:pk>/comments/<int:comment_pk>/report/",
+        comment_views.comment_report,
+        name="report_comment",
+    ),
+    path(
+        "<int:pk>/comments/<int:comment_pk>/delete/",
+        comment_views.comment_delete,
+        name="delete_comment",
+    ),
+    path(
+        "moderation/comments/<int:comment_pk>/",
+        comment_views.comment_moderate,
+        name="moderate_comment",
+    ),
     path("mine/", views.my_matches, name="mine"),
-    path("schedule/", views.schedule_seasons, name="schedule_seasons"),
+    path("schedule/", views.schedule, name="schedule"),
     path("schedule/<int:pk>/", views.season_schedule, name="season_schedule"),
     path("manage/", views.manage_matches, name="manage"),
     path("manage/new/", views.match_form, name="create"),

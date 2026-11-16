@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator
 from django.db import models, transaction
 
+from core.names import display_name
+
 from .catalog_rules import name_key, validate_catalog_name
 from .season_rules import (
     SeasonState,
@@ -89,6 +91,9 @@ class Sport(models.Model):
         return self.name
 
 
+SCORING_TAKEN = "This sport already has a scoring stat."
+
+
 class EventType(models.Model):
     """An event type belonging to one sport."""
 
@@ -98,12 +103,37 @@ class EventType(models.Model):
         related_name="event_types",
     )
     name = models.CharField(max_length=50)
+    # The stat that adds up to a team's final score. At most one per sport.
+    is_scoring = models.BooleanField(
+        "scoring stat",
+        default=False,
+        help_text="This stat adds up to a team's final score.",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["sport"],
+                condition=models.Q(is_scoring=True),
+                name="teams_eventtype_one_scoring_per_sport",
+                violation_error_message=SCORING_TAKEN,
+            )
+        ]
 
     def clean(self):
         try:
             self.name = validate_catalog_name(self.name or "")
         except ValidationError as exc:
             raise ValidationError({"name": exc.messages})
+
+        if (
+            self.is_scoring
+            and self.sport_id
+            and EventType.objects.filter(sport_id=self.sport_id, is_scoring=True)
+            .exclude(pk=self.pk)
+            .exists()
+        ):
+            raise ValidationError({"is_scoring": SCORING_TAKEN})
 
         if self.sport_id:
             for event_type in (
@@ -432,7 +462,7 @@ class Roster(models.Model):
             super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.player} on {self.team} ({self.role})"
+        return f"{display_name(self.player)} on {self.team} ({self.role})"
 
 
 class FreeAgentRequest(models.Model):
@@ -489,4 +519,4 @@ class FreeAgentRequest(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.player} seeking placement in {self.season}"
+        return f"{display_name(self.player)} seeking placement in {self.season}"

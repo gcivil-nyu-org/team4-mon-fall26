@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}{% if season %}{{ season.name }} placement{% else %}Manage placement{% endif %} · PlayNYU{% endblock %}
 {% block content %}
   {% if season %}
@@ -33,8 +34,8 @@
                 <div class="list-group-item d-flex align-items-center gap-3">
                   {% include "components/avatar.html" with person=item.player size="sm" %}
                   <div class="flex-fill min-w-0">
-                    <div class="fw-medium">{{ item.player.get_full_name|default:item.player.email }}</div>
-                    <div class="small text-secondary">{{ item.player.email }} · {{ item.sport }}{% if item.division %} · {{ item.division.name }}{% else %} · Any division{% endif %} · Requested {{ item.requested_at|date:"M j, Y" }}</div>
+                    <div class="fw-medium">{{ item.player|display_name }}</div>
+                    <div class="small text-secondary">{{ item.sport }}{% if item.division %} · {{ item.division.name }}{% else %} · Any division{% endif %} · Requested {{ item.requested_at|date:"M j, Y" }}</div>
                   </div>
                 </div>
               {% endfor %}

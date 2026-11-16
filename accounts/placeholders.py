@@ -17,6 +17,8 @@ from django.db.models import Q
 from django.template.loader import render_to_string
 from django.urls import reverse
 
+from core.names import display_name
+
 from .models import PendingAccount
 
 logger = logging.getLogger(__name__)
@@ -90,7 +92,7 @@ def send_invite_email(request_or_base_url, user, team, invited_by):
         link = request_or_base_url.build_absolute_uri(path)
     inviter = None
     if invited_by is not None:
-        inviter = invited_by.get_full_name() or invited_by.email
+        inviter = display_name(invited_by)
     body = render_to_string(
         "accounts/invite_email.txt",
         {"user": user, "team": team, "inviter": inviter, "link": link},

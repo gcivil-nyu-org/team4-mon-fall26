@@ -20,6 +20,8 @@
   --tblr-brand: #57068c;
   --pn-primary-hover: #45056f;
   --pn-primary-tint: #f3ebf9;
+  /* Chart series 2 (DESIGN.md "Charts"): the away team's comparison bar. */
+  --pn-series-2: #a78bce;
 
   /* Type */
   --tblr-font-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -69,7 +71,7 @@
 .pn-num { font-variant-numeric: tabular-nums; }
 
 /* The current user's row in a table (lists use .list-group-item.pn-row-me below). */
-.table .pn-row-me > * { --tblr-table-accent-bg: var(--pn-primary-tint); background-color: var(--pn-primary-tint); }
+.table .pn-row-me > *, .table .pn-row-match > * { --tblr-table-accent-bg: var(--pn-primary-tint); background-color: var(--pn-primary-tint); }
 
 /* Narrow single-card pages: auth and simple forms. */
 .pn-auth { max-width: 26rem; margin: 2rem auto; }
@@ -111,9 +113,75 @@
   border-radius: inherit;
 }
 
+/* Match page: the small venue map, comparison bars and legend, and W/D/L form chips. */
+.pn-map-sm { height: 240px; }
+@media (max-width: 767.98px) {
+  .pn-map-sm { height: 200px; }
+}
+.pn-bar-away { background-color: var(--pn-series-2); }
+.pn-legend { display: inline-block; flex-shrink: 0; width: 0.75rem; height: 0.75rem; border-radius: 2px; }
+.pn-form-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (max-width: 767.98px) {
+  .pn-form-chip { min-width: 2.5rem; min-height: 40px; }
+}
+
 /* Record the score: number inputs in the match sheet tables keep room for 4 digits. */
 .pn-sheet-input { min-width: 4.5rem; }
 
 /* Chat inbox */
 .pn-chat-messages { max-height: 60vh; overflow-y: auto; }
 .pn-chat-list .list-group-item[aria-current="page"] { background: var(--pn-primary-tint); }
+
+/* Clickable match rows (.pn-row-link with position-relative): the row's one .stretched-link
+   covers the row at z-index 1. Every other link and button in the row sits above it at z-index 2,
+   so team, facility, score and action links stay separately clickable. */
+.pn-row-link { cursor: pointer; }
+.pn-row-link a:not(.stretched-link), .pn-row-link .btn { position: relative; z-index: 2; }
+.list-group-item.pn-row-link:hover,
+.pn-schedule tbody tr.pn-row-link:hover { background-color: var(--tblr-bg-surface-secondary); }
+.table tr.pn-row-link:hover > * { --tblr-table-accent-bg: var(--tblr-bg-surface-secondary); background-color: var(--tblr-bg-surface-secondary); }
+
+/* Schedule: team names get room, so text-break only splits very long names. */
+@media (min-width: 768px) {
+  .pn-schedule td.pn-sched-home, .pn-schedule td.pn-sched-away { min-width: 10rem; }
+}
+
+/* Schedule: below 768px each match row is a stacked block, so the page never scrolls sideways.
+   The header row stays as a wrapping row of sort links. */
+@media (max-width: 767.98px) {
+  .pn-schedule, .pn-schedule thead, .pn-schedule tbody { display: block; }
+  .pn-schedule thead tr { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; padding: 0.5rem 1rem; }
+  .pn-schedule.table > thead > tr > th { display: block; padding: 0; border: 0; background: none; box-shadow: none; }
+  .pn-schedule.table > thead > tr > th.pn-sched-score, .pn-schedule.table > thead > tr > th.pn-sched-top { display: none; }
+  .pn-schedule tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "date sport" "home home" "away away" "score score" "venue venue" "top top";
+    gap: 0.25rem 0.75rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--tblr-border-color);
+  }
+  /* Cells drop Tabler's padding and cell shading; the row carries the pn-row-me tint. */
+  .pn-schedule.table > tbody > tr > td { display: block; padding: 0; border: 0; background: none; box-shadow: none; }
+  .pn-schedule tbody tr.pn-row-me { background-color: var(--pn-primary-tint); }
+  .pn-schedule .pn-sched-date { grid-area: date; }
+  .pn-schedule .pn-sched-sport { grid-area: sport; }
+  .pn-schedule .pn-sched-home { grid-area: home; }
+  .pn-schedule .pn-sched-away { grid-area: away; }
+  .pn-schedule .pn-sched-score { grid-area: score; }
+  .pn-schedule .pn-sched-venue { grid-area: venue; }
+  .pn-schedule .pn-sched-top { grid-area: top; }
+}
+
+/* Roles page: row buttons are touch targets below 768px (DESIGN.md section 8). */
+@media (max-width: 767.98px) {
+  .pn-roles .btn-sm { min-height: 2.5rem; }
+}

@@ -1,5 +1,10 @@
+import os
+import subprocess
+import sys
 from pathlib import Path
 
+from django.conf import settings
+from django.contrib.auth.hashers import get_hasher
 from django.test import SimpleTestCase
 
 from playnyu.database import database_config
@@ -33,3 +38,45 @@ class DatabaseConfigTests(SimpleTestCase):
         self.assertEqual(config["OPTIONS"]["sslmode"], "require")
         self.assertEqual(config["CONN_MAX_AGE"], 60)
         self.assertTrue(config["CONN_HEALTH_CHECKS"])
+
+
+MD5 = "django.contrib.auth.hashers.MD5PasswordHasher"
+PBKDF2 = "django.contrib.auth.hashers.PBKDF2PasswordHasher"
+# Loads settings in a new process with a chosen sys.argv, then prints the result.
+SCRIPT = (
+    "import sys; sys.argv = sys.argv[1:]\n"
+    "from django.conf import settings\n"
+    "print(settings.PASSWORD_HASHERS[0], settings.TESTING)\n"
+)
+
+
+class TestHasherTests(SimpleTestCase):
+    def test_test_run_uses_md5(self):
+        self.assertTrue(settings.TESTING)
+        self.assertEqual(settings.PASSWORD_HASHERS, [MD5])
+        self.assertEqual(get_hasher().algorithm, "md5")
+
+    def first_hasher(self, *argv):
+        env = {**os.environ, "DJANGO_SETTINGS_MODULE": "playnyu.settings"}
+        result = subprocess.run(
+            [sys.executable, "-c", SCRIPT, *argv],
+            cwd=settings.BASE_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.split()
+
+    def test_other_commands_keep_the_default_hasher(self):
+        for argv in (
+            ["manage.py", "runserver"],
+            ["manage.py", "migrate"],
+            ["gunicorn", "playnyu.wsgi"],
+            ["manage.py", "shell", "test"],
+        ):
+            with self.subTest(argv=argv):
+                self.assertEqual(self.first_hasher(*argv), [PBKDF2, "False"])
+
+    def test_manage_py_test_sets_the_flag(self):
+        self.assertEqual(self.first_hasher("manage.py", "test"), [MD5, "True"])

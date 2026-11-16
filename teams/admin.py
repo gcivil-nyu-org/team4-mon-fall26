@@ -71,8 +71,8 @@ class SportAdmin(admin.ModelAdmin):
 
 @admin.register(EventType)
 class EventTypeAdmin(admin.ModelAdmin):
-    list_display = ("name", "sport")
-    list_filter = ("sport",)
+    list_display = ("name", "sport", "is_scoring")
+    list_filter = ("sport", "is_scoring")
     search_fields = ("name", "sport__name")
 
 

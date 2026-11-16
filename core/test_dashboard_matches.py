@@ -230,7 +230,7 @@ class UpcomingPanelTests(DashboardMatchFixtures):
         for text in EMPTY_PANEL:
             self.assertContains(response, text)
         self.assertNotContains(response, "Recent results")
-        self.assertContains(response, reverse("matches:schedule_seasons"))
+        self.assertContains(response, reverse("matches:schedule"))
 
     def test_shows_at_most_five_upcoming_nearest_first(self):
         for day in range(1, 8):

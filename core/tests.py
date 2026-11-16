@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.template.loader import render_to_string
 from django.test import TestCase
 from django.urls import reverse
 
@@ -26,9 +27,32 @@ class UiFilterTests(TestCase):
         user = get_user_model()(first_name="alex", last_name="lee", email="al1@nyu.edu")
         self.assertEqual(initials(user), "AL")
 
-    def test_initials_fall_back_to_email(self):
-        user = get_user_model()(email="zz9@nyu.edu")
-        self.assertEqual(initials(user), "Z")
+    def test_initials_from_one_name(self):
+        self.assertEqual(initials(get_user_model()(last_name="lee")), "L")
+
+    def test_initials_never_use_email_or_username(self):
+        user = get_user_model()(email="zz9@nyu.edu", username="zz9@nyu.edu")
+        self.assertEqual(initials(user), "P")
+
+    def test_initials_for_no_user(self):
+        self.assertEqual(initials(None), "P")
+
+    def test_labelled_avatar_never_shows_email(self):
+        user = get_user_model()(email="zz9@nyu.edu", username="zz9@nyu.edu")
+        html = render_to_string(
+            "components/avatar.html", {"person": user, "labelled": True}
+        )
+        self.assertNotIn("zz9", html)
+        self.assertIn('aria-label="PlayNYU player"', html)
+        self.assertIn(">P</span>", html)
+
+    def test_labelled_avatar_uses_full_name(self):
+        user = get_user_model()(first_name="Alex", last_name="Lee", email="a@nyu.edu")
+        html = render_to_string(
+            "components/avatar.html", {"person": user, "labelled": True}
+        )
+        self.assertIn('aria-label="Alex Lee"', html)
+        self.assertIn(">AL</span>", html)
 
     def test_sport_icon(self):
         self.assertEqual(sport_icon(" Soccer "), "ti-ball-football")

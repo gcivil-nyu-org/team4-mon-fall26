@@ -5,12 +5,29 @@ from django.db import models
 from django.utils import timezone
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
+from core.names import display_name
 from teams.season_rules import SeasonAction, SeasonState, season_allows
+
+
+def _live_season_states():
+    """Season states that allow scheduling, so their matches can still be scored."""
+    return [
+        state
+        for state in SeasonState.values
+        if season_allows(state, SeasonAction.SCHEDULE_MATCH)
+    ]
 
 
 class MatchQuerySet(models.QuerySet):
     def scheduled(self):
         return self.filter(status=Match.Status.SCHEDULED)
+
+    def unscored(self):
+        """Scheduled matches with no result in a live season, at any time."""
+        return self.scheduled().filter(
+            models.Q(home_score__isnull=True) | models.Q(away_score__isnull=True),
+            season__state__in=_live_season_states(),
+        )
 
     def overlapping(self, facility, starts_at, ends_at):
         """Scheduled matches at a facility that share time with a window.
@@ -28,15 +45,10 @@ class MatchQuerySet(models.QuerySet):
         The status and season rules are the same as Match.can_change, which the
         score views check.
         """
-        live_states = [
-            state
-            for state in SeasonState.values
-            if season_allows(state, SeasonAction.SCHEDULE_MATCH)
-        ]
         return self.scheduled().filter(
             models.Q(home_score__isnull=True) | models.Q(away_score__isnull=True),
             ends_at__lt=now,
-            season__state__in=live_states,
+            season__state__in=_live_season_states(),
         )
 
 
@@ -283,7 +295,7 @@ class PlayerStat(models.Model):
             )
 
     def __str__(self):
-        return f"{self.player} {self.event_type.name} {self.value} in {self.match}"
+        return f"{display_name(self.player)} {self.event_type.name} {self.value} in {self.match}"
 
 
 class MatchAppearance(models.Model):
@@ -313,4 +325,27 @@ class MatchAppearance(models.Model):
             validate_match_player(self)
 
     def __str__(self):
-        return f"{self.player} played for {self.team} in {self.match}"
+        return f"{display_name(self.player)} played for {self.team} in {self.match}"
+
+
+class MatchComment(models.Model):
+    """One comment on a match page. Comments are flat: no nesting."""
+
+    MAX_BODY_LENGTH = 500
+
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="match_comments",
+    )
+    body = models.CharField(max_length=MAX_BODY_LENGTH)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Set by a user's report. A League Admin clears it in the moderation queue.
+    is_flagged = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"{display_name(self.author)} on {self.match}: {self.body[:40]}"

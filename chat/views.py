@@ -13,6 +13,7 @@ from teams.models import Roster, Team
 
 from .forms import MessageForm, NewConversationForm
 from .inbox import (
+    blockable_users,
     can_post,
     can_view,
     consume_new_conversation,
@@ -267,9 +268,11 @@ def _attach_shared_teams(user, people):
 @login_required
 @require_POST
 def block_user(request, user_pk):
-    User = get_user_model()
-    target = get_object_or_404(User, pk=user_pk)
-    if target.pk == request.user.pk:
+    # The same reply for a missing, inactive, placeholder or own pk, so the
+    # response doesn't tell whether an account exists.
+    target = blockable_users(request.user).filter(pk=user_pk).first()
+    if target is None:
+        django_messages.info(request, "You can't block or unblock this person.")
         return redirect("chat:inbox")
     action = request.POST.get("action")
     if action == "block":

@@ -1,14 +1,18 @@
 from django.conf import settings
 from django.db import models
 
+from core.names import display_name
+
 
 class AuditLog(models.Model):
-    """One row per League Admin change to a Team, Season, Sport, Match or Facility."""
+    """One row per League Admin change to a Team, Season, Sport, Match or Facility, or to a user's role."""
 
     class Action(models.TextChoices):
         CREATED = "created", "Created"
         UPDATED = "updated", "Updated"
         DELETED = "deleted", "Deleted"
+        GRANTED = "granted", "Granted"
+        REMOVED = "removed", "Removed"
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -28,5 +32,5 @@ class AuditLog(models.Model):
         ordering = ["-timestamp", "-pk"]
 
     def __str__(self):
-        by = self.actor or "system"
+        by = display_name(self.actor) if self.actor_id else "system"
         return f"{self.action} {self.object_type} {self.object_id} by {by}"

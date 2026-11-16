@@ -306,7 +306,7 @@ class OverviewContentTests(OverviewFixtures):
 
     def test_flagged_count_takes_one_query_per_kind(self):
         self.make_flagged_content(messages=2, topics=2, replies=2)
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             self.assertEqual(flagged_total(), 6)
 
     def test_seasons_list_leaves_out_closed_seasons(self):
@@ -351,7 +351,8 @@ class OverviewContentTests(OverviewFixtures):
         self.assertContains(response, "Change 9")
         self.assertNotContains(response, "Change 1<")
         self.assertContains(response, "System")
-        self.assertContains(response, self.admin.email)
+        self.assertContains(response, "PlayNYU player")
+        self.assertNotContains(response, self.admin.email)
 
     def test_query_count_does_not_grow_with_rows(self):
         def query_count():

@@ -1,4 +1,4 @@
-{# Both teams of a match, each with its logo. Needs `match` in context. #}
+{# Both teams of a match, each with its logo. Needs `match` in context. Pass link=False for plain-text names. #}
 <div class="d-flex flex-wrap align-items-center gap-2 fw-medium">
   {% include "components/team_link.html" with team=match.home_team size="sm" %}
   <span class="text-secondary fw-normal">vs</span>

@@ -1,0 +1,36 @@
+{% load ui teams_extras %}{# Each team's leader per stat, at most 3, scoring stat first. Only for a counted match. #}
+<div class="card mb-3">
+  <div class="card-header"><h2 class="card-title">Top performers</h2></div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for team_leaders in top_performers %}
+        <div class="col-md-6">
+          <div class="d-flex align-items-center gap-2 min-w-0 mb-2">
+            {% include "components/team_logo.html" with team=team_leaders.team size="sm" %}
+            <span class="fw-medium text-break">{{ team_leaders.team.name }}</span>
+          </div>
+          {% if team_leaders.leaders %}
+            <ul class="list-unstyled mb-0">
+              {% for leader in team_leaders.leaders %}
+                {% with full=leader.player|display_name %}
+                  <li class="d-flex align-items-center gap-2 py-1">
+                    {% include "components/avatar.html" with person=leader.player size="xs" %}
+                    {% if leader.player.is_active %}
+                      <a class="text-reset fw-medium" href="{% profile_url leader.player %}" title="{{ full }}"><span aria-hidden="true">{{ leader.short_name }}</span><span class="visually-hidden">{{ full }}</span></a>
+                    {% else %}
+                      <span class="fw-medium" title="{{ full }}"><span aria-hidden="true">{{ leader.short_name }}</span><span class="visually-hidden">{{ full }}</span></span>
+                    {% endif %}
+                    <span class="pn-num fw-bold">{{ leader.value }}</span>
+                    <span class="small text-secondary">{{ leader.event_type.name }}</span>
+                  </li>
+                {% endwith %}
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="small text-secondary mb-0">No stats recorded.</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

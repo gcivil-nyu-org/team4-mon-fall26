@@ -377,7 +377,8 @@ class TopicDetailTests(TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, "Pickup soccer on Friday")
         self.assertContains(response, "Who is in?")
-        self.assertContains(response, "author@nyu.edu")
+        self.assertContains(response, "PlayNYU player")
+        self.assertNotContains(response, "author@nyu.edu")
         self.assertContains(response, "No replies yet")
         self.assertContains(response, "btn-primary", count=1)
         self.assertContains(response, "rounded-circle")
@@ -578,7 +579,8 @@ class ModerationQueueTests(TestCase):
         self.assertContains(response, "Flagged topic")
         self.assertContains(response, "Flagged reply")
         self.assertNotContains(response, "Clean reply")
-        self.assertContains(response, "author@nyu.edu")
+        self.assertContains(response, "PlayNYU player")
+        self.assertNotContains(response, "author@nyu.edu")
         # Each row names its sport and links to its topic.
         self.assertContains(response, "Soccer ·")
         self.assertContains(response, "General ·")
@@ -617,7 +619,8 @@ class ModerationQueueTests(TestCase):
         self.assertContains(response, "No flagged topics")
         self.assertContains(response, "No flagged replies")
         self.assertContains(response, "No flagged messages")
-        self.assertContains(response, 'class="empty"', count=3)
+        self.assertContains(response, "No flagged comments")
+        self.assertContains(response, 'class="empty"', count=4)
 
     def test_non_admin_cannot_see_the_queue(self):
         self.client.force_login(self.author)

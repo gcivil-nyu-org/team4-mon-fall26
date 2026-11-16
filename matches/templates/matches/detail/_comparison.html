@@ -1,0 +1,23 @@
+{# Team totals side by side. The bars are decoration; the numbers are the text version. See docs/DESIGN.md, "Comparison bars". #}
+<div class="card mb-3">
+  <div class="card-header"><h2 class="card-title">Team comparison</h2></div>
+  <div class="card-body">
+    <div class="d-flex justify-content-between gap-3 small fw-medium mb-3">
+      <span class="d-inline-flex align-items-center gap-2 min-w-0"><span class="pn-legend bg-primary" aria-hidden="true"></span><span class="text-break">{{ match.home_team.name }}</span></span>
+      <span class="d-inline-flex align-items-center gap-2 min-w-0 text-end"><span class="text-break">{{ match.away_team.name }}</span><span class="pn-legend pn-bar-away" aria-hidden="true"></span></span>
+    </div>
+    {% for row in comparison %}
+      <div class="{% if not forloop.last %}mb-3{% endif %}">
+        <div class="d-flex justify-content-between align-items-baseline gap-2 mb-1">
+          <span class="pn-num{% if row.home > row.away %} fw-bold{% endif %}">{{ row.home }}</span>
+          <span class="small text-secondary text-center flex-fill">{{ row.event_type.name }}</span>
+          <span class="pn-num{% if row.away > row.home %} fw-bold{% endif %}">{{ row.away }}</span>
+        </div>
+        <div class="progress progress-sm" aria-hidden="true">
+          <div class="progress-bar bg-primary" style="width: {{ row.home_pct }}%"></div>
+          <div class="progress-bar pn-bar-away" style="width: {{ row.away_pct }}%"></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>

@@ -20,6 +20,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
 
+from accounts.role_admin import role_changed
+from accounts.roles import LEAGUE_ADMIN_ROLE, SCOREKEEPER_ROLE
+from core.names import display_name
 from matches.models import Match
 from teams.models import Roster, Team
 
@@ -56,10 +59,6 @@ def is_muted():
     return _muted.get()
 
 
-def _display_name(user):
-    return user.get_full_name() or user.username
-
-
 def _team_member_ids(team):
     """Roster players plus the captain: everyone a team event reaches."""
     ids = set(Roster.objects.filter(team=team).values_list("player_id", flat=True))
@@ -84,7 +83,7 @@ def _notify_ids(user_ids, verb, link=""):
 
 
 def _match_link(match):
-    return reverse("matches:season_schedule", args=[match.season_id])
+    return f"{reverse('matches:schedule')}?season={match.season_id}"
 
 
 def _notify_match_teams(match, verb, link=""):
@@ -201,7 +200,7 @@ def roster_entry_added(sender, instance, created, **kwargs):
         return
     _notify_ids(
         _team_member_ids(instance.team),
-        f"{_display_name(instance.player)} joined {instance.team}",
+        f"{display_name(instance.player)} joined {instance.team}",
         reverse("teams:detail", args=[instance.team_id]),
     )
 
@@ -216,6 +215,24 @@ def roster_entry_removed(sender, instance, **kwargs):
     ids = _team_member_ids(team) | {instance.player_id}
     _notify_ids(
         ids,
-        f"{_display_name(instance.player)} left {team}",
+        f"{display_name(instance.player)} left {team}",
         reverse("teams:detail", args=[team.pk]),
     )
+
+
+@receiver(role_changed, dispatch_uid="notify-role-changed")
+def role_changed_handler(sender, user, role, granted, actor, **kwargs):
+    """Tell only the user whose role changed (#261). The verb never has an email."""
+    by = display_name(actor)
+    link = ""
+    if not granted:
+        verb = f"{by} removed your {role} role."
+    elif role == SCOREKEEPER_ROLE:
+        verb = f"{by} made you a Scorekeeper. Your matches are on My matches."
+        link = reverse("matches:mine")
+    elif role == LEAGUE_ADMIN_ROLE:
+        verb = f"{by} made you a League Admin."
+        link = reverse("core:overview")
+    else:
+        return
+    _notify_ids({user.pk}, verb, link)

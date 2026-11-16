@@ -1,9 +1,10 @@
 {# One assigned match on My matches. Needs `match`. Pass primary=True for the page's one primary button. #}
-<div class="list-group-item d-flex flex-wrap align-items-center gap-3">
+{# The time is the row's one stretched link, except in a draft season: players get a 404 on that match page. #}
+<div class="list-group-item d-flex flex-wrap align-items-center gap-3{% if match.season.state != "draft" %} position-relative pn-row-link{% endif %}">
   <div class="flex-fill min-w-0">
-    {% include "matches/_match_teams.html" %}
-    {# Players can't open a draft season's match page, so draft rows don't link to it. #}
-    <div class="small text-secondary">{{ match.season.name }} · {% if match.season.state == "draft" %}<span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span>{% else %}<a class="pn-num text-reset" href="{% url 'matches:detail' match.pk %}" title="Match page">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</a>{% endif %} · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
+    {# Only League Admins can open a draft season's team pages. #}
+    {% if match.season.state == "draft" and not can_see_drafts %}{% include "matches/_match_teams.html" with link=False %}{% else %}{% include "matches/_match_teams.html" %}{% endif %}
+    <div class="small text-secondary">{{ match.season.name }} · {% if match.season.state == "draft" %}<span class="pn-num">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</span>{% else %}<a class="pn-num text-reset stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="Open match: {{ match.home_team.name }} vs {{ match.away_team.name }}, {{ match.starts_at|date:'D M j, g:i A' }}">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</a>{% endif %} · {% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</div>
   </div>
   {% if match.has_result %}{% if match.season.state == "draft" %}<span class="pn-num fw-bold flex-shrink-0" title="Final score">{{ match.home_score }} – {{ match.away_score }}</span>{% else %}<a class="pn-num fw-bold text-reset flex-shrink-0" href="{% url 'matches:detail' match.pk %}" title="Final score, open the match page">{{ match.home_score }} – {{ match.away_score }}</a>{% endif %}{% endif %}
   {% if match.is_cancelled %}

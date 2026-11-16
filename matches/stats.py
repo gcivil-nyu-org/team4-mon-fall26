@@ -12,8 +12,9 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q, Sum
 
-from core.templatetags.ui import player_name
+from core.names import display_name
 from teams.models import EventType, Roster, Team
+from teams.season_rules import SeasonState
 
 from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
 from .schedule import schedule_matches, seasons_visible_to
@@ -89,6 +90,101 @@ def period_rows(match):
     ]
 
 
+# --- Match page: top performers, totals and the team comparison (#255). ---
+#
+# Pure functions over team_sheets() and the loaded event types: 0 queries.
+
+TOP_PERFORMER_LIMIT = 3
+
+
+def ordered_event_types(event_types, scoring):
+    """The scoring type first when it is in event_types, then the rest in order."""
+    if scoring is None or scoring not in event_types:
+        return list(event_types)
+    return [scoring] + [t for t in event_types if t != scoring]
+
+
+@dataclass
+class Leader:
+    player: object
+    value: int
+    event_type: object
+
+    @property
+    def short_name(self):
+        """The last name, else display_name: "Lee", or "PlayNYU player"."""
+        return (self.player.last_name or "").strip() or display_name(self.player)
+
+
+@dataclass
+class TeamLeaders:
+    team: Team
+    leaders: list  # Leader per event type, scoring type first, at most 3.
+
+
+def top_performers(sheets, event_types, scoring, limit=TOP_PERFORMER_LIMIT):
+    """One TeamLeaders per sheet, in sheet order.
+
+    For each event type, the row with the highest value leads. A 0 never
+    leads, and a tie goes to _name_key. Players who left can lead.
+    """
+    ordered = ordered_event_types(event_types, scoring)
+    result = []
+    for sheet in sheets:
+        leaders = []
+        for event_type in ordered:
+            if len(leaders) == limit:
+                break
+            rows = [row for row in sheet.rows if row.stats.get(event_type.pk, 0) > 0]
+            if not rows:
+                continue
+            best = min(
+                rows,
+                key=lambda row: (
+                    -row.stats[event_type.pk],
+                    *_name_key(row.player),
+                ),
+            )
+            leaders.append(Leader(best.player, best.stats[event_type.pk], event_type))
+        result.append(TeamLeaders(sheet.team, leaders))
+    return result
+
+
+def team_totals(sheet, event_types):
+    """The sum of each event type over every row, players who left included."""
+    return [
+        sum(row.stats.get(event_type.pk, 0) for row in sheet.rows)
+        for event_type in event_types
+    ]
+
+
+@dataclass
+class ComparisonRow:
+    event_type: object
+    home: int
+    away: int
+    home_pct: int
+
+    @property
+    def away_pct(self):
+        return 100 - self.home_pct
+
+
+def comparison_rows(event_types, home_totals, away_totals, scoring):
+    """One row per event type with a total above 0, scoring type first."""
+    home_by_pk = {t.pk: v for t, v in zip(event_types, home_totals)}
+    away_by_pk = {t.pk: v for t, v in zip(event_types, away_totals)}
+    rows = []
+    for event_type in ordered_event_types(event_types, scoring):
+        home, away = home_by_pk[event_type.pk], away_by_pk[event_type.pk]
+        if home == away == 0:
+            continue
+        rows.append(
+            ComparisonRow(event_type, home, away, round(100 * home / (home + away)))
+        )
+    return rows
+
+
 def _stored(match):
     stats = {
         (row.team_id, row.player_id, row.event_type_id): row
@@ -121,7 +217,7 @@ def _check_one_team(keep, players, stored_stats, stored_appearances):
     if twice:
         users = get_user_model().objects.filter(pk__in=twice).order_by("pk")
         raise ValidationError(
-            [f"{player_name(user)} can only play for one team." for user in users]
+            [f"{display_name(user)} can only play for one team." for user in users]
         )
 
 
@@ -154,7 +250,9 @@ def _check_periods(match, periods):
         raise ValidationError("Matches have at most 2 overtime periods.")
 
 
-def save_match_sheet(match, *, periods, final, stats, played, players):
+def save_match_sheet(
+    match, *, periods, final, stats, played, players, allow_closed=False
+):
     """Write periods, the final score, stats and appearances in one transaction.
 
     periods: [(period, home, away)], complete rows only. Their sums are the score.
@@ -164,6 +262,8 @@ def save_match_sheet(match, *, periods, final, stats, played, players):
     played: {(team_id, player_id)} with a Played box checked.
     players: the (team_id, player_id) pairs this sheet edits. Rows of other
         pairs (players who left) stay as they are.
+    allow_closed: also write a closed season's match. Only seed_match_details
+        sets it, to fill history. Cancelled matches are always refused.
 
     The query count doesn't grow with the roster or the number of event types.
     """
@@ -174,7 +274,9 @@ def save_match_sheet(match, *, periods, final, stats, played, players):
             .get(pk=match.pk)
         )
         # The season or match may have closed since the caller read it.
-        if not locked.can_change:
+        closed = locked.season.state == SeasonState.CLOSED
+        history = allow_closed and closed and not locked.is_cancelled
+        if not (locked.can_change or history):
             raise ValidationError("This match can no longer be scored.")
         players = set(players)
         stored_stats, stored_appearances = _stored(locked)

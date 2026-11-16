@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
+from accounts.models import PendingAccount
+
 from .factories import make_direct, make_group, make_team, make_user
 from .models import Block, Message
 
@@ -129,3 +131,63 @@ class BlockConfirmEscapeTests(TestCase):
         Block.objects.create(blocker=self.user, blocked=self.attacker)
         self.client.force_login(self.user)
         self.assert_name_escaped_for_js(self.client.get(self.url))
+
+
+class BlockTargetPrivacyTests(TestCase):
+    """chat:block must not tell a caller whether an account exists."""
+
+    NEUTRAL = "You can't block or unblock this person."
+
+    def setUp(self):
+        self.user = make_user("alex", first_name="Alex")
+        self.mate = make_user("mate", first_name="Sam")
+        self.client.force_login(self.user)
+
+    def post_block(self, pk, action="block"):
+        return self.client.post(
+            reverse("chat:block", args=[pk]), {"action": action}, follow=True
+        )
+
+    def messages_of(self, response):
+        return [str(m) for m in response.context["messages"]]
+
+    def assert_neutral(self, pk):
+        for action in ("block", "unblock"):
+            response = self.post_block(pk, action)
+            self.assertRedirects(response, reverse("chat:inbox"))
+            self.assertEqual(self.messages_of(response), [self.NEUTRAL])
+        self.assertFalse(Block.objects.exists())
+
+    def test_missing_pk_gets_neutral_redirect(self):
+        self.assert_neutral(999999)
+
+    def test_inactive_user_gets_neutral_redirect(self):
+        self.mate.is_active = False
+        self.mate.save()
+        self.assert_neutral(self.mate.pk)
+
+    def test_placeholder_user_gets_neutral_redirect(self):
+        PendingAccount.objects.create(user=self.mate, invited_by=self.user)
+        self.assert_neutral(self.mate.pk)
+
+    def test_self_gets_neutral_redirect(self):
+        self.assert_neutral(self.user.pk)
+
+    def test_real_user_block_still_works(self):
+        response = self.post_block(self.mate.pk)
+        self.assertRedirects(response, reverse("chat:inbox"))
+        self.assertEqual(self.messages_of(response), ["Blocked."])
+        self.assertTrue(
+            Block.objects.filter(blocker=self.user, blocked=self.mate).exists()
+        )
+
+    def test_can_block_and_unblock_someone_who_blocked_you(self):
+        Block.objects.create(blocker=self.mate, blocked=self.user)
+        self.post_block(self.mate.pk)
+        self.assertTrue(
+            Block.objects.filter(blocker=self.user, blocked=self.mate).exists()
+        )
+        self.post_block(self.mate.pk, "unblock")
+        self.assertFalse(
+            Block.objects.filter(blocker=self.user, blocked=self.mate).exists()
+        )

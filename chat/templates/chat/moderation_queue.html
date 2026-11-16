@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% load chat_tags %}
+{% load chat_tags ui %}
 {% block title %}Flagged content · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-    <div><div class="subheader">League Admin</div><h1>Flagged content</h1><div class="page-meta">Review reported chat messages, forum topics and forum replies</div></div>
+    <div><div class="subheader">League Admin</div><h1>Flagged content</h1><div class="page-meta">Review reported chat messages, forum topics, forum replies and match comments</div></div>
   </div>
 
   <div class="card mb-4">
@@ -17,7 +17,7 @@
           <div class="list-group-item d-flex align-items-start gap-3">
             {% include "components/avatar.html" with person=message.author size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ message.author|chat_display_name }}</div>
+              <div class="fw-medium">{{ message.author|display_name }}</div>
               <div class="small text-secondary">{{ message.conversation|chat_queue_label }} · {{ message.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1">{{ message.body|linebreaksbr }}</div>
             </div>
@@ -56,7 +56,7 @@
           <div class="list-group-item d-flex flex-wrap align-items-start gap-3">
             {% include "components/avatar.html" with person=topic.author size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ topic.author.get_full_name|default:topic.author.email|default:topic.author.username }}</div>
+              <div class="fw-medium">{{ topic.author|display_name }}</div>
               <div class="small text-secondary text-break">{{ topic.sport_label }} · {{ topic.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1 text-break"><a class="fw-medium" href="{% url 'forums:detail' topic.pk %}">{{ topic.title }}</a></div>
               <div class="mt-1 text-break">{{ topic.body|truncatechars:200 }}</div>
@@ -85,7 +85,7 @@
     {% endif %}
   </div>
 
-  <div class="card">
+  <div class="card mb-4">
     <div class="card-header">
       <h3 class="card-title">Replies</h3>
       <div class="card-actions"><span class="text-secondary small pn-num">{{ flagged_replies|length }}</span></div>
@@ -96,7 +96,7 @@
           <div class="list-group-item d-flex flex-wrap align-items-start gap-3">
             {% include "components/avatar.html" with person=reply.author size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ reply.author.get_full_name|default:reply.author.email|default:reply.author.username }}</div>
+              <div class="fw-medium">{{ reply.author|display_name }}</div>
               <div class="small text-secondary text-break">{{ reply.topic.sport_label }} · <a href="{% url 'forums:detail' reply.topic.pk %}">{{ reply.topic.title }}</a> · {{ reply.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1 text-break">{{ reply.body|truncatechars:200 }}</div>
             </div>
@@ -120,6 +120,45 @@
         <div class="empty-icon"><i aria-hidden="true" class="ti ti-shield-check"></i></div>
         <p class="empty-title">No flagged replies</p>
         <p class="empty-subtitle text-secondary">Reported forum replies will show up here.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Match comments</h3>
+      <div class="card-actions"><span class="text-secondary small pn-num">{{ flagged_comments|length }}</span></div>
+    </div>
+    {% if flagged_comments %}
+      <div class="list-group list-group-flush">
+        {% for comment in flagged_comments %}
+          <div class="list-group-item d-flex flex-wrap align-items-start gap-3">
+            {% include "components/avatar.html" with person=comment.author size="sm" %}
+            <div class="flex-fill min-w-0">
+              <div class="fw-medium">{{ comment.author|display_name }}</div>
+              <div class="small text-secondary text-break"><a href="{% url 'matches:detail' comment.match_id %}#comments">{{ comment.match }}</a> · {{ comment.created_at|date:"M j, Y g:i a" }}</div>
+              <div class="mt-1 text-break">{{ comment.body|truncatechars:200 }}</div>
+            </div>
+            <div class="d-flex gap-2">
+              <form method="post" action="{% url 'matches:moderate_comment' comment.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="dismiss">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Dismiss</button>
+              </form>
+              <form method="post" action="{% url 'matches:moderate_comment' comment.pk %}" onsubmit="return confirm('Delete this comment?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-shield-check"></i></div>
+        <p class="empty-title">No flagged comments</p>
+        <p class="empty-subtitle text-secondary">Reported match comments will show up here.</p>
       </div>
     {% endif %}
   </div>

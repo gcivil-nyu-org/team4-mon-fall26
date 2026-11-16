@@ -65,6 +65,26 @@ Never put the connection string or password in the repo, a PR, an issue or a cha
 
 Do not commit the roster file. It holds real names and emails, and the repo is public.
 
+### Match details for the class league
+
+`seed_match_details` adds period scores, appearances and player stats to scored matches that have none. It never changes a final score or standings. Run it by hand, after `seed_class_league`.
+
+1. Connect and load the app, as in steps 1 and 3 above.
+2. Check: `python manage.py seed_match_details --default-event-types --dry-run`.
+3. Run: `python manage.py seed_match_details --default-event-types`.
+
+`--default-event-types` adds stat types to each sport that has none, before it fills the matches:
+
+| Sport | Event types | Scoring stat |
+|---|---|---|
+| Basketball | Points, Assists, Rebounds | Points |
+| Futsal | Goals, Assists, Yellow cards | Goals |
+| Volleyball | Kills, Aces | None (the final score is sets won) |
+
+A sport with any event type keeps its types. The scoring stat adds up to each team's final score. A League Admin changes it on the event types page. `--dry-run` saves no event types and no match details.
+
+A second run changes nothing. Volleyball matches get no period scores, because their final score counts sets won. The command docstring has the details.
+
 ## Go back to SQLite
 
 Remove the variable: `eb setenv DATABASE_URL= -e playnyu-test`. The site goes back to SQLite and to losing data on each deploy. The data in Neon stays until you delete the project.
@@ -76,7 +96,7 @@ Travis runs the tests twice: on SQLite with coverage, and on Postgres. SQLite ig
 To run the tests on Postgres locally:
 
 ```bash
-DATABASE_URL='postgres://USER:PASSWORD@localhost:5432/playnyu' python manage.py test
+DATABASE_URL='postgres://USER:PASSWORD@localhost:5432/playnyu' python manage.py test --parallel auto
 ```
 
 Use `select_for_update(of=("self",))` when the query also uses `select_related` on a nullable field. Otherwise Postgres rejects it with "FOR UPDATE cannot be applied to the nullable side of an outer join".

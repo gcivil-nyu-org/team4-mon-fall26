@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% load ui teams_extras %}
+{% load ui %}
 {% block title %}{{ match }} · PlayNYU{% endblock %}
+{% block head %}{% if markers %}{% include "components/map_styles.html" %}{% endif %}{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div class="min-w-0">
@@ -39,6 +40,10 @@
     </div>
   </div>
 
+  {% if standings_table %}{% include "matches/detail/_movement.html" %}{% endif %}
+
+  {% if top_performers %}{% include "matches/detail/_top_performers.html" %}{% endif %}
+
   {% if periods %}
     <div class="card mb-3">
       <div class="card-header"><h2 class="card-title">Periods</h2></div>
@@ -68,66 +73,23 @@
     </div>
   {% endif %}
 
+  {% if comparison %}{% include "matches/detail/_comparison.html" %}{% endif %}
+
   {% if not match.has_result and not match.is_cancelled %}
     <p class="text-secondary">Stats appear after the score is in.</p>
   {% endif %}
 
-  <div class="row row-cards">
-    {% for sheet, rows in tables %}
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-header">
-            <div class="d-flex align-items-center gap-2 min-w-0">
-              {% include "components/team_logo.html" with team=sheet.team size="sm" %}
-              <h2 class="card-title text-break">{{ sheet.team.name }}</h2>
-            </div>
-            <div class="card-actions"><span class="small text-secondary pn-num">{{ rows|length }} player{{ rows|length|pluralize }}</span></div>
-          </div>
-          {% if rows %}
-            <div class="table-responsive">
-              <table class="table table-vcenter card-table">
-                <thead>
-                  <tr>
-                    <th>Player</th>
-                    {% for event_type in event_types %}<th class="text-end" title="{{ event_type.name }}">{{ event_type.name }}</th>{% endfor %}
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for row, values in rows %}
-                    <tr{% if row.player.pk == user.pk %} class="pn-row-me"{% endif %}>
-                      <td class="text-nowrap">
-                        <div class="d-flex align-items-center gap-2">
-                          {% include "components/avatar.html" with person=row.player size="sm" %}
-                          {% if row.player.is_active %}
-                            <a class="text-reset fw-medium" href="{% profile_url row.player %}">{{ row.player|player_name }}</a>
-                          {% else %}
-                            <span class="fw-medium">{{ row.player|player_name }}</span>
-                          {% endif %}
-                          {% if not row.on_roster %}<span class="badge bg-secondary-lt">Left team</span>
-                          {% elif match.has_result and not match.is_cancelled and not row.played %}<span class="badge bg-secondary-lt">Did not play</span>{% endif %}
-                        </div>
-                      </td>
-                      {% if row.played or not row.on_roster %}
-                        {% for value in values %}<td class="text-end pn-num{% if not value %} text-secondary{% endif %}">{{ value }}</td>{% endfor %}
-                      {% else %}
-                        {% for value in values %}<td></td>{% endfor %}
-                      {% endif %}
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="card-body">
-              <div class="empty py-3">
-                <div class="empty-icon"><i aria-hidden="true" class="ti ti-users"></i></div>
-                <p class="empty-title">No players on this roster.</p>
-                <p class="empty-subtitle text-secondary">The team's captain adds players from the team page.</p>
-              </div>
-            </div>
-          {% endif %}
-        </div>
-      </div>
-    {% endfor %}
-  </div>
+  {% include "matches/detail/_box_score.html" %}
+
+  {% include "matches/detail/_team_context.html" %}
+
+  {% include "matches/detail/_venue.html" %}
+
+  {% include "matches/detail/_comments.html" %}
+{% endblock %}
+{% block scripts %}
+  {% if markers %}
+    {{ markers|json_script:"pn-map-markers" }}
+    {% include "components/map_assets.html" %}
+  {% endif %}
 {% endblock %}
