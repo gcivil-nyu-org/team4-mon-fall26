@@ -1,4 +1,4 @@
-# CI: every push and pull request runs lint, tests and coverage.
+# CI: every pull request, and every push to testing or main, runs lint, tests and coverage.
 # CD: a passing push to `testing` deploys to the testing environment,
 #     and a passing push to `main` deploys to production. Pull request builds never deploy.
 # AWS keys are set in Travis: Settings > Environment Variables.
@@ -7,6 +7,10 @@ dist: jammy
 python:
   - "3.12"
 cache: pip
+
+# Build pull requests, and pushes to testing and main. A pushed feature branch
+# gets its build from its PR, so it doesn't build twice.
+if: type = pull_request OR branch IN (testing, main)
 
 install:
   - pip install -r requirements-dev.txt

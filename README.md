@@ -49,7 +49,7 @@ python manage.py test --parallel auto
 
 ## CI and deployment (Travis CI)
 
-Every push and pull request runs `black --check`, `flake8`, the tests and a coverage check (`.travis.yml`).
+Every pull request, and every push to `testing` or `main`, runs `black --check`, `flake8`, the tests and a coverage check (`.travis.yml`).
 When the build passes, a push to `testing` deploys to the testing environment and a push to
 `main` deploys to production (`playnyu-prod`, us-east-2). Pull request builds never deploy.
 
