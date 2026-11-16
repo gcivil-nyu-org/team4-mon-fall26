@@ -312,8 +312,10 @@ def moderation_queue(request):
 @require_POST
 def moderate_message(request, message_pk):
     _require_league_admin(request.user)
+    # Only reported messages. Admins get no access to unreported chats.
     message = get_object_or_404(
-        Message.objects.select_related("conversation__team"), pk=message_pk
+        Message.objects.filter(is_flagged=True).select_related("conversation__team"),
+        pk=message_pk,
     )
     label = queue_label(message.conversation)
     action = request.POST.get("action")

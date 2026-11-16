@@ -119,3 +119,31 @@ class ModerationLabelTests(TestCase):
         response = self.client.get(self.queue_url)
         self.assertNotContains(response, "bea@nyu.edu")
         self.assertContains(response, "Bea")
+
+
+class ModerationOnlyReportedTests(TestCase):
+    """Admins act only on reported messages, never on unreported chats."""
+
+    def setUp(self):
+        self.admin = make_user("leagueadmin")
+        assign_role(self.admin, LEAGUE_ADMIN_ROLE)
+        self.alex = make_user("alex", first_name="Alex")
+        self.bea = make_user("bea", first_name="Bea")
+        direct = make_direct(self.alex, self.bea)
+        self.private = post_message(direct, self.bea, body="Private dm")
+        self.client.force_login(self.admin)
+
+    def moderate(self, action):
+        return self.client.post(
+            reverse("chat:moderate", args=[self.private.pk]), {"action": action}
+        )
+
+    def test_delete_unreported_direct_message_is_404(self):
+        self.assertEqual(self.moderate("delete").status_code, 404)
+        self.assertTrue(Message.objects.filter(pk=self.private.pk).exists())
+
+    def test_dismiss_unreported_direct_message_is_404(self):
+        self.assertEqual(self.moderate("dismiss").status_code, 404)
+        message = Message.objects.get(pk=self.private.pk)
+        self.assertFalse(message.is_flagged)
+        self.assertEqual(message.body, "Private dm")
