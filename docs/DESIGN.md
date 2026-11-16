@@ -258,7 +258,7 @@ The Schedule page (`matches/schedule.html`) shows every match in one `table card
 - Before a result, the score cell shows "vs". A cancelled match shows a `Cancelled` badge (`bg-secondary-lt`) and no score.
 - Under the score, the period line: the sport's `period_label`, then "home-away" per period, then `OT1 3-2` per overtime period. Example: `Q 14-12 18-15 12-14 14-10 OT1 3-2`.
 - Top: avatar `xs`, last name (or `display_name`), value and event type name. Show `—` with no stats.
-- Top performer rule: the highest value of the sport's scoring event type. That type is the sport's first `EventType` by pk. A tie goes by full name.
+- Top performer rule: the highest value of the sport's scoring stat, from `teams.event_types.scoring_event_type`: the type marked `is_scoring`, else one named Points or Goals. A tie goes by full name. A sport with no scoring stat (volleyball) shows `—`.
 - Sortable headers are links with `aria-sort` on the sorted `<th>`. The sorted header is bold with a chevron. A click on it reverses the direction.
 - Rows of the viewer's teams get `pn-row-me`.
 - Below 768px, CSS in `playnyu.css` turns each row into a stacked block: date and sport, home, away, score, venue, top. The header row becomes a wrapping row of sort links. The page never scrolls sideways.

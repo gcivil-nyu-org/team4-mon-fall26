@@ -403,7 +403,7 @@ class RowTests(TableFixtures):
         self.kim = named_user("kim", "Sam", "Kim")
         Roster.objects.create(team=self.home, player=self.lee)
         Roster.objects.create(team=self.away, player=self.kim)
-        # Created first, so it is the soccer scoring stat.
+        # No type is marked, so the name rule makes Goal the scoring stat.
         self.goal = EventType.objects.create(sport=self.soccer, name="Goal")
         self.assist = EventType.objects.create(sport=self.soccer, name="Assist")
 
@@ -493,7 +493,7 @@ class RowTests(TableFixtures):
         row = self.get(tab="results").context["matches"][0]
         self.assertEqual(row.period_line, "")
 
-    def test_top_performer_is_the_best_first_event_type(self):
+    def test_top_performer_is_the_best_of_the_scoring_stat(self):
         match = self.scored()
         self.stat(match, self.lee, self.home, 2)
         self.stat(match, self.kim, self.away, 1)
@@ -506,6 +506,32 @@ class RowTests(TableFixtures):
         )
         self.assertContains(response, "Lee</span>")
         self.assertContains(response, '<span class="pn-num fw-medium">2</span>')
+
+    def test_marked_scoring_stat_wins_over_the_first_by_pk(self):
+        # #257: the marked type leads, not the sport's first type by pk.
+        self.assist.is_scoring = True
+        self.assist.save()
+        match = self.scored()
+        self.stat(match, self.lee, self.home, 2)
+        self.stat(match, self.kim, self.away, 9, self.assist)
+        top = self.get(tab="results").context["matches"][0].top_performer
+        self.assertEqual(
+            (top.player, top.value, top.event_type), (self.kim, 9, self.assist)
+        )
+
+    def test_no_scoring_stat_shows_a_dash(self):
+        # Volleyball-style: event types, but none marked and none named Points.
+        kills_sport = Sport.objects.create(name="Volleyball")
+        kills = EventType.objects.create(sport=kills_sport, name="Kills")
+        reds = self.make_team("Reds", kills_sport, self.season)
+        blues = self.make_team("Blues", kills_sport, self.season)
+        spiker = named_user("spiker", "Sky", "Spiker")
+        Roster.objects.create(team=reds, player=spiker)
+        match = self.scored(home_team=reds, away_team=blues)
+        self.stat(match, spiker, reds, 12, kills)
+        response = self.get(tab="results")
+        self.assertIsNone(response.context["matches"][0].top_performer)
+        self.assertContains(response, 'title="No stats">—</span>')
 
     def test_top_performer_tie_goes_by_name(self):
         match = self.scored()
