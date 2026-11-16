@@ -182,10 +182,6 @@ class Match(models.Model):
         """Both scores are recorded, so the match counts in the standings."""
         return self.home_score is not None and self.away_score is not None
 
-    @property
-    def has_periods(self):
-        return self.period_scores.exists()
-
     def __str__(self):
         return f"{self.home_team} vs {self.away_team}"
 

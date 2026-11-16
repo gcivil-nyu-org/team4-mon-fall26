@@ -125,13 +125,6 @@ class MatchStatModelTests(MatchFixtures):
         with self.assertRaises(ProtectedError):
             self.goal.delete()
 
-    def test_has_periods(self):
-        self.assertFalse(self.match.has_periods)
-        MatchPeriodScore.objects.create(
-            match=self.match, period=1, home_points=1, away_points=0
-        )
-        self.assertTrue(self.match.has_periods)
-
     def period(self, period):
         return MatchPeriodScore.objects.create(
             match=self.match, period=period, home_points=1, away_points=0
