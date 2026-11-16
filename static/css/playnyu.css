@@ -180,3 +180,8 @@
   .pn-schedule .pn-sched-venue { grid-area: venue; }
   .pn-schedule .pn-sched-top { grid-area: top; }
 }
+
+/* Roles page: row buttons are touch targets below 768px (DESIGN.md section 8). */
+@media (max-width: 767.98px) {
+  .pn-roles .btn-sm { min-height: 2.5rem; }
+}

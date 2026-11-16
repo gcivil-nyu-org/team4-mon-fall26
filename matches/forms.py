@@ -3,7 +3,9 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import Q
+from django.urls import reverse
 from django.utils.crypto import salted_hmac
+from django.utils.html import format_html
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
 from core.names import display_name
@@ -71,6 +73,16 @@ class MatchForm(forms.ModelForm):
         )
         self.fields["scorekeeper"].label_from_instance = display_name
         self.fields["scorekeeper"].empty_label = "No scorekeeper yet"
+        # form_fields.html renders help text with |safe, so build it with format_html.
+        roles_url = reverse("accounts:roles")
+        # Count role holders only: a kept former scorekeeper doesn't count.
+        if users_with_role(SCOREKEEPER_ROLE).exists():
+            hint = 'Only Scorekeepers are listed. <a href="{}">Manage roles</a>'
+        else:
+            hint = (
+                'No one has the Scorekeeper role yet. <a href="{}">Grant the role</a>'
+            )
+        self.fields["scorekeeper"].help_text = format_html(hint, roles_url)
         for name in ("starts_at", "ends_at"):
             self.fields[name].input_formats = [DATETIME_FORMAT]
 

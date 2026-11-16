@@ -174,8 +174,11 @@ class LeagueSetupHubTests(TestCase):
                 "waiting_requests": 1,
                 "upcoming_matches": 0,
                 "facilities": 0,
+                "league_admins": 1,
+                "scorekeepers": 0,
             },
         )
+        self.assertContains(response, f'href="{reverse("accounts:roles")}"')
 
     def test_waiting_requests_only_count_seasons_that_can_be_matched(self):
         soccer = Sport.objects.create(name="Soccer")

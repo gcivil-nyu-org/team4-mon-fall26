@@ -129,3 +129,20 @@ class MutedTests(TestCase):
             thread.start()
             thread.join()
         self.assertEqual(seen, [False])
+
+
+class RoleActionTests(TestCase):
+    def test_role_actions_exist(self):
+        self.assertEqual(AuditLog.Action.GRANTED, "granted")
+        self.assertEqual(AuditLog.Action.GRANTED.label, "Granted")
+        self.assertEqual(AuditLog.Action.REMOVED, "removed")
+        self.assertEqual(AuditLog.Action.REMOVED.label, "Removed")
+
+    def test_role_row_saves(self):
+        row = AuditLog.objects.create(
+            action=AuditLog.Action.GRANTED,
+            object_type="Role",
+            object_id="7",
+            object_repr="Scorekeeper to Alex Lee",
+        )
+        self.assertEqual(row.get_action_display(), "Granted")

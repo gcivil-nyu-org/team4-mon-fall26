@@ -11,7 +11,8 @@ from django.utils.dateformat import format as date_format
 from django.views.decorators.http import require_POST
 
 from accounts.placeholders import placeholder_for, send_invite_email_safely
-from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
+from accounts.role_admin import league_admin_count, listable_users
+from accounts.roles import LEAGUE_ADMIN_ROLE, SCOREKEEPER_ROLE, has_role
 from facilities.models import Facility
 from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
@@ -505,6 +506,11 @@ def league_setup(request):
         )
         .count(),
         "facilities": Facility.objects.count(),
+        "league_admins": league_admin_count(),
+        "scorekeepers": listable_users()
+        .filter(groups__name=SCOREKEEPER_ROLE)
+        .distinct()
+        .count(),
     }
     return render(
         request,

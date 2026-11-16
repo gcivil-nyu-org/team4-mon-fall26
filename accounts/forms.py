@@ -5,6 +5,7 @@ from django.contrib.auth.forms import (
     SetPasswordMixin,
     UserCreationForm,
 )
+from django.db.models import Q
 
 from .placeholders import find_user_by_email, is_placeholder, normalize_email
 
@@ -144,3 +145,55 @@ class ResendVerificationForm(forms.Form):
 
     def clean_email(self):
         return self.cleaned_data["email"].strip().lower()
+
+
+class RoleFilterForm(forms.Form):
+    """The roles page GET filter (#261). A bad value drops out; it never gives 400."""
+
+    q = forms.CharField(
+        required=False,
+        max_length=100,
+        strip=True,
+        label="Search",
+        widget=forms.TextInput(attrs={"placeholder": "Name or email"}),
+    )
+    role = forms.ChoiceField(
+        required=False,
+        label="Role",
+        choices=[
+            ("", "All people"),
+            ("scorekeeper", "Scorekeepers"),
+            ("league_admin", "League Admins"),
+        ],
+    )
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("auto_id", "roles_%s")
+        super().__init__(*args, **kwargs)
+
+    def cleaned(self):
+        """The valid, non-empty values, in the order q, role."""
+        if not self.is_bound:
+            return {}
+        self.is_valid()
+        data = getattr(self, "cleaned_data", {})
+        return {
+            name: data[name]
+            for name in ("q", "role")
+            if name not in self.errors and data.get(name)
+        }
+
+    def filter(self, queryset):
+        values = self.cleaned()
+        for word in values.get("q", "").split():
+            queryset = queryset.filter(
+                Q(first_name__icontains=word)
+                | Q(last_name__icontains=word)
+                | Q(email__icontains=word)
+            )
+        role = values.get("role")
+        if role == "scorekeeper":
+            queryset = queryset.filter(is_scorekeeper=True)
+        elif role == "league_admin":
+            queryset = queryset.filter(is_league_admin=True)
+        return queryset

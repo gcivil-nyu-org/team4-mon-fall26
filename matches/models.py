@@ -9,9 +9,25 @@ from core.names import display_name
 from teams.season_rules import SeasonAction, SeasonState, season_allows
 
 
+def _live_season_states():
+    """Season states that allow scheduling, so their matches can still be scored."""
+    return [
+        state
+        for state in SeasonState.values
+        if season_allows(state, SeasonAction.SCHEDULE_MATCH)
+    ]
+
+
 class MatchQuerySet(models.QuerySet):
     def scheduled(self):
         return self.filter(status=Match.Status.SCHEDULED)
+
+    def unscored(self):
+        """Scheduled matches with no result in a live season, at any time."""
+        return self.scheduled().filter(
+            models.Q(home_score__isnull=True) | models.Q(away_score__isnull=True),
+            season__state__in=_live_season_states(),
+        )
 
     def overlapping(self, facility, starts_at, ends_at):
         """Scheduled matches at a facility that share time with a window.
@@ -29,15 +45,10 @@ class MatchQuerySet(models.QuerySet):
         The status and season rules are the same as Match.can_change, which the
         score views check.
         """
-        live_states = [
-            state
-            for state in SeasonState.values
-            if season_allows(state, SeasonAction.SCHEDULE_MATCH)
-        ]
         return self.scheduled().filter(
             models.Q(home_score__isnull=True) | models.Q(away_score__isnull=True),
             ends_at__lt=now,
-            season__state__in=live_states,
+            season__state__in=_live_season_states(),
         )
 
 
