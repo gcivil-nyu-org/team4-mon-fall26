@@ -14,6 +14,7 @@ from django.db.models import Count, Prefetch, Q, Sum
 
 from core.templatetags.ui import player_name
 from teams.models import EventType, Roster, Team
+from teams.season_rules import SeasonState
 
 from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
 from .schedule import schedule_matches, seasons_visible_to
@@ -154,7 +155,9 @@ def _check_periods(match, periods):
         raise ValidationError("Matches have at most 2 overtime periods.")
 
 
-def save_match_sheet(match, *, periods, final, stats, played, players):
+def save_match_sheet(
+    match, *, periods, final, stats, played, players, allow_closed=False
+):
     """Write periods, the final score, stats and appearances in one transaction.
 
     periods: [(period, home, away)], complete rows only. Their sums are the score.
@@ -164,6 +167,8 @@ def save_match_sheet(match, *, periods, final, stats, played, players):
     played: {(team_id, player_id)} with a Played box checked.
     players: the (team_id, player_id) pairs this sheet edits. Rows of other
         pairs (players who left) stay as they are.
+    allow_closed: also write a closed season's match. Only seed_match_details
+        sets it, to fill history. Cancelled matches are always refused.
 
     The query count doesn't grow with the roster or the number of event types.
     """
@@ -174,7 +179,9 @@ def save_match_sheet(match, *, periods, final, stats, played, players):
             .get(pk=match.pk)
         )
         # The season or match may have closed since the caller read it.
-        if not locked.can_change:
+        closed = locked.season.state == SeasonState.CLOSED
+        history = allow_closed and closed and not locked.is_cancelled
+        if not (locked.can_change or history):
             raise ValidationError("This match can no longer be scored.")
         players = set(players)
         stored_stats, stored_appearances = _stored(locked)
