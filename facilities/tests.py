@@ -10,6 +10,7 @@ from django.urls import reverse
 from accounts.roles import LEAGUE_ADMIN_ROLE, assign_role
 from teams.models import Sport
 
+from .maps import map_marker
 from .models import Facility
 
 
@@ -425,3 +426,22 @@ class ManageFacilityPageTests(ManageFacilityTestData):
         self.city.refresh_from_db()
         self.assertEqual(self.city.name, "Pier 40")
         self.assertEqual(self.city.source, Facility.Source.CITY)
+
+
+class MapMarkerTests(TestCase):
+    def test_map_marker(self):
+        facility = Facility.objects.create(
+            name="Pier 40",
+            source=Facility.Source.NYU,
+            latitude=Decimal("40.7290"),
+            longitude=Decimal("-74.0110"),
+        )
+        self.assertEqual(
+            map_marker(facility),
+            {
+                "name": "Pier 40",
+                "lat": 40.729,
+                "lng": -74.011,
+                "url": reverse("facilities:detail", args=[facility.pk]),
+            },
+        )
