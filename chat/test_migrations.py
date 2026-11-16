@@ -63,14 +63,18 @@ class MoveTeamChatsTests(TransactionTestCase):
     def test_backward_restores_team_and_thread_read(self):
         new_apps = self.migrate(self.migrate_to)
         User = new_apps.get_model("auth", "User")
-        Sport = new_apps.get_model("teams", "Sport")
         Team = new_apps.get_model("teams", "Team")
         Conversation = new_apps.get_model("chat", "Conversation")
         Message = new_apps.get_model("chat", "Message")
         ConversationRead = new_apps.get_model("chat", "ConversationRead")
         user = User.objects.create_user(username="cap", email="cap@nyu.edu")
-        sport, _ = Sport.objects.get_or_create(name="Soccer")
-        team = Team.objects.create(name="Violets", sport=sport, captain=user)
+        # The pinned teams state can lag the table (e.g. Sport gained
+        # non-nullable-looking columns), so like build_old_rows the Sport row
+        # comes from the current model.
+        from teams.models import Sport as CurrentSport
+
+        sport, _ = CurrentSport.objects.get_or_create(name="Soccer")
+        team = Team.objects.create(name="Violets", sport_id=sport.pk, captain=user)
         conversation, _ = Conversation.objects.get_or_create(
             kind="team", team_id=team.pk
         )
