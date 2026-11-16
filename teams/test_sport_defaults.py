@@ -1,9 +1,14 @@
 import importlib
 from io import StringIO
 
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase
+from django.urls import reverse
 
+from matches.tests import make_user
+
+from .forms import SportForm
 from .models import Sport
 from .sport_defaults import DEFAULT_PERIODS, SPORT_PERIODS, default_periods
 
@@ -65,3 +70,73 @@ class SeedLeagueDataPeriodsTests(TestCase):
         Sport.objects.create(name="Soccer", period_count=3, period_label="Q")
         call_command("seed_league_data", stdout=StringIO())
         self.assertEqual(periods("Soccer"), (3, "Q"))
+
+
+class NewSportPeriodsTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.admin = make_user("admin", admin=True)
+        cls.root = get_user_model().objects.create_superuser(
+            username="root", email="root@nyu.edu", password="pw12345!"
+        )
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def test_new_form_shows_blank_period_fields(self):
+        form = SportForm()
+        self.assertIsNone(form["period_count"].value())
+        self.assertIsNone(form["period_label"].value())
+
+    def test_explicit_initial_is_kept(self):
+        form = SportForm(initial={"period_count": 2})
+        self.assertEqual(form["period_count"].value(), 2)
+        self.assertIsNone(form["period_label"].value())
+
+    def test_edit_form_shows_stored_periods(self):
+        sport = Sport.objects.create(name="Soccer", period_count=2, period_label="Half")
+        form = SportForm(instance=sport)
+        self.assertEqual(
+            (form["period_count"].value(), form["period_label"].value()), (2, "Half")
+        )
+
+    def test_manage_page_blank_periods_use_sport_defaults(self):
+        self.client.post(reverse("teams:manage_sports"), {"name": "  FUTSAL "})
+        self.assertEqual(periods("FUTSAL"), (2, "Half"))
+
+    def test_manage_page_typed_periods_win(self):
+        self.client.post(
+            reverse("teams:manage_sports"),
+            {"name": "Soccer", "period_count": 4, "period_label": "Q"},
+        )
+        self.assertEqual(periods("Soccer"), (4, "Q"))
+
+    def test_each_blank_field_is_filled_on_its_own(self):
+        self.client.post(
+            reverse("teams:manage_sports"),
+            {"name": "Soccer", "period_count": 3, "period_label": ""},
+        )
+        self.assertEqual(periods("Soccer"), (3, "Half"))
+
+    def test_unknown_sport_gets_model_default(self):
+        self.client.post(reverse("teams:manage_sports"), {"name": "Rugby"})
+        self.assertEqual(periods("Rugby"), (4, "Q"))
+
+    def test_blank_name_shows_error(self):
+        response = self.client.post(reverse("teams:manage_sports"), {"name": ""})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].errors["name"])
+        self.assertFalse(Sport.objects.exists())
+
+    def test_edit_with_blank_periods_keeps_stored_values(self):
+        sport = Sport.objects.create(name="Soccer")
+        self.client.post(
+            reverse("teams:edit_sport", args=[sport.pk]),
+            {"name": "Soccer", "period_count": "", "period_label": ""},
+        )
+        self.assertEqual(periods("Soccer"), (4, "Q"))
+
+    def test_admin_add_blank_periods_use_sport_defaults(self):
+        self.client.force_login(self.root)
+        self.client.post(reverse("admin:teams_sport_add"), {"name": "Volleyball"})
+        self.assertEqual(periods("Volleyball"), (5, "Set"))

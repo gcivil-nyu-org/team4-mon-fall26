@@ -15,6 +15,7 @@ from .models import (
     season_team_for,
 )
 from .season_rules import SeasonAction, validate_season_dates
+from .sport_defaults import default_periods
 
 NYU_DOMAIN = "@nyu.edu"
 
@@ -31,21 +32,37 @@ class SportForm(forms.ModelForm):
             "period_label": "Period label",
         }
         help_texts = {
-            "period_count": "Use 0 for a sport with no periods.",
-            "period_label": "Q gives Q1, Q2. Half gives Half 1, Half 2.",
+            "period_count": (
+                "Leave blank for the usual count of a known sport (Soccer: 2), "
+                "else 4. Use 0 for a sport with no periods."
+            ),
+            "period_label": (
+                "Leave blank for the usual label (Soccer: Half), else Q. "
+                "Q gives Q1, Q2. Half gives Half 1, Half 2."
+            ),
         }
 
+    PERIOD_FIELDS = ("period_count", "period_label")
+
     def __init__(self, *args, **kwargs):
+        passed = set(kwargs.get("initial") or ())
         super().__init__(*args, **kwargs)
-        # A blank period field keeps the current value (the default for a new sport).
-        for name in ("period_count", "period_label"):
+        # A blank period field on a new sport takes the sport's default periods
+        # (teams/sport_defaults.py). On an existing sport it keeps the stored value.
+        for name in self.PERIOD_FIELDS:
             self.fields[name].required = False
+            if self.instance.pk is None and name not in passed:
+                self.initial[name] = None
 
     def _keep_current(self, name):
         value = self.cleaned_data.get(name)
-        if value in (None, ""):
-            return getattr(self.instance, name)
-        return value
+        if value not in (None, ""):
+            return value
+        if self.instance.pk is None:
+            # "name" comes first in Meta.fields, so it is already cleaned.
+            defaults = default_periods(self.cleaned_data.get("name", ""))
+            return defaults[self.PERIOD_FIELDS.index(name)]
+        return getattr(self.instance, name)
 
     def clean_period_count(self):
         return self._keep_current("period_count")
