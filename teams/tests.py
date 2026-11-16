@@ -225,9 +225,7 @@ class RosterPageTests(TestCase):
         response = self.client.get(reverse("teams:detail", args=[team.pk]))
         self.assertContains(response, "Sam Striker")
         self.assertContains(response, "GP")
-        self.assertContains(
-            response, '<td class="text-end pn-num">2</td>', html=True
-        )
+        self.assertContains(response, '<td class="text-end pn-num">2</td>', html=True)
 
     def test_empty_stats_state(self):
         team = make_team(make_user("cap"))

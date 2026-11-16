@@ -94,9 +94,7 @@ class GamesPlayedTests(StatFixtures):
         MatchAppearance.objects.create(match=match, player=self.scorer, team=self.home)
         Season.objects.filter(pk=self.season.pk).update(state=SeasonState.DRAFT)
         self.assertEqual(games_played(self.player, player_ids=[self.scorer.pk]), {})
-        self.assertEqual(
-            len(games_played(self.admin, player_ids=[self.scorer.pk])), 1
-        )
+        self.assertEqual(len(games_played(self.admin, player_ids=[self.scorer.pk])), 1)
 
 
 class TeamStatTotalsTests(StatFixtures):
@@ -235,14 +233,14 @@ class PlayerRecentLinesTests(StatFixtures):
         self.assertEqual(len(matches), 5)
         self.assertGreater(matches[0].starts_at, matches[1].starts_at)
         self.assertTrue(
-            all(
-                s.player_id == self.scorer.pk for m in matches for s in m.player_line
-            )
+            all(s.player_id == self.scorer.pk for m in matches for s in m.player_line)
         )
 
     def test_query_count_is_fixed(self):
         self.lines()
-        small = count_queries(lambda: list(player_recent_lines(self.scorer, self.player)))
+        small = count_queries(
+            lambda: list(player_recent_lines(self.scorer, self.player))
+        )
         self.lines(prefix="more")
         self.assertEqual(
             count_queries(lambda: list(player_recent_lines(self.scorer, self.player))),

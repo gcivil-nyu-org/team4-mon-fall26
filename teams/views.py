@@ -81,20 +81,19 @@ def team_directory(request):
         .select_related("sport", "season", "division")
         .order_by(F("season__start_date").desc(nulls_last=True), "name")
     )
-    sports = Sport.objects.filter(
-        Q(teams__season__isnull=True) | Q(teams__season__in=visible_seasons)
-    ).distinct().order_by("name")
-    seasons = visible_seasons.order_by(
-        F("start_date").desc(nulls_last=True), "name"
+    sports = (
+        Sport.objects.filter(
+            Q(teams__season__isnull=True) | Q(teams__season__in=visible_seasons)
+        )
+        .distinct()
+        .order_by("name")
     )
+    seasons = visible_seasons.order_by(F("start_date").desc(nulls_last=True), "name")
     sport_id = _clean_filter_id(request.GET.get("sport"))
     season_id = _clean_filter_id(request.GET.get("season"))
     if sport_id is not None and not Sport.objects.filter(pk=sport_id).exists():
         sport_id = None
-    if (
-        season_id is not None
-        and not visible_seasons.filter(pk=season_id).exists()
-    ):
+    if season_id is not None and not visible_seasons.filter(pk=season_id).exists():
         season_id = None
     if sport_id is not None:
         teams = teams.filter(sport_id=sport_id)
@@ -104,9 +103,7 @@ def team_directory(request):
     if (
         division_id is None
         or season_id is None
-        or not Division.objects.filter(
-            pk=division_id, season_id=season_id
-        ).exists()
+        or not Division.objects.filter(pk=division_id, season_id=season_id).exists()
     ):
         division_id = None
     if division_id is not None:
@@ -221,9 +218,10 @@ def team_detail(request, pk):
         Team.objects.select_related("captain", "season", "division", "sport"), pk=pk
     )
     visible_seasons = seasons_visible_to(request.user)
-    if team.season_id is not None and not visible_seasons.filter(
-        pk=team.season_id
-    ).exists():
+    if (
+        team.season_id is not None
+        and not visible_seasons.filter(pk=team.season_id).exists()
+    ):
         raise Http404
     # Captain first, then players in the order they joined.
     roster = list(team.roster.select_related("player").order_by("role", "joined_at"))

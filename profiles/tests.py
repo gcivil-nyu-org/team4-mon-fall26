@@ -218,9 +218,7 @@ class ProfileDetailTests(TestCase):
     def test_other_players_teams_link_to_team_page(self):
         response = self.client.get(self.url)
         for entry in self.owner.roster_entries.all():
-            self.assertContains(
-                response, reverse("teams:detail", args=[entry.team_id])
-            )
+            self.assertContains(response, reverse("teams:detail", args=[entry.team_id]))
 
     def test_player_without_teams(self):
         response = self.client.get(reverse("profiles:detail", args=[self.viewer.pk]))
@@ -230,9 +228,7 @@ class ProfileDetailTests(TestCase):
         self.assertContains(response, "Not on any teams yet.")
 
     def make_season(self, name, state=SeasonState.OPEN):
-        return Season.objects.create(
-            name=name, start_date="2026-09-01", state=state
-        )
+        return Season.objects.create(name=name, start_date="2026-09-01", state=state)
 
     def make_match(self, season, home_team, away_team, **scores):
         field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
@@ -275,23 +271,25 @@ class ProfileDetailTests(TestCase):
             season=season,
             captain=self.viewer,
         )
-        first = self.make_match(
-            season, self.shared, rival, home_score=2, away_score=0
-        )
-        second = self.make_match(
-            season, rival, self.shared, home_score=1, away_score=0
-        )
+        first = self.make_match(season, self.shared, rival, home_score=2, away_score=0)
+        second = self.make_match(season, rival, self.shared, home_score=1, away_score=0)
         for match in (first, second):
             MatchAppearance.objects.create(
                 match=match, player=self.owner, team=self.shared
             )
         PlayerStat.objects.create(
-            match=first, player=self.owner, team=self.shared,
-            event_type=goal, value=2,
+            match=first,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=2,
         )
         PlayerStat.objects.create(
-            match=second, player=self.owner, team=self.shared,
-            event_type=goal, value=1,
+            match=second,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=1,
         )
         response = self.client.get(self.url)
         self.assertContains(response, "1–0–1")
@@ -322,12 +320,13 @@ class ProfileDetailTests(TestCase):
         match = self.make_match(
             season, self.shared, self.other_team(), home_score=2, away_score=0
         )
-        MatchAppearance.objects.create(
-            match=match, player=self.owner, team=self.shared
-        )
+        MatchAppearance.objects.create(match=match, player=self.owner, team=self.shared)
         PlayerStat.objects.create(
-            match=match, player=self.owner, team=self.shared,
-            event_type=goal, value=2,
+            match=match,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=2,
         )
         self.assertContains(self.client.get(self.url), "2 Goals")
 
@@ -351,15 +350,14 @@ class ProfileDetailTests(TestCase):
         self.shared.season = season
         self.shared.save()
         goal = EventType.objects.create(sport=self.shared.sport, name="Goal")
-        match = self.make_match(
-            season, self.shared, other, home_score=2, away_score=0
-        )
-        MatchAppearance.objects.create(
-            match=match, player=self.owner, team=self.shared
-        )
+        match = self.make_match(season, self.shared, other, home_score=2, away_score=0)
+        MatchAppearance.objects.create(match=match, player=self.owner, team=self.shared)
         PlayerStat.objects.create(
-            match=match, player=self.owner, team=self.shared,
-            event_type=goal, value=1,
+            match=match,
+            player=self.owner,
+            team=self.shared,
+            event_type=goal,
+            value=1,
         )
         small = count_queries(lambda: self.client.get(self.url))
         for index in range(2):
@@ -372,15 +370,21 @@ class ProfileDetailTests(TestCase):
             )
             Roster.objects.create(team=extra, player=self.owner)
             extra_match = self.make_match(
-                extra_season, extra, other,
-                home_score=1, away_score=0,
+                extra_season,
+                extra,
+                other,
+                home_score=1,
+                away_score=0,
             )
             MatchAppearance.objects.create(
                 match=extra_match, player=self.owner, team=extra
             )
             PlayerStat.objects.create(
-                match=extra_match, player=self.owner, team=extra,
-                event_type=goal, value=1,
+                match=extra_match,
+                player=self.owner,
+                team=extra,
+                event_type=goal,
+                value=1,
             )
         self.assertEqual(count_queries(lambda: self.client.get(self.url)), small)
 

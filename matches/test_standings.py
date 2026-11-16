@@ -1,6 +1,3 @@
-from django.db.models import Q
-from django.test import TestCase
-
 from teams.models import Division, Team
 
 from .standings import counted_matches, rank_rows, standings_by_team

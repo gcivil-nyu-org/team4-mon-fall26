@@ -5,15 +5,19 @@ team_sheets() and period_rows() read them. save_match_sheet() is the only writer
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+import datetime
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Count, Prefetch, Q, Sum
 
 from core.templatetags.ui import player_name
 from teams.models import EventType, Roster, Team
 
 from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
+from .schedule import schedule_matches, seasons_visible_to
+from .standings import counted_matches
 
 
 @dataclass
@@ -194,13 +198,6 @@ def save_match_sheet(match, *, periods, final, stats, played, players):
 # Each selector calls seasons_visible_to(user) once and reuses it, so the
 # query count stays fixed whatever the rosters and matches hold.
 
-import datetime
-
-from django.db.models import Count, Prefetch, Q, Sum
-
-from .schedule import schedule_matches, seasons_visible_to
-from .standings import counted_matches
-
 
 def visible_counted_matches(user):
     """Counted matches in seasons the user can see."""
@@ -219,7 +216,9 @@ def games_played(user, *, player_ids=None, team_ids=None):
 
     One query on MatchAppearance.
     """
-    appearances = MatchAppearance.objects.filter(match__in=visible_counted_matches(user))
+    appearances = MatchAppearance.objects.filter(
+        match__in=visible_counted_matches(user)
+    )
     if player_ids is not None:
         appearances = appearances.filter(player_id__in=list(player_ids))
     if team_ids is not None:

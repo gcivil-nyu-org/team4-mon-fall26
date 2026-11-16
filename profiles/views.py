@@ -42,8 +42,7 @@ def profile_detail(request, pk):
     closed_team_ids = [
         entry.team_id
         for entry in roster
-        if entry.team.season_id is None
-        or entry.team.season.state == SeasonState.CLOSED
+        if entry.team.season_id is None or entry.team.season.state == SeasonState.CLOSED
     ]
     standings = standings_by_team(open_season_ids)
     records = team_records(closed_team_ids)

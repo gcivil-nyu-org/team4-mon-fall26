@@ -78,9 +78,7 @@ def standings_by_team(season_ids):
         return {}
     from teams.models import Team
 
-    teams = list(
-        Team.objects.filter(season_id__in=ids).select_related("division")
-    )
+    teams = list(Team.objects.filter(season_id__in=ids).select_related("division"))
     season_scores = {}
     for season_id, home_id, away_id, home_score, away_score in (
         counted_matches()

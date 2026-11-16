@@ -32,7 +32,9 @@ class TeamDirectoryTests(TestCase):
             division=cls.gold,
             captain=captain,
         )
-        Roster.objects.create(team=cls.violets, player=captain, role=Roster.Role.CAPTAIN)
+        Roster.objects.create(
+            team=cls.violets, player=captain, role=Roster.Role.CAPTAIN
+        )
         cls.bobcats = Team.objects.create(
             name="Bobcats", sport=cls.soccer, season=cls.fall, captain=captain
         )
@@ -118,7 +120,9 @@ class TeamDirectoryTests(TestCase):
         self.assertContains(page2, f"?sport={self.soccer.pk}&page=1")
         last = self.client.get(self.url, {**params, "page": 999})
         self.assertEqual(last.status_code, 200)
-        self.assertEqual(list(last.context["page_obj"]), list(page2.context["page_obj"]))
+        self.assertEqual(
+            list(last.context["page_obj"]), list(page2.context["page_obj"])
+        )
 
     def test_row_shows_record_and_position_and_marks_mine(self):
         field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
