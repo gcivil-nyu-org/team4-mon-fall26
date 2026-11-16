@@ -37,8 +37,9 @@
           <div class="list-group list-group-flush pn-roles">
             {% for row in page_obj %}
               {% with name=row|display_name %}
-                <div class="list-group-item d-flex flex-wrap align-items-center gap-3{% if row.pk == user.pk %} pn-row-me{% endif %}">
-                  {% include "components/avatar.html" with person=row size="sm" %}
+                <div class="list-group-item d-flex flex-column flex-md-row align-items-md-center gap-3{% if row.pk == user.pk %} pn-row-me{% endif %}">
+                  <div class="d-flex align-items-center gap-3 flex-fill min-w-0">
+                  <span class="flex-shrink-0">{% include "components/avatar.html" with person=row size="sm" %}</span>
                   <div class="flex-fill min-w-0">
                     <div class="d-flex flex-wrap align-items-center gap-2">
                       <span class="fw-medium text-break">{{ name }}{% if row.pk == user.pk %}<span class="visually-hidden"> (you)</span>{% endif %}</span>
@@ -49,7 +50,8 @@
                     </div>
                     <div class="small text-secondary text-break"><span class="visually-hidden">Email: </span>{{ row.email }}{% if row.unscored_matches %} · Assigned to <span class="pn-num">{{ row.unscored_matches }}</span> unscored match{{ row.unscored_matches|pluralize:"es" }}{% endif %}</div>
                   </div>
-                  <div class="d-flex flex-wrap gap-2">
+                  </div>
+                  <div class="d-flex flex-wrap gap-2 flex-shrink-0">
                     {% include "accounts/_role_button.html" with role="scorekeeper" label="Scorekeeper" held=row.is_scorekeeper %}
                     {% if row.is_league_admin and row.pk == user.pk %}
                       {% include "accounts/_role_button.html" with role="league_admin" label="League Admin" held=True reason="You can't remove your own League Admin role" %}
