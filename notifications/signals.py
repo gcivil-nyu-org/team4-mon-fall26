@@ -81,7 +81,7 @@ def _notify_ids(user_ids, verb, link=""):
 
 
 def _match_link(match):
-    return reverse("matches:season_schedule", args=[match.season_id])
+    return f"{reverse('matches:schedule')}?season={match.season_id}"
 
 
 def _notify_match_teams(match, verb, link=""):

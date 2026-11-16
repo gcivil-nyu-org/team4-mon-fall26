@@ -1,12 +1,12 @@
-{# One match in a list-group. See docs/DESIGN.md, "Match rows". #}
-<div class="list-group-item d-flex align-items-center gap-3">
+{# One match in a list-group. See docs/DESIGN.md, "Match rows". The time is the row's one stretched link; .pn-row-link lifts the other links above it. #}
+<div class="list-group-item d-flex align-items-center gap-3 position-relative pn-row-link">
   <div class="flex-fill min-w-0">
     <div class="d-inline-flex flex-wrap align-items-center gap-2 fw-medium mw-100">
       {% include "components/team_link.html" with team=match.home_team size="sm" %}
       <span class="text-secondary fw-normal">vs</span>
       {% include "components/team_link.html" with team=match.away_team size="sm" %}
     </div>
-    <div class="small text-secondary"><a class="pn-num text-reset" href="{% url 'matches:detail' match.pk %}" title="Match page">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</a> · {% if facility_page %}{{ match.home_team.sport.name }}{% else %}{% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}{% endif %}</div>
+    <div class="small text-secondary"><a class="pn-num text-reset stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="Open match: {{ match.home_team.name }} vs {{ match.away_team.name }}, {{ match.starts_at|date:'D M j, g:i A' }}">{{ match.starts_at|date:"D M j, g:i A" }} – {{ match.ends_at|date:"g:i A" }}</a> · {% if facility_page %}{{ match.home_team.sport.name }}{% else %}{% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}{% endif %}</div>
   </div>
   {% if match.has_result %}<a class="pn-num fw-bold text-reset flex-shrink-0" href="{% url 'matches:detail' match.pk %}" title="Final score, open the match page">{{ match.home_score }} – {{ match.away_score }}</a>{% endif %}
   {% if match.is_cancelled %}<span class="badge bg-secondary-lt flex-shrink-0">Cancelled</span>{% endif %}

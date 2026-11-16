@@ -271,9 +271,7 @@ class ResultDisplayTests(ScorekeeperFixtures):
 
     def test_schedule_shows_the_score(self):
         self.client.force_login(self.player)
-        response = self.client.get(
-            reverse("matches:season_schedule", args=[self.season.pk])
-        )
+        response = self.client.get(reverse("matches:schedule"), {"tab": "results"})
         self.assertContains(response, "2 – 1")
 
     def test_team_page_shows_the_score_and_record(self):

@@ -116,7 +116,7 @@
         <div class="card-header">
           <h3 class="card-title">Upcoming matches</h3>
           {% if can_view_schedule %}
-            <div class="card-actions d-flex gap-2"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_schedule' team.season_id %}">View season schedule</a><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_standings' team.season_id %}">View standings</a></div>
+            <div class="card-actions d-flex gap-2"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:schedule' %}?season={{ team.season_id }}">View season schedule</a><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:season_standings' team.season_id %}">View standings</a></div>
           {% endif %}
         </div>
         {% if upcoming_matches %}

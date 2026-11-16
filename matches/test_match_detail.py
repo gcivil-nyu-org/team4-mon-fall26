@@ -273,9 +273,7 @@ class MatchRowLinkTests(SheetFixtures):
 
     def test_season_schedule_row_has_no_nested_links(self):
         self.client.force_login(self.player)
-        response = self.client.get(
-            reverse("matches:season_schedule", args=[self.season.pk])
-        )
+        response = self.client.get(reverse("matches:schedule"), {"tab": "all"})
         self.assert_row_links(response)
 
     def test_my_matches_row_has_no_nested_links(self):
@@ -286,9 +284,7 @@ class MatchRowLinkTests(SheetFixtures):
 
     def test_season_schedule_links_match(self):
         self.client.force_login(self.player)
-        response = self.client.get(
-            reverse("matches:season_schedule", args=[self.season.pk])
-        )
+        response = self.client.get(reverse("matches:schedule"), {"tab": "all"})
         self.assertContains(response, self.href())
 
     def test_team_page_links_match(self):

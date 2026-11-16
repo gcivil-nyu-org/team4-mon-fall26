@@ -65,38 +65,9 @@ class ScheduleFixtures(MatchFixtures):
         Season.objects.get(pk=self.season.pk).move_to(SeasonState.DRAFT)
 
 
-class SeasonListTests(ScheduleFixtures):
-    url = reverse("matches:schedule_seasons")
-
-    def test_requires_login(self):
-        self.client.logout()
-        self.assertEqual(self.client.get(self.url).status_code, 302)
-
-    def test_lists_seasons_and_is_in_the_nav(self):
-        response = self.client.get(self.url)
-        self.assertContains(
-            response, reverse("matches:season_schedule", args=[self.season.pk])
-        )
-        self.assertContains(response, f'href="{self.url}" aria-current="page"')
-
-    def test_players_do_not_see_draft_seasons(self):
-        self.make_draft()
-        response = self.client.get(self.url)
-        self.assertNotIn(self.season, response.context["seasons"])
-        self.assertIn(self.other_season, response.context["seasons"])
-
-    def test_league_admins_see_draft_seasons(self):
-        self.make_draft()
-        self.client.force_login(self.admin)
-        response = self.client.get(self.url)
-        self.assertIn(self.season, response.context["seasons"])
-
-    def test_empty_state(self):
-        Season.objects.update(state=SeasonState.DRAFT)
-        self.assertContains(self.client.get(self.url), "No seasons yet")
-
-
 class SeasonScheduleTests(ScheduleFixtures):
+    """The old season page is now the table, filtered to the season (#250)."""
+
     def url(self, season=None):
         season = season or self.season
         return reverse("matches:season_schedule", args=[season.pk])
@@ -105,91 +76,38 @@ class SeasonScheduleTests(ScheduleFixtures):
         self.client.logout()
         self.assertEqual(self.client.get(self.url()).status_code, 302)
 
-    def test_lists_only_this_seasons_matches_sorted_by_time(self):
+    def test_redirects_to_the_table(self):
+        response = self.client.get(self.url())
+        self.assertRedirects(
+            response,
+            f"{reverse('matches:schedule')}?season={self.season.pk}",
+            fetch_redirect_response=False,
+        )
+
+    def test_table_shows_only_this_seasons_matches_sorted_by_time(self):
         later = self.add_match(start=48)
         sooner = self.add_match(start=24)
         past = self.add_match(start=-48)
         self.add_other_season_match()
-        response = self.client.get(self.url())
-        self.assertEqual(list(response.context["matches"]), [past, sooner, later])
-
-    def test_unknown_season_is_404(self):
-        for pk in (999999, 10**30):
-            url = reverse("matches:season_schedule", args=[pk])
-            self.assertEqual(self.client.get(url).status_code, 404)
-
-    def test_match_rows_link_both_teams(self):
-        self.add_match()
-        response = self.client.get(self.url())
-        for team in (self.home, self.away):
-            self.assertContains(response, reverse("teams:detail", args=[team.pk]))
-
-    def test_filter_by_division(self):
-        gold = self.add_match(start=24)
-        silver = self.add_match(
-            start=48, home_team=self.third, away_team=self.hoops_team
+        response = self.client.get(self.url(), {"division": ""}, follow=True)
+        self.assertEqual(list(response.context["matches"]), [sooner, later])
+        response = self.client.get(
+            reverse("matches:schedule"), {"season": self.season.pk, "tab": "all"}
         )
-        response = self.client.get(self.url(), {"division": self.silver.pk})
-        self.assertEqual(list(response.context["matches"]), [silver])
-        self.assertEqual(response.context["division"], self.silver)
-        self.assertContains(response, f'value="{self.silver.pk}" selected')
-        response = self.client.get(self.url(), {"division": self.gold.pk})
-        self.assertEqual(list(response.context["matches"]), [gold])
-
-    def test_match_inside_a_division_is_listed_once(self):
-        match = self.add_match()
-        response = self.client.get(self.url(), {"division": self.gold.pk})
-        self.assertEqual(list(response.context["matches"]), [match])
+        self.assertEqual(list(response.context["matches"]), [past, sooner, later])
 
     def test_cross_division_match_is_on_both_schedules(self):
         match = self.add_match(home_team=self.home, away_team=self.third)
         for division in (self.gold, self.silver):
-            response = self.client.get(self.url(), {"division": division.pk})
+            response = self.client.get(
+                self.url(), {"division": division.pk}, follow=True
+            )
             self.assertEqual(list(response.context["matches"]), [match])
 
-    def test_bad_filter_values_show_every_match(self):
+    def test_match_inside_a_division_is_listed_once(self):
         match = self.add_match()
-        foreign = Division.objects.create(season=self.other_season, name="Gold")
-        for value in ("", "abc", "-1", "1.5", "999999", "9" * 40, "\x00", foreign.pk):
-            response = self.client.get(self.url(), {"division": value})
-            self.assertEqual(response.status_code, 200, value)
-            self.assertIsNone(response.context["division"], value)
-            self.assertEqual(list(response.context["matches"]), [match], value)
-
-    def test_season_without_divisions(self):
-        match = self.add_other_season_match()
-        response = self.client.get(self.url(self.other_season))
+        response = self.client.get(self.url(), {"division": self.gold.pk}, follow=True)
         self.assertEqual(list(response.context["matches"]), [match])
-        self.assertNotContains(response, 'name="division"')
-        response = self.client.get(self.url(self.other_season), {"division": "1"})
-        self.assertEqual(list(response.context["matches"]), [match])
-
-    def test_division_filter_shown_when_season_has_divisions(self):
-        self.assertContains(self.client.get(self.url()), 'name="division"')
-
-    def test_cancelled_match_is_shown_and_marked(self):
-        match = self.add_match()
-        self.assertNotContains(self.client.get(self.url()), "Cancelled")
-        match.cancel()
-        response = self.client.get(self.url())
-        self.assertEqual(list(response.context["matches"]), [match])
-        self.assertContains(response, ">Cancelled</span>")
-
-    def test_facility_links_to_details(self):
-        self.add_match()
-        detail = reverse("facilities:detail", args=[self.field.pk])
-        self.assertContains(self.client.get(self.url()), f'href="{detail}"')
-
-    def test_inactive_facility_has_no_link(self):
-        closed = Facility.objects.create(
-            name="Old Gym", source=Facility.Source.NYU, is_active=False
-        )
-        self.add_match(facility=closed)
-        detail = reverse("facilities:detail", args=[closed.pk])
-        self.assertEqual(self.client.get(detail).status_code, 404)
-        response = self.client.get(self.url())
-        self.assertContains(response, "Old Gym")
-        self.assertNotContains(response, detail)
 
     def test_draft_season_is_hidden_from_players(self):
         self.make_draft()
@@ -202,27 +120,11 @@ class SeasonScheduleTests(ScheduleFixtures):
         superuser.save()
         for user in (self.admin, superuser):
             self.client.force_login(user)
-            self.assertEqual(self.client.get(self.url()).status_code, 200)
+            self.assertEqual(self.client.get(self.url()).status_code, 302)
 
     def test_closed_season_is_visible(self):
         Season.objects.filter(pk=self.season.pk).update(state=SeasonState.CLOSED)
-        self.assertEqual(self.client.get(self.url()).status_code, 200)
-
-    def test_empty_states(self):
-        self.assertContains(self.client.get(self.url()), "No matches yet")
-        self.add_match()
-        response = self.client.get(self.url(), {"division": self.silver.pk})
-        self.assertContains(response, "No matches in Silver")
-
-    def test_query_count_does_not_grow_with_matches(self):
-        self.add_match()
-        with CaptureQueriesContext(connection) as one_match:
-            self.client.get(self.url())
-        for hours in range(30, 60, 3):
-            self.add_match(start=hours, home_team=self.third, away_team=self.away)
-        with CaptureQueriesContext(connection) as many_matches:
-            self.client.get(self.url())
-        self.assertEqual(len(one_match), len(many_matches))
+        self.assertEqual(self.client.get(self.url()).status_code, 302)
 
 
 class TeamScheduleTests(ScheduleFixtures):
@@ -279,7 +181,7 @@ class TeamScheduleTests(ScheduleFixtures):
         self.assertContains(response, "No upcoming matches")
         self.assertContains(response, "No past matches")
         self.assertContains(
-            response, reverse("matches:season_schedule", args=[self.season.pk])
+            response, f"{reverse('matches:schedule')}?season={self.season.pk}"
         )
 
     def test_team_without_a_season(self):
