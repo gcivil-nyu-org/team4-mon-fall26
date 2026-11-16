@@ -221,19 +221,96 @@ class MatchDetailTests(SheetFixtures):
         # players[0] views the page as a home team member.
         return match, players[0]
 
+    def extra_results(self, n):
+        """n scored Violets v Bobcats matches on the days before self.match."""
+        for day in range(1, n + 1):
+            start = self.match.starts_at - datetime.timedelta(days=day)
+            self.build(
+                starts_at=start, ends_at=start + HOUR, home_score=1, away_score=0
+            ).save()
+
     def test_query_count_fixed(self):
         small, small_viewer = self.scored_match(2)
         large, large_viewer = self.scored_match(20)
+        self.extra_results(1)
         self.client.force_login(small_viewer)
         with CaptureQueriesContext(connection) as captured:
             self.assertEqual(self.client.get(self.url(small)).status_code, 200)
         expected = len(captured)
-        self.assertLessEqual(expected, 20)
+        self.assertLessEqual(expected, 16)  # B + 2, with B = 14 on testing.
+        self.extra_results(30)
         self.client.force_login(large_viewer)
         with self.assertNumQueries(expected):
             response = self.client.get(self.url(large))
         self.assertContains(response, "Left team")
         self.assertEqual(len(response.context["tables"][0][1]), 11)
+        self.assertEqual(len(response.context["movement"]), 2)
+
+    def test_context_final(self):
+        self.score(
+            stats={self.key(self.home, self.alex): 2},
+            played=[self.pair(self.home, self.alex)],
+        )
+        ctx = self.get().context
+        self.assertEqual(ctx["top_performers"][0].leaders[0].player, self.alex)
+        self.assertEqual(ctx["top_performers"][1].leaders, [])
+        self.assertEqual(len(ctx["movement"]), 2)
+        self.assertEqual(ctx["tables"][0][2], [0, 2])  # Assist, Goal (name order)
+        self.assertEqual(ctx["tables"][1][2], [0, 0])
+        self.assertEqual([r.event_type for r in ctx["comparison"]], [self.goal])
+        self.assertEqual(len(ctx["context_rows"]), 2)
+        self.assertEqual(ctx["h2h"].home_wins, 1)
+        self.assertFalse(ctx["season_closed"])
+
+    def test_context_scheduled_and_cancelled(self):
+        later = self.assign(
+            starts_at=timezone.now() + HOUR, ends_at=timezone.now() + 2 * HOUR
+        )
+        cancelled = self.assign()
+        cancelled.cancel()
+        for match in (later, cancelled):
+            ctx = self.get(match=match).context
+            self.assertIsNone(ctx["movement"])
+            self.assertEqual(ctx["top_performers"], [])
+            self.assertEqual(ctx["comparison"], [])
+            self.assertEqual(len(ctx["context_rows"]), 2)
+            self.assertEqual([t[2] for t in ctx["tables"]], [[], []])
+
+    def test_score_correction_flips_movement(self):
+        self.extra_results(1)  # Violets 1-0 Bobcats, the day before.
+        self.score()  # 2-1
+        first = self.get().context["movement"][0]
+        self.save(final=(1, 2))
+        second = self.get().context["movement"][0]
+        self.assertEqual(first.direction, "same")
+        self.assertEqual(second.direction, "down")
+        self.assertEqual((second.before_position, second.after_position), (1, 2))
+
+    def test_scoring_type_leads_top_performers(self):
+        self.goal.is_scoring = True
+        self.goal.save()
+        self.score(
+            stats={
+                self.key(self.home, self.alex): 1,
+                self.key(self.home, self.sam, self.assist): 3,
+            }
+        )
+        leaders = self.get().context["top_performers"][0].leaders
+        self.assertEqual([l.event_type for l in leaders], [self.goal, self.assist])
+
+    def test_markers_and_standings_url(self):
+        ctx = self.get().context
+        self.assertEqual(ctx["markers"], [])
+        self.assertEqual(
+            ctx["standings_url"],
+            reverse("matches:season_standings", args=[self.season.pk]),
+        )
+        self.field.latitude, self.field.longitude = 40.729, -74.011
+        self.field.save()
+        self.assertEqual(self.get().context["markers"][0]["name"], "Pier 40")
+        self.field.is_active = False
+        self.field.save()
+        self.assertEqual(self.get().context["markers"], [])
 
 
 class LinkCollector(HTMLParser):

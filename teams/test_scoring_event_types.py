@@ -83,6 +83,14 @@ class ScoringEventTypeHelperTests(TestCase):
         self.assertIsNone(scoring_event_type(self.sport))
         self.assertIsNone(pick_scoring_type([]))
 
+    def test_loaded_list_runs_no_query(self):
+        EventType.objects.create(sport=self.sport, name="Assists")
+        points = EventType.objects.create(sport=self.sport, name="Points")
+        loaded = list(EventType.objects.filter(sport=self.sport))
+        with self.assertNumQueries(0):
+            self.assertEqual(scoring_event_type(self.sport, loaded), points)
+            self.assertIsNone(scoring_event_type(self.sport, []))
+
 
 class MarkScoringMigrationTests(TestCase):
     """0016 marks one Points or Goals type per sport, and the reverse clears it."""

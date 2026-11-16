@@ -29,8 +29,14 @@ def pick_scoring_type(event_types):
     return min(known, key=lambda t: SCORING_NAMES.index(name_key(t.name)))
 
 
-def scoring_event_type(sport):
-    """The sport's scoring EventType, or None. sport is a Sport or its pk."""
+def scoring_event_type(sport, event_types=None):
+    """The sport's scoring EventType, or None. sport is a Sport or its pk.
+
+    Pass event_types, the sport's loaded EventTypes, to pick from them with
+    no query.
+    """
+    if event_types is not None:
+        return pick_scoring_type(list(event_types))
     return pick_scoring_type(
         list(EventType.objects.filter(sport=sport).order_by("name", "pk"))
     )
