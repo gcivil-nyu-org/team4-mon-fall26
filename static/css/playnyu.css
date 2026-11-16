@@ -118,6 +118,15 @@
 .pn-chat-messages { max-height: 60vh; overflow-y: auto; }
 .pn-chat-list .list-group-item[aria-current="page"] { background: var(--pn-primary-tint); }
 
+/* Clickable match rows (.pn-row-link with position-relative): the row's one .stretched-link
+   covers the row at z-index 1. Every other link and button in the row sits above it at z-index 2,
+   so team, facility, score and action links stay separately clickable. */
+.pn-row-link { cursor: pointer; }
+.pn-row-link a:not(.stretched-link), .pn-row-link .btn { position: relative; z-index: 2; }
+.list-group-item.pn-row-link:hover,
+.pn-schedule tbody tr.pn-row-link:hover { background-color: var(--tblr-bg-surface-secondary); }
+.table tr.pn-row-link:hover > * { --tblr-table-accent-bg: var(--tblr-bg-surface-secondary); background-color: var(--tblr-bg-surface-secondary); }
+
 /* Schedule: team names get room, so text-break only splits very long names. */
 @media (min-width: 768px) {
   .pn-schedule td.pn-sched-home, .pn-schedule td.pn-sched-away { min-width: 10rem; }
@@ -148,5 +157,4 @@
   .pn-schedule .pn-sched-score { grid-area: score; }
   .pn-schedule .pn-sched-venue { grid-area: venue; }
   .pn-schedule .pn-sched-top { grid-area: top; }
-  .pn-schedule .pn-sched-pending { display: none; }
 }

@@ -71,19 +71,22 @@
           </thead>
           <tbody>
             {% for match in matches %}
-              <tr{% if match.home_team_id in my_team_ids or match.away_team_id in my_team_ids %} class="pn-row-me"{% endif %}>
+              {# The score cell holds the row's one stretched link; .pn-row-link lifts the other links above it. #}
+              <tr class="pn-row-link position-relative{% if match.home_team_id in my_team_ids or match.away_team_id in my_team_ids %} pn-row-me{% endif %}">
                 <td class="pn-sched-date"><a class="text-reset pn-num text-nowrap" href="{% url 'matches:detail' match.pk %}" title="Match page"><span class="d-block fw-medium">{{ match.starts_at|date:"D M j" }}</span><span class="d-block small text-secondary">{{ match.starts_at|date:"g:i A" }}</span></a></td>
                 <td class="pn-sched-sport"><span class="d-inline-flex align-items-center gap-1 small text-secondary text-nowrap"><i aria-hidden="true" class="ti {{ match.home_team.sport|sport_icon }}"></i>{{ match.home_team.sport.name }}</span></td>
                 <td class="pn-sched-home">{% include "components/team_link.html" with team=match.home_team size="sm" %}</td>
-                <td class="pn-sched-score text-center{% if not match.has_result and not match.is_cancelled %} pn-sched-pending{% endif %}">
-                  {% if match.is_cancelled %}
-                    <span class="badge bg-secondary-lt">Cancelled</span>
-                  {% elif match.has_result %}
-                    <a class="pn-num fw-bold text-reset text-nowrap" href="{% url 'matches:detail' match.pk %}" title="Final score, open the match page">{{ match.home_score }} – {{ match.away_score }}</a>
-                    {% if match.period_line %}<div class="small text-secondary pn-num text-nowrap">{{ match.period_line }}</div>{% endif %}
-                  {% else %}
-                    <span class="text-secondary">vs</span>
-                  {% endif %}
+                <td class="pn-sched-score text-center">
+                  {% with label="Open match: "|add:match.home_team.name|add:" vs "|add:match.away_team.name|add:", " %}
+                    {% if match.is_cancelled %}
+                      <a class="text-reset stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="{{ label }}{{ match.starts_at|date:'D M j, g:i A' }}"><span class="badge bg-secondary-lt">Cancelled</span></a>
+                    {% elif match.has_result %}
+                      <a class="pn-num fw-bold text-reset text-nowrap stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="{{ label }}{{ match.starts_at|date:'D M j, g:i A' }}">{{ match.home_score }} – {{ match.away_score }}</a>
+                      {% if match.period_line %}<div class="small text-secondary pn-num text-nowrap">{{ match.period_line }}</div>{% endif %}
+                    {% else %}
+                      <a class="text-secondary stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="{{ label }}{{ match.starts_at|date:'D M j, g:i A' }}">vs</a>
+                    {% endif %}
+                  {% endwith %}
                 </td>
                 <td class="pn-sched-away">{% include "components/team_link.html" with team=match.away_team size="sm" %}</td>
                 <td class="pn-sched-venue"><i aria-hidden="true" class="ti ti-map-pin text-secondary me-1 d-md-none"></i>{% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</td>

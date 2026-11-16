@@ -431,12 +431,12 @@ class RowTests(TableFixtures):
             self.assertIn(reverse("teams:detail", args=[team.pk]), parser.hrefs)
         self.assertContains(response, "2 – 1")
 
-    def test_upcoming_row_links_date_only(self):
+    def test_upcoming_row_links_date_and_vs(self):
         match = self.add_match()
         parser = self.links(self.get())
         self.assertEqual(parser.nested, [])
         detail = reverse("matches:detail", args=[match.pk])
-        self.assertEqual(parser.hrefs.count(detail), 1)
+        self.assertEqual(parser.hrefs.count(detail), 2)
 
     def test_cancelled_badge(self):
         match = self.add_match()

@@ -164,7 +164,7 @@ Same as the avatar, but a rounded square instead of a circle. Until logo uploads
 
 `{% include "components/team_link.html" with team=team size="sm" %}`
 
-The logo, then a `text-reset fw-medium text-break` link with the team name to its page (`teams:detail`). Use it wherever a team name appears outside its own page. Do not use `stretched-link` in a row that holds a team link.
+The logo, then a `text-reset fw-medium text-break` link with the team name to its page (`teams:detail`). Use it wherever a team name appears outside its own page. In a clickable match row, `.pn-row-link` lifts the team link above the row's stretched link (see "Match rows").
 
 Pass `link=False` when the viewer can't open the team page. The name then shows as plain text (`fw-medium text-break`). `matches/_match_teams.html` passes the flag on.
 
@@ -230,9 +230,17 @@ Use tabs to switch one card between parallel views of the same thing, such as on
 
 `{% include "components/match_row.html" %}` inside a `list-group list-group-flush`, with `match` in context. Match rows are for short lists: the dashboard, team, facility and profile pages, My matches and the round-robin preview. The Schedule page uses the schedule table below. Each row shows both team logos and names, with the time and facility on a secondary line. Build the query with `matches.schedule.schedule_matches()`, which selects what the row needs. The facility name links to its details only while the facility is active, because inactive ones have no public page. Cancelled matches stay in the list with a `Cancelled` badge (`bg-secondary-lt`).
 
-Each team name links to its team page (`components/team_link.html`). The time and the final score are `text-reset` links to the match page (`matches:detail`). Don't wrap the matchup in a link, because links can't nest. Don't use `stretched-link`, because the row holds several links. `matches/_my_match_row.html` on My matches uses the same links.
+Each team name links to its team page (`components/team_link.html`). The time and the final score are `text-reset` links to the match page (`matches:detail`). Don't wrap the matchup in a link, because links can't nest. `matches/_my_match_row.html` on My matches uses the same links.
 
-On My matches, a row in a draft season doesn't link its time or score, because players get a 404 on that match page. It shows the team names as plain text (`link=False`), because `teams:detail` is a 404 too. League Admins still get the team links: the view sets `can_see_drafts`.
+The whole row opens the match page:
+
+- Give the row `position-relative pn-row-link`.
+- Make exactly one match link in the row a `stretched-link`. In a match row it is the time. Its `aria-label` is "Open match: Home vs Away, Mon Nov 16, 6:00 PM".
+- Bootstrap puts the stretched link's `::after` over the whole row at `z-index: 1`. `.pn-row-link` (in `playnyu.css`) gives every other link and `.btn` in the row `position: relative; z-index: 2`. They sit above the overlay, so the team, facility, score and action links stay separately clickable.
+- `.pn-row-link` adds `cursor: pointer` and a `--tblr-bg-surface-secondary` hover background.
+- Never nest an `<a>`. A row with no match page to open gets no stretched link and no `pn-row-link`.
+
+On My matches, a row in a draft season doesn't link its time or score, and gets no stretched link, because players get a 404 on that match page. It shows the team names as plain text (`link=False`), because `teams:detail` is a 404 too. League Admins still get the team links: the view sets `can_see_drafts`.
 
 On a facility page, pass `facility_page=True`: the meta line shows the sport in place of the facility.
 
@@ -244,6 +252,7 @@ The Schedule page (`matches/schedule.html`) shows every match in one `table card
 
 - Columns: Date (date, time below), Sport (icon and name), Home, Score, Away, Venue, Top.
 - The date and the score are `text-reset` links to `matches:detail`. Team names use `components/team_link.html`. Never nest a link.
+- The whole row opens the match page with the "Match rows" pattern (`<tr class="pn-row-link position-relative">`). The stretched link is in the score cell: the score, "vs" before a result, or the `Cancelled` badge. It has the same `aria-label`.
 - The score is centered between the teams: this is the one table number that is not right-aligned.
 - Before a result, the score cell shows "vs". A cancelled match shows a `Cancelled` badge (`bg-secondary-lt`) and no score.
 - Under the score, the period line: the sport's `period_label`, then "home-away" per period, then `OT1 3-2` per overtime period. Example: `Q 14-12 18-15 12-14 14-10 OT1 3-2`.
@@ -448,7 +457,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | What | Where |
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
-| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-sheet-input`, `pn-schedule` and its `pn-sched-*` cells) | `static/css/playnyu.css` |
+| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-sheet-input`, `pn-row-link`, `pn-schedule` and its `pn-sched-*` cells) | `static/css/playnyu.css` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
 | Template filters (`initials`: "P" with no name, never the email, `sport_icon`, `control` with optional extra classes, `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
 
