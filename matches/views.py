@@ -1,10 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
 from accounts.roles import (
@@ -13,15 +14,24 @@ from accounts.roles import (
     has_role,
     users_with_role,
 )
-from teams.models import Season
+from teams.models import Roster, Season
 from teams.season_rules import SeasonAction
 from teams.views import _require_league_admin
 
-from .forms import MatchForm
+from .forms import MatchForm, ScheduleFilterForm
 from .models import Match
 from .scorekeeping import group_assigned_matches
 from .sheet_forms import MatchSheet
-from .schedule import schedule_matches, seasons_visible_to
+from .schedule import (
+    DEFAULT_SORTS,
+    SCHEDULE_PER_PAGE,
+    SCHEDULE_TABS,
+    annotate_schedule_rows,
+    schedule_matches,
+    schedule_order,
+    schedule_tab,
+    seasons_visible_to,
+)
 from .standings import compute_standings
 from .stats import match_event_types, period_rows, team_sheets
 
@@ -269,45 +279,96 @@ def _score_url(user, match):
     return None
 
 
+SCHEDULE_HEADERS = (
+    ("date", "Date"),
+    ("sport", "Sport"),
+    ("home", "Home"),
+    ("away", "Away"),
+    ("venue", "Venue"),
+)
+
+
+def _query(params):
+    return f"?{urlencode(params)}"
+
+
 @login_required
-def schedule_seasons(request):
-    """Every season the player can see, linking to its schedule."""
-    seasons = seasons_visible_to(request.user).order_by("-start_date", "name")
+def schedule(request):
+    """Every match the viewer can see, in one filtered, sorted, paged table."""
+    seasons = seasons_visible_to(request.user)
+    form = ScheduleFilterForm(request.GET or None, seasons=seasons)
+    values = form.values()
+    tab = values.get("tab", "upcoming")
+    sort = values.get("sort") or DEFAULT_SORTS[tab]
+    matches = form.filter(schedule_matches().filter(season__in=seasons), request.user)
+    matches = schedule_tab(matches, tab).order_by(*schedule_order(sort))
+    page_obj = Paginator(matches, SCHEDULE_PER_PAGE).get_page(request.GET.get("page"))
+
+    # Links rebuild the query from cleaned values, so bad ones aren't passed on.
+    filters = [
+        (name, getattr(values[name], "pk", values[name]))
+        for name in ScheduleFilterForm.FILTERS
+        if name in values
+    ]
+    with_tab = filters + [("tab", tab)]
+    kept_sort = [("sort", sort)] if "sort" in values else []
+    headers = []
+    for key, label in SCHEDULE_HEADERS:
+        direction = None
+        if sort.removeprefix("-") == key:
+            direction = "descending" if sort.startswith("-") else "ascending"
+        target = f"-{key}" if direction == "ascending" else key
+        headers.append((key, label, _query(with_tab + [("sort", target)]), direction))
+    mine = "mine" in values
+    mine_params = [item for item in filters if item[0] != "mine"]
+    if not mine:
+        mine_params.append(("mine", "1"))
+
+    # The division select lists the chosen season's divisions only.
+    season = values.get("season")
+    divisions = season.divisions.order_by("name", "pk") if season else None
+    if divisions is not None:
+        form.fields["division"].queryset = divisions
     return render(
         request,
-        "matches/schedule_seasons.html",
-        {"seasons": seasons, "nav_section": "schedule"},
+        "matches/schedule.html",
+        {
+            "form": form,
+            "matches": annotate_schedule_rows(page_obj.object_list),
+            "page_obj": page_obj,
+            "querystring": urlencode(with_tab + kept_sort),
+            "tab": tab,
+            "tab_links": [
+                (name, _query(filters + [("tab", name)])) for name in SCHEDULE_TABS
+            ],
+            "sort": sort,
+            "kept_sort": bool(kept_sort),
+            "headers": headers,
+            "mine": mine,
+            "mine_link": _query(mine_params + [("tab", tab)] + kept_sort),
+            "has_filters": bool(filters),
+            "clear_link": _query([("tab", tab)]),
+            "show_divisions": divisions is not None and divisions.exists(),
+            # Rows of the viewer's own teams get pn-row-me.
+            "my_team_ids": set(
+                Roster.objects.filter(player=request.user).values_list(
+                    "team_id", flat=True
+                )
+            ),
+            "nav_section": "schedule",
+        },
     )
 
 
 @login_required
 def season_schedule(request, pk):
-    """All of a season's matches by time, optionally for one division."""
+    """The old season page: the table, filtered to the season (and division)."""
     season = get_object_or_404(seasons_visible_to(request.user), pk=pk)
-    divisions = season.divisions.all()
-    matches = schedule_matches().filter(season=season)
+    params = [("season", season.pk)]
     division_id = request.GET.get("division", "")
-    # A value that isn't one of this season's divisions just shows every match.
-    division = (
-        divisions.filter(pk=division_id).first() if division_id.isdecimal() else None
-    )
-    if division:
-        # Matches have no division of their own, so it comes from their teams.
-        # A match between two divisions is on both divisions' schedules.
-        matches = matches.filter(
-            Q(home_team__division=division) | Q(away_team__division=division)
-        )
-    return render(
-        request,
-        "matches/season_schedule.html",
-        {
-            "season": season,
-            "divisions": divisions,
-            "division": division,
-            "matches": matches,
-            "nav_section": "schedule",
-        },
-    )
+    if division_id.isdecimal() and season.divisions.filter(pk=division_id).exists():
+        params.append(("division", division_id))
+    return redirect(reverse("matches:schedule") + _query(params))
 
 
 @login_required

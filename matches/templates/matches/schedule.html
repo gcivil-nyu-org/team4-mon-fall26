@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load ui %}
+{% block title %}Schedule · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h1>Schedule</h1>
+      <div class="page-meta">Every match you can see. Times are New York time.</div>
+    </div>
+    {# A link, not a checkbox: it applies at once with no JavaScript. #}
+    <a class="btn btn-outline-secondary{% if mine %} active{% endif %}" href="{{ mine_link }}"><i aria-hidden="true" class="ti {% if mine %}ti-square-check{% else %}ti-square{% endif %} me-1"></i>My teams{% if mine %}<span class="visually-hidden">, on</span>{% endif %}</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <input type="hidden" name="tab" value="{{ tab }}">
+        {% if kept_sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+        {% if mine %}<input type="hidden" name="mine" value="1">{% endif %}
+        <div class="col-sm-6 col-lg">
+          <label class="form-label" for="{{ form.sport.id_for_label }}">Sport</label>
+          {{ form.sport|control }}
+        </div>
+        <div class="col-sm-6 col-lg">
+          <label class="form-label" for="{{ form.season.id_for_label }}">Season</label>
+          {{ form.season|control }}
+        </div>
+        {% if show_divisions %}
+          <div class="col-sm-6 col-lg">
+            <label class="form-label" for="{{ form.division.id_for_label }}">Division</label>
+            {{ form.division|control }}
+          </div>
+        {% endif %}
+        <div class="col-sm-6 col-lg">
+          <label class="form-label" for="{{ form.team.id_for_label }}">Team</label>
+          {{ form.team|control }}
+        </div>
+        <div class="col-sm-6 col-lg">
+          <label class="form-label" for="{{ form.venue.id_for_label }}">Venue</label>
+          {{ form.venue|control }}
+        </div>
+        <div class="col-sm-auto">
+          <button class="btn btn-outline-secondary w-100" type="submit">Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <nav aria-label="Which matches">
+        <div class="btn-group">
+          {% for name, href in tab_links %}
+            <a class="btn btn-sm btn-outline-secondary{% if name == tab %} active{% endif %}" href="{{ href }}"{% if name == tab %} aria-current="page"{% endif %}>{{ name|capfirst }}</a>
+          {% endfor %}
+        </div>
+      </nav>
+      <div class="card-actions"><span class="text-secondary small pn-num">{{ page_obj.paginator.count }} match{{ page_obj.paginator.count|pluralize:"es" }}</span></div>
+    </div>
+    {% if matches %}
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table pn-schedule">
+          <thead>
+            <tr>
+              {% for key, label, href, direction in headers %}
+                <th class="pn-sched-{{ key }}"{% if direction %} aria-sort="{{ direction }}"{% endif %}><a class="text-reset text-nowrap{% if direction %} fw-bold{% endif %}" href="{{ href }}">{{ label }}{% if direction == "ascending" %}<i aria-hidden="true" class="ti ti-chevron-up ms-1"></i>{% elif direction == "descending" %}<i aria-hidden="true" class="ti ti-chevron-down ms-1"></i>{% endif %}</a></th>
+                {% if key == "home" %}<th class="pn-sched-score text-center">Score</th>{% endif %}
+              {% endfor %}
+              <th class="pn-sched-top" title="Top performer">Top</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for match in matches %}
+              <tr{% if match.home_team_id in my_team_ids or match.away_team_id in my_team_ids %} class="pn-row-me"{% endif %}>
+                <td class="pn-sched-date"><a class="text-reset pn-num text-nowrap" href="{% url 'matches:detail' match.pk %}" title="Match page"><span class="d-block fw-medium">{{ match.starts_at|date:"D M j" }}</span><span class="d-block small text-secondary">{{ match.starts_at|date:"g:i A" }}</span></a></td>
+                <td class="pn-sched-sport"><span class="d-inline-flex align-items-center gap-1 small text-secondary text-nowrap"><i aria-hidden="true" class="ti {{ match.home_team.sport|sport_icon }}"></i>{{ match.home_team.sport.name }}</span></td>
+                <td class="pn-sched-home">{% include "components/team_link.html" with team=match.home_team size="sm" %}</td>
+                <td class="pn-sched-score text-center{% if not match.has_result and not match.is_cancelled %} pn-sched-pending{% endif %}">
+                  {% if match.is_cancelled %}
+                    <span class="badge bg-secondary-lt">Cancelled</span>
+                  {% elif match.has_result %}
+                    <a class="pn-num fw-bold text-reset text-nowrap" href="{% url 'matches:detail' match.pk %}" title="Final score, open the match page">{{ match.home_score }} – {{ match.away_score }}</a>
+                    {% if match.period_line %}<div class="small text-secondary pn-num text-nowrap">{{ match.period_line }}</div>{% endif %}
+                  {% else %}
+                    <span class="text-secondary">vs</span>
+                  {% endif %}
+                </td>
+                <td class="pn-sched-away">{% include "components/team_link.html" with team=match.away_team size="sm" %}</td>
+                <td class="pn-sched-venue"><i aria-hidden="true" class="ti ti-map-pin text-secondary me-1 d-md-none"></i>{% if match.facility.is_active %}<a href="{% url 'facilities:detail' match.facility_id %}">{{ match.facility.name }}</a>{% else %}{{ match.facility.name }}{% endif %}</td>
+                <td class="pn-sched-top">
+                  {% with top=match.top_performer %}
+                    {% if top %}
+                      <span class="d-inline-flex align-items-center gap-1 text-nowrap"><span class="small text-secondary d-md-none">Top:</span>{% include "components/avatar.html" with person=top.player size="xs" %}<span>{% firstof top.player.last_name top.player|display_name %}</span> <span class="pn-num fw-medium">{{ top.value }}</span> <span class="small text-secondary">{{ top.event_type.name }}</span></span>
+                    {% else %}
+                      <span class="text-secondary" title="No stats">—</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% include "components/pager.html" with page_obj=page_obj querystring=querystring label="Schedule pages" %}
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-calendar-off"></i></div>
+        {% if has_filters %}
+          <p class="empty-title">No matches found</p>
+          <p class="empty-subtitle text-secondary">No matches match these filters.</p>
+          <div class="empty-action"><a class="btn btn-outline-secondary" href="{{ clear_link }}">Clear filters</a></div>
+        {% elif tab == "results" %}
+          <p class="empty-title">No results yet</p>
+          <p class="empty-subtitle text-secondary">Scores show up here after matches are played.</p>
+        {% elif tab == "upcoming" %}
+          <p class="empty-title">No upcoming matches</p>
+          <p class="empty-subtitle text-secondary">Matches show up here once a League Admin schedules them.</p>
+        {% else %}
+          <p class="empty-title">No matches yet</p>
+          <p class="empty-subtitle text-secondary">Matches show up here once a League Admin schedules them.</p>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

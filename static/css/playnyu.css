@@ -117,3 +117,36 @@
 /* Chat inbox */
 .pn-chat-messages { max-height: 60vh; overflow-y: auto; }
 .pn-chat-list .list-group-item[aria-current="page"] { background: var(--pn-primary-tint); }
+
+/* Schedule: team names get room, so text-break only splits very long names. */
+@media (min-width: 768px) {
+  .pn-schedule td.pn-sched-home, .pn-schedule td.pn-sched-away { min-width: 10rem; }
+}
+
+/* Schedule: below 768px each match row is a stacked block, so the page never scrolls sideways.
+   The header row stays as a wrapping row of sort links. */
+@media (max-width: 767.98px) {
+  .pn-schedule, .pn-schedule thead, .pn-schedule tbody { display: block; }
+  .pn-schedule thead tr { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; padding: 0.5rem 1rem; }
+  .pn-schedule.table > thead > tr > th { display: block; padding: 0; border: 0; background: none; box-shadow: none; }
+  .pn-schedule.table > thead > tr > th.pn-sched-score, .pn-schedule.table > thead > tr > th.pn-sched-top { display: none; }
+  .pn-schedule tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "date sport" "home home" "away away" "score score" "venue venue" "top top";
+    gap: 0.25rem 0.75rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--tblr-border-color);
+  }
+  /* Cells drop Tabler's padding and cell shading; the row carries the pn-row-me tint. */
+  .pn-schedule.table > tbody > tr > td { display: block; padding: 0; border: 0; background: none; box-shadow: none; }
+  .pn-schedule tbody tr.pn-row-me { background-color: var(--pn-primary-tint); }
+  .pn-schedule .pn-sched-date { grid-area: date; }
+  .pn-schedule .pn-sched-sport { grid-area: sport; }
+  .pn-schedule .pn-sched-home { grid-area: home; }
+  .pn-schedule .pn-sched-away { grid-area: away; }
+  .pn-schedule .pn-sched-score { grid-area: score; }
+  .pn-schedule .pn-sched-venue { grid-area: venue; }
+  .pn-schedule .pn-sched-top { grid-area: top; }
+  .pn-schedule .pn-sched-pending { display: none; }
+}
