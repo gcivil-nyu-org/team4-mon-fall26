@@ -233,16 +233,26 @@ def mark_read(user, conversation, moment=None):
     )
 
 
+def blockable_users(user):
+    """Active people the user may block or unblock.
+
+    Skips the user, inactive accounts and unclaimed placeholders. Blocks
+    don't matter here, so a blocked person can still be unblocked.
+    """
+    User = get_user_model()
+    return User.objects.filter(is_active=True, pending_account__isnull=True).exclude(
+        pk=user.pk
+    )
+
+
 def reachable_users(user):
     """Active people the user may start a chat with.
 
     Skips the user, inactive accounts, unclaimed placeholders and anyone
     with a block in either direction.
     """
-    User = get_user_model()
     return (
-        User.objects.filter(is_active=True, pending_account__isnull=True)
-        .exclude(pk=user.pk)
+        blockable_users(user)
         .exclude(pk__in=Block.objects.filter(blocker=user).values("blocked_id"))
         .exclude(pk__in=Block.objects.filter(blocked=user).values("blocker_id"))
     )
