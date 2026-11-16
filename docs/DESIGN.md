@@ -144,9 +144,9 @@ Shared partials live in `templates/components/`. Use them with `{% include %}` i
 
 `{% include "components/avatar.html" with person=user size="md" %}`
 
-Renders a circle with the person's initials on violet tint (`{{ person|initials }}` falls back to the first letter of the email). When profile photos land, this partial is the only place that changes: it will show the photo when there is one.
+Renders a circle with the person's initials on violet tint (`{{ person|initials }}`). A person with no name gets "P", for "PlayNYU player". The avatar never uses the email, in the initials or in the label. When profile photos land, this partial is the only place that changes: it will show the photo when there is one.
 
-It is hidden from screen readers by default, because the person's name is almost always right next to it. When an avatar stands alone (a stacked group, an avatar-only button), pass `labelled=True` to give it a label and a hover title.
+It is hidden from screen readers by default, because the person's name is almost always right next to it. When an avatar stands alone (a stacked group, an avatar-only button), pass `labelled=True` to give it a label and a hover title. The label is `{{ person|display_name }}`.
 
 Sizes (default `sm`): `xs` 20px (inline in text), `sm` 32px (list rows, tables, stacked groups), `md` 40px (dashboard and profile lists), `lg` 48px (team grid cards), `xl` 80px (page header). Groups of avatars use `avatar-list`, max 5 then `+N`. Don't use `avatar-list-stacked` with initials: the overlap cuts the letters off. It's fine once avatars are photos.
 
@@ -429,7 +429,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | Layout, navbar, messages | `templates/base.html` |
 | Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-sheet-input`) | `static/css/playnyu.css` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
-| Template filters (`initials`, `sport_icon`, `control` with optional extra classes, `player_name` and `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
+| Template filters (`initials`: "P" with no name, never the email, `sport_icon`, `control` with optional extra classes, `player_name` and `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
 
 ## 10. Checklist for every UI PR (people and agents)
 
