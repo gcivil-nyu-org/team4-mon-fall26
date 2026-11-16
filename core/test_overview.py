@@ -261,7 +261,10 @@ class OverviewContentTests(OverviewFixtures):
         home = Topic.objects.create(author=self.player, title="Clean", body="Fine")
         for number in range(messages + 1):
             Message.objects.create(
-                team=team, author=self.player, body="Hi", is_flagged=number < messages
+                conversation=team.conversation,
+                author=self.player,
+                body="Hi",
+                is_flagged=number < messages,
             )
         for number in range(topics):
             Topic.objects.create(

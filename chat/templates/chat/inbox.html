@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Chat · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><h1>Chat</h1></div>
+    <a class="btn {% if active %}btn-outline-secondary{% else %}btn-primary{% endif %}" href="{% url 'chat:new' %}">Start a chat</a>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-4 pn-chat-list{% if active %} d-none d-lg-block{% endif %}">
+      <div class="card">
+        {% if rows %}
+          {% include "chat/_conversation_list.html" with rows=rows %}
+        {% else %}
+          <div class="card-body">
+            <div class="empty py-2">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-messages"></i></div>
+              <p class="empty-title">No chats yet</p>
+              <p class="empty-subtitle text-secondary">Start a one-to-one or group chat.</p>
+              <div class="empty-action"><a class="btn btn-outline-primary" href="{% url 'chat:new' %}">Start a chat</a></div>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-lg-8 pn-chat-thread{% if not active %} d-none d-lg-block{% endif %}">
+      {% if active %}
+        {% include "chat/_thread_pane.html" %}
+      {% else %}
+        <div class="card">
+          <div class="card-body">
+            <div class="empty py-2">
+              <div class="empty-icon"><i aria-hidden="true" class="ti ti-messages"></i></div>
+              <p class="empty-subtitle text-secondary">Pick a chat or start one.</p>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

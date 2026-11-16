@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load chat_tags ui %}
+{% block title %}Start a chat · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><div class="subheader">Chat</div><h1>Start a chat</h1></div>
+    <a class="btn btn-outline-secondary" href="{% url 'chat:inbox' %}">All chats</a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="get" action="{% url 'chat:new' %}">
+        {% for picked in chosen %}<input name="to" value="{{ picked.pk }}" type="hidden">{% endfor %}
+        <div class="input-group">
+          <input class="form-control" type="search" name="q" value="{{ q }}" placeholder="Search people…" aria-label="Search people">
+          <button class="btn btn-outline-secondary" type="submit">Search</button>
+        </div>
+      </form>
+      {% if has_bad %}<p class="text-secondary mt-2 mb-0">You can't message this person.</p>{% endif %}
+      {% if chosen %}
+        <div class="subheader mt-3">Chosen</div>
+        <div class="d-flex flex-wrap gap-2 mt-1">
+          {% for person in chosen %}
+            <span class="d-inline-flex align-items-center gap-2">
+              {% include "components/avatar.html" with person=person size="sm" %}
+              <span class="fw-medium">{{ person|chat_display_name }}</span>
+              <a href="{% url 'chat:new' %}?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% for other in chosen %}{% if other.pk != person.pk %}to={{ other.pk }}&amp;{% endif %}{% endfor %}">Remove</a>
+            </span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    {% if results %}
+      <div class="list-group list-group-flush">
+        {% for candidate in results %}
+          <div class="list-group-item d-flex align-items-center gap-3">
+            {% include "components/avatar.html" with person=candidate size="sm" %}
+            <div class="flex-fill min-w-0">
+              <div class="fw-medium">{{ candidate|chat_display_name }}</div>
+              {% if candidate.shared_team %}<div class="small text-secondary">{{ candidate.shared_team }}</div>{% endif %}
+            </div>
+            <a href="{% url 'chat:new' %}?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% for picked in chosen %}to={{ picked.pk }}&amp;{% endfor %}to={{ candidate.pk }}">Add</a>
+          </div>
+        {% endfor %}
+      </div>
+    {% elif q %}
+      <div class="card-body border-top">
+        <p class="text-secondary mb-0">No people found.</p>
+      </div>
+    {% endif %}
+    <div class="card-body border-top">
+      <form method="post" action="{% url 'chat:new' %}">
+        {% csrf_token %}
+        {% for picked in chosen %}<input name="to" value="{{ picked.pk }}" type="hidden">{% endfor %}
+        {% for error in form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">{{ error }}</div>
+        {% endfor %}
+        {% if chosen|length >= 2 %}
+          <div class="mb-3">
+            <label class="form-label" for="{{ form.title.id_for_label }}">Group name</label>
+            {{ form.title|control }}
+            {% if form.title.errors %}
+              <div class="invalid-feedback d-block">{% for error in form.title.errors %}<div>{{ error }}</div>{% endfor %}</div>
+            {% endif %}
+          </div>
+        {% endif %}
+        <button class="btn btn-primary" type="submit">Start chat</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
