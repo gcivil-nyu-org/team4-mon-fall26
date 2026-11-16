@@ -5,6 +5,7 @@ from . import round_robin_views, views
 app_name = "matches"
 
 urlpatterns = [
+    path("<int:pk>/", views.match_detail, name="detail"),
     path("mine/", views.my_matches, name="mine"),
     path("schedule/", views.schedule_seasons, name="schedule_seasons"),
     path("schedule/<int:pk>/", views.season_schedule, name="season_schedule"),

@@ -104,9 +104,7 @@ class RecordScorePermissionTests(MatchFixtures):
     def test_admin_enters_the_score(self):
         self.client.force_login(self.admin)
         response = self.client.post(self.url, {"home_score": "2", "away_score": "1"})
-        self.assertRedirects(
-            response, reverse("matches:manage") + f"?season={self.season.pk}"
-        )
+        self.assertRedirects(response, reverse("matches:detail", args=[self.match.pk]))
         self.assertEqual(self.stored(), (2, 1))
 
     def test_admin_correction_overwrites(self):
@@ -161,7 +159,7 @@ class SubmitScoreTests(ScorekeeperFixtures):
     def test_assigned_scorekeeper_submits(self):
         self.client.force_login(self.keeper)
         response = self.client.post(self.url, {"home_score": "2", "away_score": "1"})
-        self.assertRedirects(response, reverse("matches:mine"))
+        self.assertRedirects(response, reverse("matches:detail", args=[self.match.pk]))
         self.assertEqual(self.stored(), (2, 1))
 
     def test_other_scorekeeper_gets_403(self):

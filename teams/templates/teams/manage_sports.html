@@ -25,8 +25,9 @@
                 <span class="avatar rounded bg-primary-lt"><i aria-hidden="true" class="ti {{ sport|sport_icon }}"></i></span>
                 <div class="min-w-0">
                   <div class="fw-medium">{{ sport.name }}</div>
-                  <div class="small text-secondary"><span class="pn-num">{{ sport.event_type_count }}</span> event type{{ sport.event_type_count|pluralize }}</div>
+                  <div class="small text-secondary"><span class="pn-num">{{ sport.event_type_count }}</span> event type{{ sport.event_type_count|pluralize }} · <span class="pn-num">{{ sport.period_count }}</span> period{{ sport.period_count|pluralize }}</div>
                 </div>
+                <a class="btn btn-sm btn-outline-secondary ms-auto" href="{% url 'teams:edit_sport' sport.pk %}">Edit</a>
               </div>
             {% endfor %}
           </div>

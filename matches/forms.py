@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.crypto import salted_hmac
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
@@ -136,11 +136,17 @@ class ScoreForm(forms.ModelForm):
         model = Match
         fields = ["home_score", "away_score"]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, required=True, **kwargs):
         super().__init__(*args, **kwargs)
         for name in ("home_score", "away_score"):
-            self.fields[name].required = True
+            self.fields[name].required = required
             self.fields[name].validators.append(MinValueValidator(0))
+            self.fields[name].validators.append(MaxValueValidator(9999))
+        if not required:
+            # The match sheet: entered periods replace these two values.
+            self.fields["away_score"].help_text = (
+                "When you enter periods, the final score is their total."
+            )
         match = self.instance
         if match is not None and match.pk:
             self.fields["home_score"].label = f"{match.home_team} score"

@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet
 
 from .default_seasons import created_seasons_message, ensure_default_seasons
+from .forms import SportForm
 from .models import (
     EventType,
     FreeAgentRequest,
@@ -55,7 +56,9 @@ class TeamAdmin(admin.ModelAdmin):
 
 @admin.register(Sport)
 class SportAdmin(admin.ModelAdmin):
-    list_display = ("name",)
+    # SportForm keeps the period fields optional, as on the League Admin pages.
+    form = SportForm
+    list_display = ("name", "period_count", "period_label")
     search_fields = ("name",)
 
     def save_model(self, request, obj, form, change):

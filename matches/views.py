@@ -4,18 +4,26 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from accounts.roles import SCOREKEEPER_ROLE, has_role, users_with_role
+from accounts.roles import (
+    LEAGUE_ADMIN_ROLE,
+    SCOREKEEPER_ROLE,
+    has_role,
+    users_with_role,
+)
 from teams.models import Season
 from teams.season_rules import SeasonAction
 from teams.views import _require_league_admin
 
-from .forms import MatchForm, ScoreForm
+from .forms import MatchForm
 from .models import Match
 from .scorekeeping import group_assigned_matches
+from .sheet_forms import MatchSheet
 from .schedule import schedule_matches, seasons_visible_to
 from .standings import compute_standings
+from .stats import match_event_types, period_rows, team_sheets
 
 
 def _manage_url(season_id):
@@ -132,19 +140,21 @@ def cancel_match(request, pk):
     return redirect(_manage_url(match.season_id))
 
 
-def _score_match(request, match, form, back_url, nav_section):
+def _score_match(request, match, nav_section):
     """Shared save path for League Admin and scorekeeper score entry."""
-    if request.method == "POST" and form.is_valid():
-        form.save()
+    sheet = MatchSheet(match, request.POST if request.method == "POST" else None)
+    detail_url = reverse("matches:detail", args=[match.pk])
+    if request.method == "POST" and sheet.is_valid() and sheet.save():
         messages.success(request, f"Saved the score for {match}.")
-        return redirect(back_url)
+        return redirect(detail_url)
     return render(
         request,
         "matches/score_form.html",
         {
-            "form": form,
+            "sheet": sheet,
+            "form": sheet.score_form,
             "match": match,
-            "back_url": back_url,
+            "back_url": detail_url,
             "nav_section": nav_section,
         },
     )
@@ -166,10 +176,7 @@ def record_score(request, pk):
         else:
             messages.error(request, f"{match.season} isn't open or active.")
         return redirect(_manage_url(match.season_id))
-    form = ScoreForm(request.POST or None, instance=match)
-    return _score_match(
-        request, match, form, _manage_url(match.season_id), "league_setup"
-    )
+    return _score_match(request, match, "league_setup")
 
 
 @login_required
@@ -195,8 +202,74 @@ def submit_score(request, pk):
         # My matches hides the button until then. A typed URL gets the same answer.
         messages.error(request, "You can submit the score once the match starts.")
         return redirect("matches:mine")
-    form = ScoreForm(request.POST or None, instance=match)
-    return _score_match(request, match, form, reverse("matches:mine"), "my_matches")
+    return _score_match(request, match, "my_matches")
+
+
+@login_required
+def match_detail(request, pk):
+    """One match: score, periods, and each team's players with their stats."""
+    user = request.user
+    # Draft seasons are 404 for players, like the schedule and standings.
+    match = get_object_or_404(
+        Match.objects.filter(season__in=seasons_visible_to(user)).select_related(
+            "season",
+            "facility",
+            "home_team__sport",
+            "away_team__sport",
+            "home_team__division",
+        ),
+        pk=pk,
+    )
+    sheets = team_sheets(match)
+    show_stats = match.has_result and not match.is_cancelled
+    event_types = match_event_types(match) if show_stats else []
+    tables = [
+        (sheet, [(row, row.values(event_types)) for row in sheet.rows])
+        for sheet in sheets
+    ]
+    # Team pages are for members only, so link just the viewer's own teams.
+    member_team_ids = {
+        sheet.team.pk
+        for sheet in sheets
+        for row in sheet.rows
+        if row.on_roster and row.player.pk == user.pk
+    }
+    if match.is_cancelled:
+        status = "cancelled"
+    elif match.has_result:
+        status = "final"
+    elif match.ends_at < timezone.now():
+        status = "awaiting"
+    else:
+        status = "scheduled"
+    return render(
+        request,
+        "matches/match_detail.html",
+        {
+            "match": match,
+            "sheets": sheets,
+            "tables": tables,
+            "event_types": event_types,
+            "periods": [] if match.is_cancelled else period_rows(match),
+            "status": status,
+            "member_team_ids": member_team_ids,
+            "score_url": _score_url(user, match),
+            "nav_section": "schedule",
+        },
+    )
+
+
+def _score_url(user, match):
+    """The score page the viewer may use for this match, or None."""
+    if (user.is_superuser or has_role(user, LEAGUE_ADMIN_ROLE)) and match.can_change:
+        return reverse("matches:score", args=[match.pk])
+    if (
+        match.scorekeeper_id == user.pk
+        and has_role(user, SCOREKEEPER_ROLE)
+        and match.can_submit_score
+    ):
+        return reverse("matches:submit_score", args=[match.pk])
+    return None
 
 
 @login_required

@@ -24,6 +24,17 @@ def initials(user):
     return (user.email or user.username or "?")[:1].upper()
 
 
+PLAYER_NAME_FALLBACK = "PlayNYU player"
+
+
+@register.filter
+def player_name(user):
+    """A player's full name for pages any member can see. Never the email."""
+    if user is None:
+        return PLAYER_NAME_FALLBACK
+    return user.get_full_name() or PLAYER_NAME_FALLBACK
+
+
 @register.filter
 def sport_icon(sport):
     if sport is None:
@@ -39,8 +50,11 @@ def sport_icon(sport):
 
 
 @register.filter
-def control(field):
-    """Render a form field's widget with the design system's classes and error state."""
+def control(field, extra=""):
+    """Render a form field's widget with the design system's classes and error state.
+
+    `extra` adds classes, for example {{ field|control:"form-control-sm pn-num" }}.
+    """
     widget = field.field.widget
     if isinstance(widget, (forms.CheckboxInput, forms.RadioSelect)):
         css = "form-check-input"
@@ -48,6 +62,8 @@ def control(field):
         css = "form-select"
     else:
         css = "form-control"
+    if extra:
+        css += f" {extra}"
     if field.errors:
         css += " is-invalid"
     existing = widget.attrs.get("class")

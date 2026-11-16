@@ -161,7 +161,7 @@ class SubmitScoreTimingTests(RelativeMatches):
         match = self.under_way()
         self.client.force_login(self.keeper)
         response = self.client.post(self.submit_url(match), SCORE)
-        self.assertRedirects(response, reverse("matches:mine"))
+        self.assertRedirects(response, reverse("matches:detail", args=[match.pk]))
         self.assertEqual(self.stored(match), (2, 1))
 
     def test_league_admin_can_still_record_before_the_start(self):
