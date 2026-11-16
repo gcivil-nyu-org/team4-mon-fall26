@@ -312,6 +312,23 @@ class MatchSheetFormTests(SheetFixtures):
         self.assertEqual((self.match.home_score, self.match.away_score), (18, 15))
         self.assertEqual(self.match.period_scores.count(), 4)
 
+    def test_periods_ignore_bad_final(self):
+        # With every period filled, the final score fields don't count at all.
+        for final in (
+            {"home_score": "5", "away_score": ""},
+            {"home_score": "", "away_score": "3"},
+            {"home_score": "10000", "away_score": "0"},
+            {"home_score": "-1", "away_score": "x"},
+        ):
+            with self.subTest(final=final):
+                data = self.periods((1, 0), (2, 0), (0, 1), (0, 0))
+                data.update(final)
+                sheet = self.sheet(data)
+                self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+                self.assertTrue(sheet.save())
+                self.match.refresh_from_db()
+                self.assertEqual((self.match.home_score, self.match.away_score), (3, 1))
+
     def test_number_limit(self):
         stat = f"stat-{self.home.pk}-{self.alex.pk}-{self.goal.pk}"
         for data in (

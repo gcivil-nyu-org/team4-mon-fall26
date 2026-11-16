@@ -195,6 +195,7 @@ class MatchSheet:
             )
             for period in range(1, period_total + 1)
         ]
+        self.data = data
         self.score_form = ScoreForm(data, instance=match, required=False)
         self.periods = PeriodFormSet(
             data, initial=initial, prefix=PERIOD_PREFIX, sport=sport
@@ -207,6 +208,12 @@ class MatchSheet:
 
     def is_valid(self):
         self._errors = []
+        if self.periods.is_valid() and self.periods.filled():
+            # Periods set the final score, so the posted final fields don't count.
+            data = self.data.copy()
+            for name in ("home_score", "away_score"):
+                data.pop(name, None)
+            self.score_form = ScoreForm(data, instance=self.match, required=False)
         parts = [self.score_form, self.periods, self.stats]
         if not all([part.is_valid() for part in parts]):
             return False
