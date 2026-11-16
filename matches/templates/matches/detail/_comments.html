@@ -1,0 +1,50 @@
+{% load ui %}{# Match comments. See docs/DESIGN.md, "Match". #}
+<div class="card mt-3" id="comments">
+  <div class="card-header">
+    <h2 class="card-title">Comments</h2>
+    <div class="card-actions"><span class="text-secondary small pn-num">{{ comments|length }}</span></div>
+  </div>
+  {% if comments %}
+    <div class="list-group list-group-flush">
+      {% for comment in comments %}
+        <div class="list-group-item d-flex align-items-start gap-3">
+          {% include "components/avatar.html" with person=comment.author size="sm" %}
+          <div class="flex-fill min-w-0">
+            <div class="fw-medium">{{ comment.author|display_name }}</div>
+            <div class="small text-secondary">{{ comment.created_at|date:"M j, Y g:i a" }}</div>
+            <div class="mt-1 text-break">{{ comment.body|linebreaksbr }}</div>
+          </div>
+          <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
+            {% if comment.is_flagged %}
+              <span class="badge bg-yellow-lt">Reported</span>
+            {% else %}
+              <form method="post" action="{% url 'matches:report_comment' match.pk comment.pk %}">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report</button>
+              </form>
+            {% endif %}
+            {% if can_moderate %}
+              <form method="post" action="{% url 'matches:delete_comment' match.pk comment.pk %}" onsubmit="return confirm('Delete this comment?');">
+                {% csrf_token %}
+                <button class="btn btn-sm btn-ghost-danger" type="submit">Delete</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty-icon"><i aria-hidden="true" class="ti ti-message"></i></div>
+      <p class="empty-title">No comments yet</p>
+      <p class="empty-subtitle text-secondary">Post the first comment below.</p>
+    </div>
+  {% endif %}
+  <div class="card-footer">
+    <form method="post" action="{% url 'matches:detail' match.pk %}#comments">
+      {% csrf_token %}
+      {% include "components/form_fields.html" with form=comment_form %}
+      <button class="btn btn-outline-primary" type="submit"><i aria-hidden="true" class="ti ti-send me-1"></i>Post comment</button>
+    </form>
+  </div>
+</div>

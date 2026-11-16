@@ -13,7 +13,7 @@ from facilities.models import Facility
 from teams.models import Division, Roster, Season, Sport, Team
 from teams.season_rules import SeasonState
 
-from .models import Match
+from .models import Match, MatchComment
 from .schedule import SCHEDULE_SORTS, SCHEDULE_TABS
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M"
@@ -279,3 +279,26 @@ def _season_option(season):
     if season.state == SeasonState.DRAFT:
         return f"{season.name} (draft)"
     return season.name
+
+
+class MatchCommentForm(forms.ModelForm):
+    class Meta:
+        model = MatchComment
+        fields = ["body"]
+        widgets = {
+            "body": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "maxlength": MatchComment.MAX_BODY_LENGTH,
+                    "placeholder": "Comment on this match…",
+                }
+            ),
+        }
+        labels = {"body": "Your comment"}
+        help_texts = {"body": f"Up to {MatchComment.MAX_BODY_LENGTH} characters."}
+
+    def clean_body(self):
+        body = (self.cleaned_data.get("body") or "").strip()
+        if not body:
+            raise ValidationError("Write a comment before posting.")
+        return body

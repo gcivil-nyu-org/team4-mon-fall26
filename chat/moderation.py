@@ -1,6 +1,7 @@
 """What the moderation queue lists, shared with the League Admin overview."""
 
 from forums.selectors import flagged_replies, flagged_topics
+from matches.models import MatchComment
 
 from .models import Conversation, Message
 from .names import conversation_label
@@ -15,12 +16,22 @@ def flagged_messages():
     )
 
 
+def flagged_comments():
+    """Reported match comments for the moderation queue, newest first."""
+    return (
+        MatchComment.objects.filter(is_flagged=True)
+        .select_related("author", "match__home_team", "match__away_team")
+        .order_by("-created_at", "-pk")
+    )
+
+
 def flagged_content():
     """The moderation queue's rows, keyed by the name its template uses."""
     return {
         "flagged": flagged_messages(),
         "flagged_topics": flagged_topics(),
         "flagged_replies": flagged_replies(),
+        "flagged_comments": flagged_comments(),
     }
 
 
