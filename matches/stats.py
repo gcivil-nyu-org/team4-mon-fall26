@@ -138,7 +138,14 @@ def save_match_sheet(match, *, periods, final, stats, played, players):
         pairs (players who left) stay as they are.
     """
     with transaction.atomic():
-        locked = Match.objects.select_for_update().get(pk=match.pk)
+        locked = (
+            Match.objects.select_for_update(of=("self",))
+            .select_related("season")
+            .get(pk=match.pk)
+        )
+        # The season or match may have closed since the caller read it.
+        if not locked.can_change:
+            raise ValidationError("This match can no longer be scored.")
         players = set(players)
         stored_stats, stored_appearances = _stored(locked)
         keep = _appearances_to_keep(stats, played, players)

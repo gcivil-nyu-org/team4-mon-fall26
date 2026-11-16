@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.templatetags.ui import player_name
-from teams.models import EventType, Roster
+from teams.models import EventType, Roster, Season
 from teams.season_rules import SeasonState
 
 from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
@@ -160,6 +160,38 @@ class SaveMatchSheetTests(SheetFixtures):
         self.assertEqual((self.match.home_score, self.match.away_score), (1, 0))
         self.assertEqual(period_rows(self.match), [("Q1", 1, 0)])
         self.assertFalse(PlayerStat.objects.exists())
+
+    def test_match_closed_since_it_was_read(self):
+        # Another request closes the season or cancels the match before the save.
+        seasons = Season.objects.filter(pk=self.season.pk)
+        matches = Match.objects.filter(pk=self.match.pk)
+        for case, close, reopen in (
+            (
+                "closed season",
+                lambda: seasons.update(state=SeasonState.CLOSED),
+                lambda: seasons.update(state=SeasonState.OPEN),
+            ),
+            (
+                "cancelled match",
+                lambda: matches.update(status=Match.Status.CANCELLED),
+                lambda: matches.update(status=Match.Status.SCHEDULED),
+            ),
+        ):
+            with self.subTest(case=case):
+                close()
+                with self.assertRaises(ValidationError) as caught:
+                    self.save(
+                        periods=[(1, 1, 0)],
+                        stats={self.key(self.home, self.alex): 1},
+                    )
+                self.assertEqual(
+                    caught.exception.messages, ["This match can no longer be scored."]
+                )
+                self.assertFalse(MatchPeriodScore.objects.exists())
+                self.assertFalse(PlayerStat.objects.exists())
+                self.match.refresh_from_db()
+                self.assertIsNone(self.match.home_score)
+                reopen()
 
 
 class TeamSheetsTests(SheetFixtures):
