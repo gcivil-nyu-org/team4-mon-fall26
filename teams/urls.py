@@ -13,6 +13,11 @@ urlpatterns = [
         views.manage_event_types,
         name="manage_event_types",
     ),
+    path(
+        "event-types/<int:pk>/scoring/",
+        views.set_scoring_event_type,
+        name="set_scoring_event_type",
+    ),
     path("", views.team_list, name="list"),
     path("all/", views.team_directory, name="directory"),
     path("new/", views.create_team, name="create"),
