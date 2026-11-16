@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}Forum · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -32,7 +33,7 @@
             {% include "components/avatar.html" with person=topic.author size="sm" %}
             <div class="flex-fill min-w-0">
               <a class="fw-medium text-break" href="{% url 'forums:detail' topic.pk %}">{{ topic.title }}</a>
-              <div class="small text-secondary">{{ topic.author.get_full_name|default:topic.author.email|default:topic.author.username }} · {{ topic.sport_label }} · active {{ topic.last_activity_at|timesince }} ago</div>
+              <div class="small text-secondary">{{ topic.author|display_name }} · {{ topic.sport_label }} · active {{ topic.last_activity_at|timesince }} ago</div>
             </div>
             <span class="small text-secondary text-nowrap flex-shrink-0"><i aria-hidden="true" class="ti ti-message me-1"></i><span class="pn-num">{{ topic.reply_count }}</span><span class="visually-hidden"> repl{{ topic.reply_count|pluralize:"y,ies" }}</span></span>
           </div>

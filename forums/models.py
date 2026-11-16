@@ -2,6 +2,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from core.names import display_name
+
 
 class Topic(models.Model):
     """A forum topic, filed under one sport or under General (no sport)."""
@@ -71,4 +73,4 @@ class Reply(models.Model):
             ).update(last_activity_at=self.created_at)
 
     def __str__(self):
-        return f"{self.author} on {self.topic}: {self.body[:40]}"
+        return f"{display_name(self.author)} on {self.topic}: {self.body[:40]}"

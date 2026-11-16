@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count, Prefetch, Q, Sum
 
-from core.templatetags.ui import player_name
+from core.names import display_name
 from teams.models import EventType, Roster, Team
 from teams.season_rules import SeasonState
 
@@ -122,7 +122,7 @@ def _check_one_team(keep, players, stored_stats, stored_appearances):
     if twice:
         users = get_user_model().objects.filter(pk__in=twice).order_by("pk")
         raise ValidationError(
-            [f"{player_name(user)} can only play for one team." for user in users]
+            [f"{display_name(user)} can only play for one team." for user in users]
         )
 
 

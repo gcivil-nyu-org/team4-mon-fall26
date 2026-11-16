@@ -3,7 +3,6 @@ from django.urls import reverse
 
 from chat.inbox import inbox_rows, unread_total
 from chat.moderation import queue_label
-from chat.names import display_name
 
 register = template.Library()
 
@@ -27,12 +26,6 @@ def chat_nav(context):
     if not getattr(user, "is_authenticated", False):
         return {"unread": 0, "url": ""}
     return {"unread": unread_total(user), "url": reverse("chat:inbox")}
-
-
-@register.filter
-def chat_display_name(user):
-    """The display name template filter: never an email address."""
-    return display_name(user)
 
 
 @register.filter

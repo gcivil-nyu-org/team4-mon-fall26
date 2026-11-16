@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load ui %}
 {% block title %}Matches · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -61,7 +62,7 @@
                     <div class="d-flex align-items-center gap-2">
                       <div class="flex-shrink-0">{% include "components/avatar.html" with person=match.scorekeeper size="sm" %}</div>
                       <div>
-                        <div class="fw-medium">{{ match.scorekeeper.get_full_name|default:match.scorekeeper.email }}</div>
+                        <div class="fw-medium">{{ match.scorekeeper|display_name }}</div>
                         {% if match.can_change and match.scorekeeper_id not in scorekeeper_ids %}
                           <span class="badge bg-yellow-lt" title="This person is no longer an active scorekeeper. Edit the match to choose someone else.">Needs reassigning</span>
                         {% endif %}

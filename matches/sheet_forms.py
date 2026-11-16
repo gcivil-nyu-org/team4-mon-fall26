@@ -7,7 +7,7 @@ to matches.stats.save_match_sheet, the only writer.
 from django import forms
 from django.core.exceptions import ValidationError
 
-from core.templatetags.ui import player_name
+from core.names import display_name
 
 from .forms import ScoreForm
 from .stats import check_one_team, match_event_types, save_match_sheet, team_sheets
@@ -111,7 +111,7 @@ class PlayerStatForm(forms.Form):
             for row in sheet.rows:
                 if not row.on_roster:
                     continue
-                name = player_name(row.player)
+                name = display_name(row.player)
                 played = forms.BooleanField(required=False, initial=row.played)
                 played.widget.attrs["aria-label"] = f"{name} played"
                 self.fields[played_name(sheet.team.pk, row.player.pk)] = played

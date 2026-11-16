@@ -100,11 +100,11 @@
               <div class="list-group-item d-flex align-items-center gap-3{% if item.player_id == user.pk %} pn-row-me{% endif %}">
                 {% include "components/avatar.html" with person=item.player size="sm" %}
                 <div class="flex-fill min-w-0">
-                  <a class="fw-medium" href="{% profile_url item.player %}">{{ item.player.get_full_name|default:"PlayNYU player" }}</a>
+                  <a class="fw-medium" href="{% profile_url item.player %}">{{ item.player|display_name }}</a>
                   <div class="small text-secondary">{{ item.sport }} · {{ item.division.name|default:"Any division" }} · Requested {{ item.requested_at|date:"M j" }}</div>
                 </div>
                 {% if item.season_id in captain_season_ids and item.player_id != user.pk %}
-                  <a class="btn btn-sm btn-outline-secondary" href="{% url 'chat:new' %}?to={{ item.player_id }}"><i aria-hidden="true" class="ti ti-message me-1"></i>Message<span class="visually-hidden"> {{ item.player.get_full_name|default:"PlayNYU player" }}</span></a>
+                  <a class="btn btn-sm btn-outline-secondary" href="{% url 'chat:new' %}?to={{ item.player_id }}"><i aria-hidden="true" class="ti ti-message me-1"></i>Message<span class="visually-hidden"> {{ item.player|display_name }}</span></a>
                 {% endif %}
               </div>
             {% endfor %}

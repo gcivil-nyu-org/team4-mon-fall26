@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
+from core.names import display_name
 from teams.season_rules import SeasonAction, SeasonState, season_allows
 
 
@@ -283,7 +284,7 @@ class PlayerStat(models.Model):
             )
 
     def __str__(self):
-        return f"{self.player} {self.event_type.name} {self.value} in {self.match}"
+        return f"{display_name(self.player)} {self.event_type.name} {self.value} in {self.match}"
 
 
 class MatchAppearance(models.Model):
@@ -313,4 +314,4 @@ class MatchAppearance(models.Model):
             validate_match_player(self)
 
     def __str__(self):
-        return f"{self.player} played for {self.team} in {self.match}"
+        return f"{display_name(self.player)} played for {self.team} in {self.match}"

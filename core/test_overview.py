@@ -351,7 +351,8 @@ class OverviewContentTests(OverviewFixtures):
         self.assertContains(response, "Change 9")
         self.assertNotContains(response, "Change 1<")
         self.assertContains(response, "System")
-        self.assertContains(response, self.admin.email)
+        self.assertContains(response, "PlayNYU player")
+        self.assertNotContains(response, self.admin.email)
 
     def test_query_count_does_not_grow_with_rows(self):
         def query_count():

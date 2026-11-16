@@ -86,7 +86,7 @@
                           <td class="text-nowrap">
                             <div class="d-flex align-items-center gap-2">
                               {% include "components/avatar.html" with person=row.player size="sm" %}
-                              <span class="fw-medium">{{ row.player|player_name }}</span>
+                              <span class="fw-medium">{{ row.player|display_name }}</span>
                               {% if not row.on_roster %}<span class="badge bg-secondary-lt">Left team</span>{% endif %}
                             </div>
                           </td>
