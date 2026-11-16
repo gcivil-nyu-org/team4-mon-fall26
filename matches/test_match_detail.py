@@ -296,7 +296,9 @@ class MatchDetailTests(SheetFixtures):
             }
         )
         leaders = self.get().context["top_performers"][0].leaders
-        self.assertEqual([l.event_type for l in leaders], [self.goal, self.assist])
+        self.assertEqual(
+            [leader.event_type for leader in leaders], [self.goal, self.assist]
+        )
 
     def test_markers_and_standings_url(self):
         ctx = self.get().context
@@ -311,6 +313,226 @@ class MatchDetailTests(SheetFixtures):
         self.field.is_active = False
         self.field.save()
         self.assertEqual(self.get().context["markers"], [])
+
+
+class MatchPageSectionTests(SheetFixtures):
+    """The #255 sections, as the page renders them."""
+
+    def get(self, user=None, match=None):
+        self.client.force_login(user or self.player)
+        url = reverse("matches:detail", args=[(match or self.match).pk])
+        return self.client.get(url)
+
+    def score(self, final=(2, 1), stats=None):
+        self.save(final=final, stats=stats or {})
+
+    def earlier(self, home, away, home_score, away_score):
+        start = self.match.starts_at - datetime.timedelta(days=1)
+        match = self.build(
+            home_team=home,
+            away_team=away,
+            starts_at=start,
+            ends_at=start + HOUR,
+            home_score=home_score,
+            away_score=away_score,
+        )
+        match.save()
+        return match
+
+    def later(self):
+        start = timezone.now() + HOUR
+        match = self.build(starts_at=start, ends_at=start + HOUR)
+        match.save()
+        return match
+
+    def test_top_performers_card(self):
+        self.score(stats={self.key(self.home, self.alex): 2})
+        response = self.get()
+        self.assertContains(response, "Top performers")
+        self.assertContains(response, 'title="Alex Lee"')
+        self.assertContains(response, '<span aria-hidden="true">Lee</span>')
+        self.assertContains(response, '<span class="pn-num fw-bold">2</span>')
+
+    def test_movement_card(self):
+        # Bobcats beat Violets the day before: Violets 3rd of 3.
+        self.earlier(self.away, self.home, 1, 0)
+        self.score()  # Violets 2-1: 2nd of 3.
+        response = self.get()
+        self.assertContains(response, "ti-arrow-up")
+        self.assertContains(response, "Up 1 place, from 3rd to 2nd of the season")
+        self.assertContains(response, "No change")
+        self.assertContains(
+            response, reverse("matches:season_standings", args=[self.season.pk])
+        )
+        self.assertContains(response, "Full standings")
+
+    def test_movement_down_words(self):
+        self.earlier(self.home, self.away, 1, 0)
+        self.score(final=(0, 1))
+        response = self.get()
+        self.assertContains(response, "ti-arrow-down")
+        self.assertContains(response, "Down 1 place, from 1st to 2nd of the season")
+
+    def test_first_result_text(self):
+        self.score()
+        self.assertContains(self.get(), "First result", count=2)
+
+    def test_totals_row(self):
+        self.score(stats={self.key(self.home, self.alex): 2})
+        response = self.get()
+        self.assertContains(response, "Team totals", count=2)
+        self.assertContains(response, '<td class="text-end pn-num fw-bold">2</td>')
+
+    def test_comparison_bars(self):
+        self.score(stats={self.key(self.home, self.alex): 2})
+        response = self.get()
+        self.assertContains(response, "Team comparison")
+        self.assertContains(response, "pn-bar-away")
+        self.assertContains(response, 'class="progress progress-sm" aria-hidden="true"')
+
+    def test_no_comparison_without_stats(self):
+        self.score()
+        response = self.get()
+        self.assertNotContains(response, "Team comparison")
+        self.assertNotContains(response, "Top performers")
+        self.assertContains(response, "Team totals", count=2)
+
+    def test_form_chips_link_and_current(self):
+        before = self.earlier(self.home, self.away, 1, 0)
+        self.score()
+        response = self.get()
+        self.assertContains(
+            response, f'href="{reverse("matches:detail", args=[before.pk])}"'
+        )
+        # This match's chip: no link, aria-current. Violets won, Bobcats lost.
+        for color in ("bg-green", "bg-red"):
+            self.assertContains(
+                response,
+                f'<span class="badge pn-form-chip {color} text-white" '
+                'aria-current="page"',
+                count=1,
+            )
+
+    def test_head_to_head(self):
+        self.earlier(self.away, self.home, 3, 3)
+        self.score()
+        response = self.get()
+        self.assertContains(response, "Head-to-head")
+        self.assertContains(response, "this match")
+        self.assertNotContains(response, "First meeting this season.")
+
+    def test_head_to_head_empty(self):
+        response = self.get(match=self.later())
+        self.assertContains(response, "First meeting this season.")
+
+    def test_final_standings_label_closed_season(self):
+        self.season.state = SeasonState.CLOSED
+        self.season.save()
+        response = self.get(self.admin)
+        self.assertContains(response, "Final standings")
+        self.assertNotContains(response, "Season so far")
+
+    def test_venue_map_and_address(self):
+        self.field.latitude, self.field.longitude = 40.729, -74.011
+        self.field.address = "353 West St"
+        self.field.borough = "manhattan"
+        self.field.save()
+        response = self.get()
+        self.assertContains(response, 'id="pn-map-markers"')
+        self.assertContains(response, "leaflet@1.9.4", count=2)
+        self.assertContains(response, "353 West St, Manhattan")
+
+    def test_no_map_without_coordinates(self):
+        response = self.get()
+        self.assertNotContains(response, "pn-map-markers")
+        self.assertNotContains(response, "leaflet")
+        self.assertContains(response, "Venue")
+
+    def test_inactive_venue_no_map_no_link(self):
+        self.field.latitude, self.field.longitude = 40.729, -74.011
+        self.field.address = "353 West St"
+        self.field.is_active = False
+        self.field.save()
+        response = self.get()
+        self.assertNotContains(response, "pn-map-markers")
+        facility_url = reverse("facilities:detail", args=[self.field.pk])
+        self.assertNotContains(response, facility_url)
+        self.assertContains(response, "353 West St")
+
+    def test_scorekeeper_name_no_email(self):
+        self.match.scorekeeper = self.keeper
+        self.match.save()
+        self.score()
+        response = self.get()
+        self.assertContains(response, "Kept score by")
+        self.assertContains(response, "PlayNYU player")
+        self.assertNotContains(response, self.keeper.email)
+
+    def test_scorekeeper_before_result(self):
+        later = self.later()
+        later.scorekeeper = self.keeper
+        later.save()
+        response = self.get(match=later)
+        self.assertContains(response, "Scorekeeper")
+        self.assertNotContains(response, "Kept score by")
+
+    def test_scorekeeper_not_assigned(self):
+        self.assertContains(self.get(), "Not assigned")
+
+    def test_scheduled_hides_result_sections(self):
+        response = self.get(match=self.later())
+        for text in (
+            "Top performers",
+            "Team comparison",
+            "Team totals",
+            "ti-arrow-up",
+            "Full standings",
+        ):
+            self.assertNotContains(response, text)
+        self.assertContains(response, "Season so far")
+
+    def test_cancelled_keeps_season_context(self):
+        self.match.cancel()
+        response = self.get()
+        self.assertNotContains(response, "Full standings")
+        self.assertNotContains(response, "Team totals")
+        self.assertContains(response, "Season so far")
+        self.assertContains(response, "Head-to-head")
+
+    def test_section_order(self):
+        self.earlier(self.away, self.home, 1, 0)
+        self.score(stats={self.key(self.home, self.alex): 2})
+        html = self.get().content.decode()
+        order = [
+            "Standings</h2>",
+            "Top performers",
+            "Team comparison",
+            "Team totals",
+            "Season so far",
+            "Venue</h2>",
+        ]
+        spots = [html.index(text) for text in order]
+        self.assertEqual(spots, sorted(spots))
+
+    def test_no_nested_links_final(self):
+        nameless = make_user("nameless")
+        Roster.objects.create(team=self.away, player=nameless)
+        self.match.scorekeeper = self.keeper
+        self.match.save()
+        self.earlier(self.home, self.away, 1, 0)
+        self.score(
+            stats={
+                self.key(self.home, self.alex): 2,
+                self.key(self.away, nameless): 1,
+            }
+        )
+        response = self.get()
+        collector = LinkCollector()
+        collector.feed(response.content.decode())
+        self.assertEqual(collector.nested, [])
+        self.assertContains(response, "PlayNYU player")
+        self.assertNotContains(response, nameless.email)
+        self.assertNotContains(response, self.keeper.email)
 
 
 class LinkCollector(HTMLParser):

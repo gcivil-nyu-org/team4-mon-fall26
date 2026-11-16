@@ -20,6 +20,8 @@
   --tblr-brand: #57068c;
   --pn-primary-hover: #45056f;
   --pn-primary-tint: #f3ebf9;
+  /* Chart series 2 (DESIGN.md "Charts"): the away team's comparison bar. */
+  --pn-series-2: #a78bce;
 
   /* Type */
   --tblr-font-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -109,6 +111,26 @@
 .pn-map {
   height: 420px;
   border-radius: inherit;
+}
+
+/* Match page: the small venue map, comparison bars and legend, and W/D/L form chips. */
+.pn-map-sm { height: 240px; }
+@media (max-width: 767.98px) {
+  .pn-map-sm { height: 200px; }
+}
+.pn-bar-away { background-color: var(--pn-series-2); }
+.pn-legend { display: inline-block; flex-shrink: 0; width: 0.75rem; height: 0.75rem; border-radius: 2px; }
+.pn-form-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (max-width: 767.98px) {
+  .pn-form-chip { min-width: 2.5rem; min-height: 40px; }
 }
 
 /* Record the score: number inputs in the match sheet tables keep room for 4 digits. */

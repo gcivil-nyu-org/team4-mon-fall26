@@ -161,11 +161,11 @@ class MovementTests(SimpleTestCase):
         self.assertEqual((home.direction, home.change), ("up", 2))
         self.assertEqual((home.before_position, home.after_position), (5, 3))
         self.assertEqual((home.of, home.table_label), (5, None))
-        self.assertEqual(home.after_points - home.before_points, 3)
+        self.assertEqual(home.points_change, 3)
 
     def test_loss_moves_down(self):
         away = self.movement(2, 1)[1]
-        self.assertEqual((away.direction, away.change), ("down", -1))
+        self.assertEqual((away.direction, away.change, away.places), ("down", -1, 1))
         self.assertEqual((away.before_position, away.after_position), (3, 4))
         self.assertEqual(away.after_points, away.before_points)
 
@@ -301,7 +301,7 @@ class TopPerformerTests(SimpleTestCase):
     def test_zero_never_leads(self):
         sheets = [self.sheet(self.home, self.row(self.lee, points=4, rebound=0))]
         tp = top_performers(sheets, self.types, self.points)
-        self.assertEqual([l.event_type for l in tp[0].leaders], [self.points])
+        self.assertEqual([leader.event_type for leader in tp[0].leaders], [self.points])
 
     def test_player_who_left_can_lead(self):
         sheets = [
@@ -318,7 +318,7 @@ class TopPerformerTests(SimpleTestCase):
         sheets = [self.sheet(self.home, self.row(self.lee, points=4, assist=1))]
         tp = top_performers(sheets, self.types, None)
         self.assertEqual(
-            [l.event_type for l in tp[0].leaders], [self.assist, self.points]
+            [leader.event_type for leader in tp[0].leaders], [self.assist, self.points]
         )
 
     def test_no_event_types_no_leaders(self):
@@ -342,16 +342,12 @@ class TopPerformerTests(SimpleTestCase):
         self.assertEqual(team_totals(sheet, [self.points, self.assist]), [3, 1])
 
     def test_comparison_skips_zero_rows_and_rounds(self):
-        rows = comparison_rows(
-            [self.assist, self.points], [1, 0], [2, 0], self.points
-        )
+        rows = comparison_rows([self.assist, self.points], [1, 0], [2, 0], self.points)
         self.assertEqual([r.event_type for r in rows], [self.assist])
         self.assertEqual((rows[0].home, rows[0].away), (1, 2))
         self.assertEqual((rows[0].home_pct, rows[0].away_pct), (33, 67))
 
     def test_comparison_scoring_first(self):
-        rows = comparison_rows(
-            [self.assist, self.points], [1, 3], [0, 1], self.points
-        )
+        rows = comparison_rows([self.assist, self.points], [1, 3], [0, 1], self.points)
         self.assertEqual([r.event_type for r in rows], [self.points, self.assist])
         self.assertEqual((rows[1].home_pct, rows[1].away_pct), (100, 0))

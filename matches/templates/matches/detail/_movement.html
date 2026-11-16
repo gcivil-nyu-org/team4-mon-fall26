@@ -1,0 +1,35 @@
+{% load ui %}{# Standings before and after this match. Only for a counted match. See docs/DESIGN.md, "Movement". #}
+<div class="card mb-3">
+  <div class="card-header">
+    <h2 class="card-title">Standings</h2>
+    <div class="card-actions"><a href="{{ standings_url }}">Full standings</a></div>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for m in movement %}
+        <div class="col-md-6">
+          <div class="d-flex align-items-center gap-2 min-w-0">
+            {% include "components/team_logo.html" with team=m.team size="sm" %}
+            <span class="fw-medium text-break">{{ m.team.name }}</span>
+            <span class="ms-auto text-nowrap">
+              {% if m.direction == "up" %}
+                <span class="text-green fw-bold pn-num" aria-hidden="true"><i class="ti ti-arrow-up"></i>{{ m.places }}</span>
+              {% elif m.direction == "down" %}
+                <span class="text-red fw-bold pn-num" aria-hidden="true"><i class="ti ti-arrow-down"></i>{{ m.places }}</span>
+              {% elif m.direction == "same" %}
+                <span class="text-secondary" aria-hidden="true"><i class="ti ti-minus"></i> No change</span>
+              {% else %}
+                <span class="badge bg-secondary-lt">First result</span>
+              {% endif %}
+              {% if m.direction != "first" %}<span class="visually-hidden">{% if m.direction == "up" %}Up {{ m.places }} place{{ m.places|pluralize }}{% elif m.direction == "down" %}Down {{ m.places }} place{{ m.places|pluralize }}{% else %}No change{% endif %}, from {{ m.before_position|ordinal }} to {{ m.after_position|ordinal }} {% if m.table_label %}in {{ m.table_label }}{% else %}of the season{% endif %}</span>{% endif %}
+            </span>
+          </div>
+          <div class="small text-secondary pn-num mt-1">
+            {% if m.before_position %}{{ m.before_position|ordinal }} → {% endif %}{{ m.after_position|ordinal }} {% if m.table_label %}in {{ m.table_label }}{% else %}of {{ m.of }}{% endif %}
+            · {{ m.before_points }} → {{ m.after_points }} pts{% if m.points_change %} (+{{ m.points_change }}){% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

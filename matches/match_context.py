@@ -30,7 +30,12 @@ def season_results(match):
         .filter(season_id=match.season_id)
         .order_by("starts_at", "pk")
         .values_list(
-            "pk", "starts_at", "home_team_id", "away_team_id", "home_score", "away_score"
+            "pk",
+            "starts_at",
+            "home_team_id",
+            "away_team_id",
+            "home_score",
+            "away_score",
         )
     ]
 
@@ -161,6 +166,15 @@ class Movement:
     after_points: int
     direction: str  # "up", "down", "same" or "first".
     change: int  # before_position - after_position; 0 for "first".
+
+    @property
+    def places(self):
+        """The size of the move, for "Up 2 places"."""
+        return abs(self.change)
+
+    @property
+    def points_change(self):
+        return self.after_points - self.before_points
 
 
 def _place(standing, team):

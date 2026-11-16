@@ -1,0 +1,28 @@
+{% load ui %}{# The venue, a small map for an active facility with coordinates, and the scorekeeper. #}
+{% with facility=match.facility %}
+  <div class="card mb-3">
+    <div class="card-header"><h2 class="card-title">Venue</h2></div>
+    <div class="row g-0">
+      {% if markers %}
+        <div class="col-md-8">
+          <div class="pn-map pn-map-sm" id="pn-map" role="region" aria-label="Map showing {{ facility.name }}"></div>
+        </div>
+      {% endif %}
+      <div class="{% if markers %}col-md-4{% else %}col-12{% endif %}">
+        <div class="card-body">
+          <div class="fw-medium">{% if facility.is_active %}<a href="{% url 'facilities:detail' facility.pk %}">{{ facility.name }}</a>{% else %}{{ facility.name }}{% endif %}</div>
+          {% if facility.address or facility.borough %}<div class="small text-secondary">{{ facility.address }}{% if facility.address and facility.borough %}, {% endif %}{{ facility.get_borough_display }}</div>{% endif %}
+          <div class="subheader mt-3 mb-1">{% if status == "final" %}Kept score by{% else %}Scorekeeper{% endif %}</div>
+          {% if match.scorekeeper %}
+            <div class="d-flex align-items-center gap-2">
+              {% include "components/avatar.html" with person=match.scorekeeper size="xs" %}
+              <span>{{ match.scorekeeper|display_name }}</span>
+            </div>
+          {% else %}
+            <div class="text-secondary">Not assigned</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endwith %}
