@@ -619,7 +619,8 @@ class ModerationQueueTests(TestCase):
         self.assertContains(response, "No flagged topics")
         self.assertContains(response, "No flagged replies")
         self.assertContains(response, "No flagged messages")
-        self.assertContains(response, 'class="empty"', count=3)
+        self.assertContains(response, "No flagged comments")
+        self.assertContains(response, 'class="empty"', count=4)
 
     def test_non_admin_cannot_see_the_queue(self):
         self.client.force_login(self.author)

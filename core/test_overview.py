@@ -306,7 +306,7 @@ class OverviewContentTests(OverviewFixtures):
 
     def test_flagged_count_takes_one_query_per_kind(self):
         self.make_flagged_content(messages=2, topics=2, replies=2)
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             self.assertEqual(flagged_total(), 6)
 
     def test_seasons_list_leaves_out_closed_seasons(self):
