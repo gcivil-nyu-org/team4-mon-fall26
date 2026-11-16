@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
-from .match_context import Result, head_to_head, team_context
+from .match_context import Result, head_to_head, standings_movement, team_context
 from .standings import positions, rank_rows
 
 
@@ -123,3 +123,97 @@ class TeamContextTests(SimpleTestCase):
     def test_head_to_head_empty(self):
         this = match(1, 1, self.a, self.b, False)
         self.assertEqual(head_to_head(this, []).meetings, [])
+
+
+class MovementTests(SimpleTestCase):
+    def setUp(self):
+        # "Zed" sorts last by name, so name tie-breaks never favour it.
+        self.zed, self.b, self.c = team(1, "Zed"), team(2, "B"), team(3, "C")
+        self.d, self.e = team(4, "D"), team(5, "E")
+        self.teams = [self.zed, self.b, self.c, self.d, self.e]
+        # Before: C 3, E 3, B 1, D 1, Zed 0 (played 1). Zed 5th, B 3rd.
+        self.earlier = [
+            result(1, 1, self.c, self.zed, 1, 0),
+            result(2, 2, self.e, self.d, 1, 0),
+            result(3, 3, self.b, self.d, 0, 0),
+        ]
+        self.this = match(10, 5, self.zed, self.b)
+
+    def movement(self, home_score, away_score, extra=()):
+        this_result = result(10, 5, self.zed, self.b, home_score, away_score)
+        results = sorted(
+            [*self.earlier, this_result, *extra], key=lambda r: (r.starts_at, r.pk)
+        )
+        return standings_movement(self.this, self.teams, results)
+
+    def test_win_moves_up(self):
+        home = self.movement(2, 1)[0]
+        self.assertEqual(home.team, self.zed)
+        self.assertEqual((home.direction, home.change), ("up", 2))
+        self.assertEqual((home.before_position, home.after_position), (5, 3))
+        self.assertEqual((home.of, home.table_label), (5, None))
+        self.assertEqual(home.after_points - home.before_points, 3)
+
+    def test_loss_moves_down(self):
+        away = self.movement(2, 1)[1]
+        self.assertEqual((away.direction, away.change), ("down", -1))
+        self.assertEqual((away.before_position, away.after_position), (3, 4))
+        self.assertEqual(away.after_points, away.before_points)
+
+    def test_draw_same_position(self):
+        home = self.movement(1, 1)[0]
+        self.assertEqual((home.direction, home.change), ("same", 0))
+        self.assertEqual(home.after_points - home.before_points, 1)
+
+    def test_same_start_lower_pk_is_before(self):
+        other = result(9, 5, self.zed, self.d, 1, 0)
+        home = self.movement(2, 1, [other])[0]
+        self.assertEqual((home.before_points, home.after_points), (3, 6))
+
+    def test_same_start_higher_pk_is_not_before(self):
+        other = result(11, 5, self.zed, self.d, 1, 0)
+        home = self.movement(2, 1, [other])[0]
+        self.assertEqual((home.before_points, home.after_points), (0, 3))
+
+    def test_later_matches_ignored(self):
+        later = result(20, 9, self.d, self.zed, 5, 0)
+        self.assertEqual(self.movement(2, 1), self.movement(2, 1, [later]))
+
+    def test_first_result(self):
+        a, b = team(1, "A"), team(2, "B")
+        first_match = match(1, 1, a, b)
+        m = standings_movement(first_match, [a, b], [result(1, 1, a, b, 1, 0)])
+        self.assertEqual([x.direction for x in m], ["first", "first"])
+        self.assertIsNone(m[0].before_position)
+        self.assertEqual(m[0].change, 0)
+        self.assertEqual((m[0].after_position, m[0].after_points), (1, 3))
+
+    def test_division_table_for_division_team(self):
+        east = SimpleNamespace(pk=1, name="East")
+        home, x, y = team(1, "H", east), team(2, "X", east), team(3, "Y", east)
+        away, q = team(4, "Aw"), team(5, "Q")
+        this = match(1, 1, home, away)
+        teams = [home, x, y, away, q]
+        m = standings_movement(this, teams, [result(1, 1, home, away, 1, 0)])
+        self.assertEqual((m[0].table_label, m[0].of), ("East", 3))
+        self.assertEqual(m[0].after_position, 1)
+        self.assertEqual((m[1].table_label, m[1].of), (None, 5))
+
+    def test_cross_division_each_own_table(self):
+        east = SimpleNamespace(pk=1, name="East")
+        west = SimpleNamespace(pk=2, name="West")
+        home, x = team(1, "H", east), team(2, "X", east)
+        away, w, v = team(3, "Aw", west), team(4, "W", west), team(5, "V", west)
+        earlier = result(1, 1, w, v, 1, 0)
+        this = match(2, 2, home, away)
+        teams = [home, x, away, w, v]
+        m = standings_movement(this, teams, [earlier, result(2, 2, home, away, 0, 1)])
+        self.assertEqual((m[0].table_label, m[0].of), ("East", 2))
+        self.assertEqual((m[1].table_label, m[1].of), ("West", 3))
+        self.assertEqual(m[1].after_position, 1)
+
+    def test_none_without_result_or_cancelled(self):
+        unscored = match(10, 5, self.zed, self.b, has_result=False)
+        cancelled = match(10, 5, self.zed, self.b, is_cancelled=True)
+        self.assertIsNone(standings_movement(unscored, self.teams, self.earlier))
+        self.assertIsNone(standings_movement(cancelled, self.teams, self.earlier))

@@ -148,3 +148,69 @@ def head_to_head(match, results):
         else:
             draws += 1
     return HeadToHead(home_wins, draws, away_wins, meetings)
+
+
+@dataclass
+class Movement:
+    team: object
+    table_label: object  # The division name, or None for the season table.
+    before_position: object  # None for "first".
+    after_position: int
+    of: int
+    before_points: int
+    after_points: int
+    direction: str  # "up", "down", "same" or "first".
+    change: int  # before_position - after_position; 0 for "first".
+
+
+def _place(standing, team):
+    """(position, of, label) in the team's division table, else the season's."""
+    if team.division_id is not None:
+        return (
+            standing["division_position"],
+            standing["division_of"],
+            team.division.name,
+        )
+    return standing["position"], standing["of"], None
+
+
+def standings_movement(match, teams, results):
+    """[home, away] Movement across this match, or None when it isn't counted.
+
+    "Before" is every counted result with a smaller (starts_at, pk) key.
+    "After" is before plus this match. Later matches change neither.
+    """
+    if not match.has_result or match.is_cancelled:
+        return None
+    key = (match.starts_at, match.pk)
+    before = positions(
+        rank_rows(teams, _scores(r for r in results if (r.starts_at, r.pk) < key))
+    )
+    after = positions(
+        rank_rows(teams, _scores(r for r in results if (r.starts_at, r.pk) <= key))
+    )
+    movements = []
+    for team in (match.home_team, match.away_team):
+        if team.pk not in after:
+            continue
+        before_position, _, _ = _place(before[team.pk], team)
+        after_position, of, label = _place(after[team.pk], team)
+        if before[team.pk]["row"]["played"] == 0:
+            direction, change, before_position = "first", 0, None
+        else:
+            change = before_position - after_position
+            direction = "up" if change > 0 else "down" if change < 0 else "same"
+        movements.append(
+            Movement(
+                team,
+                label,
+                before_position,
+                after_position,
+                of,
+                before[team.pk]["row"]["points"],
+                after[team.pk]["row"]["points"],
+                direction,
+                change,
+            )
+        )
+    return movements
