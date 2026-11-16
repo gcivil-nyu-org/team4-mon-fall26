@@ -1,11 +1,18 @@
 import importlib
+from io import StringIO
 
-from django.test import SimpleTestCase
+from django.core.management import call_command
+from django.test import SimpleTestCase, TestCase
 
 from .models import Sport
 from .sport_defaults import DEFAULT_PERIODS, SPORT_PERIODS, default_periods
 
 period_migration = importlib.import_module("teams.migrations.0014_sport_period_defaults")
+
+
+def periods(name):
+    sport = Sport.objects.get(name=name)
+    return sport.period_count, sport.period_label
 
 
 class SportDefaultsTests(SimpleTestCase):
@@ -31,3 +38,30 @@ class SportDefaultsTests(SimpleTestCase):
     def test_unknown_or_blank_name_gets_default(self):
         self.assertEqual(default_periods("Cricket"), (4, "Q"))
         self.assertEqual(default_periods(""), (4, "Q"))
+
+
+class SeedLeagueDataPeriodsTests(TestCase):
+    EXPECTED = {
+        "Basketball": (4, "Q"),
+        "Cricket": (4, "Q"),
+        "Flag football": (4, "Q"),
+        "Futsal": (2, "Half"),
+        "Pickleball": (4, "Q"),
+        "Soccer": (2, "Half"),
+        "Softball": (4, "Q"),
+        "Ultimate frisbee": (2, "Half"),
+        "Volleyball": (5, "Set"),
+    }
+
+    def test_fresh_database_gets_each_sports_periods(self):
+        self.assertFalse(Sport.objects.exists())
+        call_command("seed_league_data", stdout=StringIO())
+        self.assertEqual(
+            {s.name: (s.period_count, s.period_label) for s in Sport.objects.all()},
+            self.EXPECTED,
+        )
+
+    def test_existing_sport_keeps_its_periods(self):
+        Sport.objects.create(name="Soccer", period_count=3, period_label="Q")
+        call_command("seed_league_data", stdout=StringIO())
+        self.assertEqual(periods("Soccer"), (3, "Q"))

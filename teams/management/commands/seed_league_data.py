@@ -1,7 +1,8 @@
 """Create the PlayNYU sports.
 
 .ebextensions/django.config runs this after migrate on every deploy, and it only
-adds what is missing. Without sports nobody can create a team (Sport is required).
+adds what is missing. New sports get their periods from teams/sport_defaults.py;
+existing sports are not changed. Without sports nobody can create a team (Sport is required).
 Sports come from the Facilities Phase 1 sport list (docs and #105).
 
 Locally: python manage.py seed_league_data
@@ -19,6 +20,7 @@ from django.core.management.base import BaseCommand
 
 from teams.catalog_rules import name_key
 from teams.models import Sport
+from teams.sport_defaults import default_periods
 
 SPORTS = [
     "Basketball",
@@ -53,7 +55,10 @@ class Command(BaseCommand):
         created = 0
         for name in SPORTS:
             if name_key(name) not in existing:
-                Sport.objects.create(name=name)
+                count, label = default_periods(name)
+                Sport.objects.create(
+                    name=name, period_count=count, period_label=label
+                )
                 created += 1
         self.stdout.write(
             f"Sports: {created} created, {len(SPORTS) - created} already there."
