@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load chat_tags %}
+{% load chat_tags ui %}
 {% block title %}Flagged content · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -17,7 +17,7 @@
           <div class="list-group-item d-flex align-items-start gap-3">
             {% include "components/avatar.html" with person=message.author size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ message.author|chat_display_name }}</div>
+              <div class="fw-medium">{{ message.author|display_name }}</div>
               <div class="small text-secondary">{{ message.conversation|chat_queue_label }} · {{ message.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1">{{ message.body|linebreaksbr }}</div>
             </div>
@@ -56,7 +56,7 @@
           <div class="list-group-item d-flex flex-wrap align-items-start gap-3">
             {% include "components/avatar.html" with person=topic.author size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ topic.author.get_full_name|default:topic.author.email|default:topic.author.username }}</div>
+              <div class="fw-medium">{{ topic.author|display_name }}</div>
               <div class="small text-secondary text-break">{{ topic.sport_label }} · {{ topic.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1 text-break"><a class="fw-medium" href="{% url 'forums:detail' topic.pk %}">{{ topic.title }}</a></div>
               <div class="mt-1 text-break">{{ topic.body|truncatechars:200 }}</div>
@@ -96,7 +96,7 @@
           <div class="list-group-item d-flex flex-wrap align-items-start gap-3">
             {% include "components/avatar.html" with person=reply.author size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ reply.author.get_full_name|default:reply.author.email|default:reply.author.username }}</div>
+              <div class="fw-medium">{{ reply.author|display_name }}</div>
               <div class="small text-secondary text-break">{{ reply.topic.sport_label }} · <a href="{% url 'forums:detail' reply.topic.pk %}">{{ reply.topic.title }}</a> · {{ reply.created_at|date:"M j, Y g:i a" }}</div>
               <div class="mt-1 text-break">{{ reply.body|truncatechars:200 }}</div>
             </div>

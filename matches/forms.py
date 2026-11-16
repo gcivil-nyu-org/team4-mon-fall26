@@ -6,6 +6,7 @@ from django.db.models import Q
 from django.utils.crypto import salted_hmac
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
+from core.names import display_name
 from facilities.models import Facility
 from teams.models import Division, Roster, Season, Sport, Team
 from teams.season_rules import SeasonState
@@ -68,9 +69,7 @@ class MatchForm(forms.ModelForm):
         self.fields["scorekeeper"].queryset = scorekeepers.distinct().order_by(
             "first_name", "last_name", "email"
         )
-        self.fields["scorekeeper"].label_from_instance = (
-            lambda user: user.get_full_name() or user.email
-        )
+        self.fields["scorekeeper"].label_from_instance = display_name
         self.fields["scorekeeper"].empty_label = "No scorekeeper yet"
         for name in ("starts_at", "ends_at"):
             self.fields[name].input_formats = [DATETIME_FORMAT]

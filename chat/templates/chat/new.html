@@ -23,7 +23,7 @@
           {% for person in chosen %}
             <span class="d-inline-flex align-items-center gap-2">
               {% include "components/avatar.html" with person=person size="sm" %}
-              <span class="fw-medium">{{ person|chat_display_name }}</span>
+              <span class="fw-medium">{{ person|display_name }}</span>
               <a href="{% url 'chat:new' %}?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% for other in chosen %}{% if other.pk != person.pk %}to={{ other.pk }}&amp;{% endif %}{% endfor %}">Remove</a>
             </span>
           {% endfor %}
@@ -36,7 +36,7 @@
           <div class="list-group-item d-flex align-items-center gap-3">
             {% include "components/avatar.html" with person=candidate size="sm" %}
             <div class="flex-fill min-w-0">
-              <div class="fw-medium">{{ candidate|chat_display_name }}</div>
+              <div class="fw-medium">{{ candidate|display_name }}</div>
               {% if candidate.shared_team %}<div class="small text-secondary">{{ candidate.shared_team }}</div>{% endif %}
             </div>
             <a href="{% url 'chat:new' %}?{% if q %}q={{ q|urlencode }}&amp;{% endif %}{% for picked in chosen %}to={{ picked.pk }}&amp;{% endfor %}to={{ candidate.pk }}">Add</a>

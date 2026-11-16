@@ -99,9 +99,9 @@
                         <div class="d-flex align-items-center gap-2">
                           {% include "components/avatar.html" with person=row.player size="sm" %}
                           {% if row.player.is_active %}
-                            <a class="text-reset fw-medium" href="{% profile_url row.player %}">{{ row.player|player_name }}</a>
+                            <a class="text-reset fw-medium" href="{% profile_url row.player %}">{{ row.player|display_name }}</a>
                           {% else %}
-                            <span class="fw-medium">{{ row.player|player_name }}</span>
+                            <span class="fw-medium">{{ row.player|display_name }}</span>
                           {% endif %}
                           {% if not row.on_roster %}<span class="badge bg-secondary-lt">Left team</span>
                           {% elif match.has_result and not match.is_cancelled and not row.played %}<span class="badge bg-secondary-lt">Did not play</span>{% endif %}

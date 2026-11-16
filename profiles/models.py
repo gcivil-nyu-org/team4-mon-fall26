@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from core.names import display_name
+
 
 class PlayerProfile(models.Model):
     """One row per user. Holds the NYU identifiers the user edits on their profile."""
@@ -29,4 +31,4 @@ class PlayerProfile(models.Model):
     )
 
     def __str__(self):
-        return f"Profile of {self.user}"
+        return f"Profile of {display_name(self.user)}"

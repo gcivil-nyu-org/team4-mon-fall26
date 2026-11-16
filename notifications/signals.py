@@ -20,6 +20,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateformat import format as date_format
 
+from core.names import display_name
 from matches.models import Match
 from teams.models import Roster, Team
 
@@ -54,10 +55,6 @@ def muted():
 
 def is_muted():
     return _muted.get()
-
-
-def _display_name(user):
-    return user.get_full_name() or user.username
 
 
 def _team_member_ids(team):
@@ -201,7 +198,7 @@ def roster_entry_added(sender, instance, created, **kwargs):
         return
     _notify_ids(
         _team_member_ids(instance.team),
-        f"{_display_name(instance.player)} joined {instance.team}",
+        f"{display_name(instance.player)} joined {instance.team}",
         reverse("teams:detail", args=[instance.team_id]),
     )
 
@@ -216,6 +213,6 @@ def roster_entry_removed(sender, instance, **kwargs):
     ids = _team_member_ids(team) | {instance.player_id}
     _notify_ids(
         ids,
-        f"{_display_name(instance.player)} left {team}",
+        f"{display_name(instance.player)} left {team}",
         reverse("teams:detail", args=[team.pk]),
     )

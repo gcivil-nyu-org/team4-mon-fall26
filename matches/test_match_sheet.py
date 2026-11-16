@@ -7,7 +7,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from core.templatetags.ui import player_name
+from core.names import display_name
 from teams.models import EventType, Roster, Season
 from teams.season_rules import SeasonState
 
@@ -230,12 +230,12 @@ class TeamSheetsTests(SheetFixtures):
 
 
 class PlayerNameTests(MatchFixtures):
-    def test_player_name_fallback(self):
+    def test_display_name_fallback(self):
         user = get_user_model()(username="x", email="x@nyu.edu")
-        self.assertEqual(player_name(user), "PlayNYU player")
+        self.assertEqual(display_name(user), "PlayNYU player")
         user.first_name = "Alex"
-        self.assertEqual(player_name(user), "Alex")
-        self.assertEqual(player_name(None), "PlayNYU player")
+        self.assertEqual(display_name(user), "Alex")
+        self.assertEqual(display_name(None), "PlayNYU player")
 
 
 class MatchSheetFormTests(SheetFixtures):

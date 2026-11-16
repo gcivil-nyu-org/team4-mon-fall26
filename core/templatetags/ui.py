@@ -2,6 +2,8 @@
 
 from django import forms, template
 
+from core import names
+
 register = template.Library()
 
 SPORT_ICONS = {
@@ -14,9 +16,6 @@ SPORT_ICONS = {
 DEFAULT_SPORT_ICON = "ti-trophy"
 
 
-PLAYER_NAME_FALLBACK = "PlayNYU player"
-
-
 @register.filter
 def initials(user):
     """Two-letter initials for an avatar. Never the email.
@@ -27,15 +26,11 @@ def initials(user):
     last = (getattr(user, "last_name", "") or "")[:1]
     if first or last:
         return f"{first}{last}".upper()
-    return PLAYER_NAME_FALLBACK[:1]
+    return names.FALLBACK_NAME[:1]
 
 
-@register.filter
-def display_name(user):
-    """A player's full name for pages anyone can see. Never the email."""
-    if user is None:
-        return PLAYER_NAME_FALLBACK
-    return user.get_full_name() or PLAYER_NAME_FALLBACK
+# The one display-name filter: full name or "PlayNYU player", never the email.
+display_name = register.filter("display_name", names.display_name)
 
 
 @register.filter
@@ -47,14 +42,6 @@ def ordinal(n):
     else:
         suffix = {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
     return f"{number}{suffix}"
-
-
-@register.filter
-def player_name(user):
-    """A player's full name for pages any member can see. Never the email."""
-    if user is None:
-        return PLAYER_NAME_FALLBACK
-    return user.get_full_name() or PLAYER_NAME_FALLBACK
 
 
 @register.filter

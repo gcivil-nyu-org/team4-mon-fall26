@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from core.names import display_name
+
 
 class Conversation(models.Model):
     """One chat thread: a team chat, a 1:1 chat, or a group chat.
@@ -83,7 +85,7 @@ class ConversationMember(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user} in {self.conversation}"
+        return f"{display_name(self.user)} in {self.conversation}"
 
 
 class ConversationRead(models.Model):
@@ -108,7 +110,7 @@ class ConversationRead(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user} read {self.conversation} at {self.last_read_at:%Y-%m-%d %H:%M}"
+        return f"{display_name(self.user)} read {self.conversation} at {self.last_read_at:%Y-%m-%d %H:%M}"
 
 
 class Block(models.Model):
@@ -164,4 +166,4 @@ class Message(models.Model):
         ordering = ["created_at", "pk"]
 
     def __str__(self):
-        return f"{self.author}: {self.body[:40]}"
+        return f"{display_name(self.author)}: {self.body[:40]}"

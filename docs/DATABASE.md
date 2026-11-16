@@ -65,6 +65,16 @@ Never put the connection string or password in the repo, a PR, an issue or a cha
 
 Do not commit the roster file. It holds real names and emails, and the repo is public.
 
+### Match details for the class league
+
+`seed_match_details` adds period scores, appearances and player stats to scored matches that have none. It never changes a final score or standings. Run it by hand, after `seed_class_league`.
+
+1. Connect and load the app, as in steps 1 and 3 above.
+2. Check: `python manage.py seed_match_details --dry-run`.
+3. Run: `python manage.py seed_match_details`.
+
+A second run changes nothing. Volleyball matches get no period scores, because their final score counts sets won. The command docstring has the details.
+
 ## Go back to SQLite
 
 Remove the variable: `eb setenv DATABASE_URL= -e playnyu-test`. The site goes back to SQLite and to losing data on each deploy. The data in Neon stays until you delete the project.
