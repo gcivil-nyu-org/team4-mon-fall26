@@ -54,6 +54,7 @@ Defined once as CSS variables in `static/css/playnyu.css`. Use the variable or t
 | `--tblr-primary` | `#57068c` (NYU violet) | Primary buttons, links, active nav, focus rings, chart series 1 |
 | `--pn-primary-hover` | `#45056f` | Hover/pressed on primary |
 | `--pn-primary-tint` | `#f3ebf9` | Selected rows, "you" highlight, initials avatars (`bg-primary-lt`) |
+| `--pn-series-2` | `#a78bce` | Chart series 2, the away bar (`pn-bar-away`) |
 | Text | `--tblr-body-color` (Tabler default) | Body text |
 | Secondary text | `text-secondary` | Meta lines, timestamps, helper text |
 | Page background | `--tblr-bg-surface-secondary` (light gray) | Behind cards |
@@ -257,7 +258,7 @@ The Schedule page (`matches/schedule.html`) shows every match in one `table card
 - Before a result, the score cell shows "vs". A cancelled match shows a `Cancelled` badge (`bg-secondary-lt`) and no score.
 - Under the score, the period line: the sport's `period_label`, then "home-away" per period, then `OT1 3-2` per overtime period. Example: `Q 14-12 18-15 12-14 14-10 OT1 3-2`.
 - Top: avatar `xs`, last name (or `display_name`), value and event type name. Show `—` with no stats.
-- Top performer rule: the highest value of the sport's scoring event type. That type is the sport's first `EventType` by pk. A tie goes by full name.
+- Top performer rule: the highest value of the sport's scoring stat, from `teams.event_types.scoring_event_type`: the type marked `is_scoring`, else one named Points or Goals. A tie goes by full name. A sport with no scoring stat (volleyball) shows `—`.
 - Sortable headers are links with `aria-sort` on the sorted `<th>`. The sorted header is bold with a chevron. A click on it reverses the direction.
 - Rows of the viewer's teams get `pn-row-me`.
 - Below 768px, CSS in `playnyu.css` turns each row into a stacked block: date and sport, home, away, score, venue, top. The header row becomes a wrapping row of sort links. The page never scrolls sideways.
@@ -301,6 +302,48 @@ A stat card that opens its list is one link: `<a class="card card-sm card-link c
 - The current user's team or row gets `class="pn-row-me"` (violet tint). It works on table rows and on `list-group-item` rows.
 - Short column headers (P, W, D, L, Pts) with a `title` attribute spelling them out.
 - Form guide: small `badge` squares, `bg-green` W, `bg-secondary` D, `bg-red` L.
+
+### Form chips
+
+The form guide as chips: `badge pn-form-chip bg-green text-white` (W), `bg-secondary` (D), `bg-red` (L).
+
+- Show the letter always. Color is never the only signal.
+- Newest first, at most 5.
+- Each chip is a link to its match (`matches:detail`).
+- Give each chip a `title`: "W 3–1 vs Bobcats · Nov 2". Put the same words in a `visually-hidden` span.
+- The chip for the current match is a `<span>` with `aria-current="page"` and no link.
+- `.pn-form-chip` is a 1.75rem square. Below 768px it is at least 40px tall, for touch.
+
+### Comparison bars
+
+Two totals side by side, without Chart.js:
+
+```html
+<div class="d-flex justify-content-between"><span class="pn-num fw-bold">12</span><span class="small text-secondary">Rebounds</span><span class="pn-num">9</span></div>
+<div class="progress progress-sm" aria-hidden="true">
+  <div class="progress-bar bg-primary" style="width: 57%"></div>
+  <div class="progress-bar pn-bar-away" style="width: 43%"></div>
+</div>
+```
+
+- Home is `bg-primary` (series 1). Away is `pn-bar-away` (series 2, `--pn-series-2`).
+- The bars are `aria-hidden="true"`. The numbers are the text version. The larger number is `fw-bold`.
+- Leave out a row where both numbers are 0.
+- A legend above the rows names each team, with a `pn-legend` swatch.
+
+### Movement
+
+The match page's standings table, as it stood after the match, with a marker for each of the two match teams:
+
+```html
+<td class="pn-num text-nowrap"><span class="fw-bold">3</span> <span class="text-green fw-bold pn-num" role="img" aria-label="Up 2 places, from 5th to 3rd">▲2</span></td>
+```
+
+- Columns as the leaderboard: #, Team, P, W, D, L, Pts. Below 576px, P and D hide (`d-none d-sm-table-cell`). The table sits in `table-responsive`.
+- The two match teams' rows get `pn-row-match` (the `pn-row-me` tint). Other rows show plainly, with no marker.
+- Up: `text-green` "▲2". Down: `text-red` "▼1". Same: `text-secondary` "–". A team's first result: `badge bg-secondary-lt` "New".
+- Each marker has `role="img"` and an `aria-label`: "Up 2 places, from 5th to 3rd", "Down 1 place, from 1st to 2nd", "No change, 3rd", "First result, 3rd". The arrow shape and the label carry the meaning, not the color.
+- The table is the division both teams share ("East standings"), else the season table ("Standings").
 
 ### Buttons
 
@@ -409,7 +452,7 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | **League overview (League Admin)** | Page header with "Schedule a match" → 4 linked stat cards (pending requests, needs a score, flagged content, upcoming matches). Flagged content counts the messages, topics and replies in the moderation queue → `col-lg-8`: needs a score list, upcoming matches, seasons that aren't closed → `col-lg-4`: quick links with trailing counts, seasons by state, recent changes |
 | **Team** | Header: logo `xl`, name, sport · season (· division), Captain name linked to their profile → members-only actions (Team chat, Add player / Leave team) → `col-lg-8`: roster list card, player stats leaderboard card (Player, GP, one column per event type), upcoming matches → `col-lg-4`: team info card (record W–D–L · Pts, position `nth of N` plus division position), team stats card, past matches. Members-only controls stay hidden from other viewers. |
 | **Schedule** | Page header: h1 "Schedule", meta line "Times are New York time.", and a "My teams" toggle link (`btn-outline-secondary`, `active` when on, `ti-square` / `ti-square-check`) on the right → filter card: GET form with Sport, Season, Division (only when the chosen season has divisions), Team (one `optgroup` per season), Venue, and a Filter button (outline). Hidden inputs keep the tab, the sort and My teams → table card: `card-header` with the tabs (Upcoming, Results, All) as a `btn-group` of `btn-sm btn-outline-secondary` links, the active one `active` with `aria-current="page"`, and the match count in `card-actions` → the schedule table → the pager (50 rows) in the `card-footer`. Upcoming sorts soonest first, Results newest first. Every link rebuilds the query from the cleaned filters, so a bad value is dropped. Draft seasons show only to League Admins, labelled "(draft)" in the Season select. Empty state: "No matches match these filters." with "Clear filters" when a filter applies, else one message for each tab. No `btn-primary`. `/matches/schedule/<pk>/` redirects to `?season=<pk>` (and keeps a valid `division`). |
-| **Match** | Page header: `subheader` season (· division), h1 "Home vs Away", meta line with time and facility (link if active), "Record score" (`btn-primary`) only for a League Admin or the assigned scorekeeper who may score it now → scoreboard card: `row text-center`, `col-4` each: home logo `xl` and name, score (`h1 mb-0 pn-num`) with a badge (Final `bg-green-lt`, Scheduled or Cancelled `bg-secondary-lt`, Awaiting score `bg-yellow-lt`), away logo `xl` and name. A team name links to the team page only for its members → Periods card (only with stored periods): `card-table`, Team, one column per period (OT only if stored), T (bold) → before a result, the line "Stats appear after the score is in." → `col-lg-6` per team: table of players (avatar `sm`, name via `display_name`, profile link if active, `pn-row-me` for the viewer) and one `pn-num text-end` column per event type. Badges: "Left team" and "Did not play" (`bg-secondary-lt`). A blank stat shows `0` in `text-secondary`. Cancelled: no score, periods or stat columns. Never show an email. |
+| **Match** | One column, in this order at every width. Each section is a partial in `matches/templates/matches/detail/`. Page header: `subheader` season (· division), h1 "Home vs Away", meta line with time and facility (link if active), "Record score" (`btn-primary`) only for a League Admin or the assigned scorekeeper who may score it now → scoreboard card: `row text-center`, `col-4` each: home logo `xl` and name, score (`h1 mb-0 pn-num`) with a badge (Final `bg-green-lt`, Scheduled or Cancelled `bg-secondary-lt`, Awaiting score `bg-yellow-lt`), away logo `xl` and name → **Standings** card (`_movement.html`): the full table after this match (see "Movement"), the division both teams share or else the season table, both match teams tinted with a ▲/▼/–/New marker; "Full standings" in `card-actions` → **Top performers** card (`_top_performers.html`): `col-md-6` per team, at most 3 leaders (scoring stat first, then by name; a 0 never leads): avatar `xs`, last name (full `display_name` in `title` and `visually-hidden`), value `pn-num fw-bold`, stat name → box score: Periods card (only with stored periods: Team, one column per period, OT only if stored, T bold), **Team comparison** card (`_comparison.html`, see "Comparison bars"), before a result the line "Stats appear after the score is in.", then `col-lg-6` per team (`_box_score.html`): players (avatar `sm`, `display_name`, profile link if active, `pn-row-me` for the viewer), one `pn-num text-end` column per event type, and a `<tfoot>` "Team totals" row in bold. Badges: "Left team" and "Did not play" (`bg-secondary-lt`). A blank stat shows `0` in `text-secondary` → team context (`_team_context.html`): `col-lg-8` "Season so far" card ("Final standings" for a closed season) with the season today per team: linked team, W–D–L · Pts, `nth of N` (· division position), last 5 as form chips; `col-lg-4` **Head-to-head** card: "Home 1 · Draws 0 · Away 0" and one row per meeting this season, or "First meeting this season." → **Venue** card (`_venue.html`): `pn-map pn-map-sm` map only for an active facility with coordinates, the name (link if active), address and borough, then "Kept score by" (final) or "Scorekeeper": avatar `xs` and `display_name`, or "Not assigned". By status: Standings, Top performers, Team comparison and totals need a counted result (not cancelled, both scores set). Season so far, Head-to-head and Venue always show. If the page gets busy, cut the comparison bars first, then the head-to-head list, then the map. Never show an email. |
 | **Record the score** | `container-xl` page, not `pn-auth`. Page header (`subheader` season, h1 "Record the score", meta "Home vs Away · time") → overwrite warning (`alert alert-warning text-body`) → sheet errors (`alert-danger`) → `col-lg-4`: "Final score" card (`form_fields.html`), "Periods" card (table: Period, Home, Away; OT1 and OT2 rows blank unless stored) → `col-lg-8`: one card per team (table: Player, Played checkbox, one number input per event type; a player who left shows stored values as text with a "Left team" badge) → "Save score" (primary) and "Cancel" (ghost, to the match page). Inputs: `{{ field|control:"form-control-sm pn-num text-end pn-sheet-input" }}`, with `aria-label` "Alex Lee, Goal" / "Alex Lee played". Tables scroll in `table-responsive`. |
 | **My matches (scorekeeper)** | Page header → one card per section, in this order: Needs a score, Upcoming, Scored → each card holds match rows with both team logos and its own empty state. Only the first row of Needs a score has the primary button. |
 | **Generate a round-robin (League Admin)** | Page header with Back to matches (ghost) → `col-lg-4`: form card (season, division, first date, time, match length, days between rounds, facilities) → `col-lg-8`: Preview card: counts in `card-actions`, the overlap warning (`alert alert-warning text-body`), then one `subheader` and one list of match rows for each round, with an `Overlap` badge (`bg-yellow-lt`) on a row that clashes → `card-footer` with the primary action. Before a preview, the primary action is "Preview schedule". After it, the primary action is "Create N matches" ("... anyway" with overlaps) and the form button becomes "Update preview" (outline). |
@@ -458,7 +501,8 @@ A page with a map puts `{% include "components/map_styles.html" %}` in `{% block
 | What | Where |
 |---|---|
 | Layout, navbar, messages | `templates/base.html` |
-| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-sheet-input`, `pn-row-link`, `pn-schedule` and its `pn-sched-*` cells) | `static/css/playnyu.css` |
+| Tokens and the custom classes (`pn-num`, `pn-row-me`, `pn-logo`, `pn-auth`, `pn-brand-mark`, `pn-nav-name`, `page-meta`, `min-w-0`, `pn-map`, `pn-map-sm`, `pn-sheet-input`, `pn-row-link`, `pn-schedule` and its `pn-sched-*` cells, `pn-row-match`, `--pn-series-2`, `pn-bar-away`, `pn-legend`, `pn-form-chip`) | `static/css/playnyu.css` |
+| Match page sections (movement, top performers, comparison, box score, team context, venue) | `matches/templates/matches/detail/` |
 | Shared partials (avatar, team logo, match row, form fields, map assets, season fields) | `templates/components/` |
 | Template filters (`initials`: "P" with no name, never the email, `sport_icon`, `control` with optional extra classes, `display_name`: full name or "PlayNYU player", never the email, `ordinal`: 1st, 2nd, 3rd) | `core/templatetags/ui.py` |
 

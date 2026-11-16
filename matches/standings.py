@@ -95,31 +95,40 @@ def standings_by_team(season_ids):
         season_teams.setdefault(team.season_id, []).append(team)
     result = {}
     for season_id, season_team_list in season_teams.items():
-        rows = rank_rows(season_team_list, season_scores.get(season_id, []))
-        division_seen = {}
-        for position, row in enumerate(rows, start=1):
-            team = row["team"]
-            entry = {
-                "row": row,
-                "position": position,
-                "of": len(season_team_list),
-                "division_position": None,
-                "division_of": None,
-            }
-            if team.division_id is not None:
-                division_seen[team.division_id] = (
-                    division_seen.get(team.division_id, 0) + 1
-                )
-                entry["division_position"] = division_seen[team.division_id]
-            result[team.pk] = entry
-        for team in season_team_list:
-            if team.division_id is not None:
-                mates = [
-                    mate
-                    for mate in season_team_list
-                    if mate.division_id == team.division_id
-                ]
-                result[team.pk]["division_of"] = len(mates)
+        result.update(
+            positions(rank_rows(season_team_list, season_scores.get(season_id, [])))
+        )
+    return result
+
+
+def positions(rows):
+    """{team id: standing} from rank_rows() output, in 0 queries.
+
+    Each standing has the `row`, its 1-based season `position`, the team
+    count `of`, and its `division_position` / `division_of` (None when the
+    team has no division).
+    """
+    result = {}
+    division_seen = {}
+    division_size = {}
+    for row in rows:
+        division_id = row["team"].division_id
+        if division_id is not None:
+            division_size[division_id] = division_size.get(division_id, 0) + 1
+    for position, row in enumerate(rows, start=1):
+        team = row["team"]
+        entry = {
+            "row": row,
+            "position": position,
+            "of": len(rows),
+            "division_position": None,
+            "division_of": None,
+        }
+        if team.division_id is not None:
+            division_seen[team.division_id] = division_seen.get(team.division_id, 0) + 1
+            entry["division_position"] = division_seen[team.division_id]
+            entry["division_of"] = division_size[team.division_id]
+        result[team.pk] = entry
     return result
 
 

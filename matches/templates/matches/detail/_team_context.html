@@ -1,0 +1,62 @@
+{% load ui %}{# The season today: record, position and last 5 for each team, then this season's head-to-head. #}
+<div class="row row-cards mb-3">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="card-title">{% if season_closed %}Final standings{% else %}Season so far{% endif %}</h2></div>
+      <div class="card-body">
+        <div class="row g-3">
+          {% for ctx in context_rows %}
+            <div class="col-md-6">
+              {% include "components/team_link.html" with team=ctx.team size="sm" %}
+              <div class="mt-2 pn-num">
+                {% if ctx.row.played %}
+                  <span class="fw-medium">{{ ctx.row.won }}–{{ ctx.row.drawn }}–{{ ctx.row.lost }}</span> · {{ ctx.row.points }} pts
+                {% else %}
+                  <span class="text-secondary">No results yet</span>
+                {% endif %}
+              </div>
+              {% if ctx.row.played %}
+                <div class="small text-secondary pn-num">{{ ctx.standing.position|ordinal }} of {{ ctx.standing.of }}{% if ctx.standing.division_position %} · {{ ctx.standing.division_position|ordinal }} in {{ ctx.team.division.name }}{% endif %}</div>
+              {% endif %}
+              {% if ctx.form %}
+                <div class="small text-secondary mt-2 mb-1">Last {{ ctx.form|length }}</div>
+                <div class="d-flex flex-wrap gap-1">
+                  {% for f in ctx.form %}
+                    {% if f.is_this_match %}
+                      <span class="badge pn-form-chip {% if f.letter == 'W' %}bg-green{% elif f.letter == 'L' %}bg-red{% else %}bg-secondary{% endif %} text-white" aria-current="page" title="{{ f.letter }} {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }} · {{ f.starts_at|date:'M j' }} (this match)">{{ f.letter }}<span class="visually-hidden"> {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }}, {{ f.starts_at|date:'M j' }}, this match</span></span>
+                    {% else %}
+                      <a class="badge pn-form-chip {% if f.letter == 'W' %}bg-green{% elif f.letter == 'L' %}bg-red{% else %}bg-secondary{% endif %} text-white" href="{% url 'matches:detail' f.match_pk %}" title="{{ f.letter }} {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }} · {{ f.starts_at|date:'M j' }}">{{ f.letter }}<span class="visually-hidden"> {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }}, {{ f.starts_at|date:'M j' }}</span></a>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="card-title">Head-to-head</h2></div>
+      {% if h2h.meetings %}
+        <div class="card-body flex-grow-0 pb-2">
+          <div class="pn-num"><span class="text-nowrap">{{ match.home_team.name }} <span class="fw-bold">{{ h2h.home_wins }}</span></span> · <span class="text-nowrap">Draws <span class="fw-bold">{{ h2h.draws }}</span></span> · <span class="text-nowrap">{{ match.away_team.name }} <span class="fw-bold">{{ h2h.away_wins }}</span></span></div>
+        </div>
+        <div class="list-group list-group-flush">
+          {% for r in h2h.meetings %}
+            <div class="list-group-item d-flex justify-content-between gap-2 small">
+              <span class="text-secondary pn-num text-nowrap">{{ r.starts_at|date:"M j" }}</span>
+              <span class="pn-num text-end">
+                {% if r.home_id == match.home_team_id %}{{ match.home_team.name }} {{ r.home_score }}–{{ r.away_score }} {{ match.away_team.name }}{% else %}{{ match.away_team.name }} {{ r.home_score }}–{{ r.away_score }} {{ match.home_team.name }}{% endif %}
+                {% if r.pk == match.pk %}<span class="text-secondary">(this match)</span>{% else %}<a class="ms-1" href="{% url 'matches:detail' r.pk %}">View<span class="visually-hidden"> match of {{ r.starts_at|date:"M j" }}</span></a>{% endif %}
+              </span>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="card-body"><p class="text-secondary mb-0">First meeting this season.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>

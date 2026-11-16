@@ -14,11 +14,20 @@ from accounts.roles import (
     has_role,
     users_with_role,
 )
+from facilities.maps import map_marker
+from teams.event_types import scoring_event_type
 from teams.models import Roster, Season
-from teams.season_rules import SeasonAction
+from teams.season_rules import SeasonAction, SeasonState
 from teams.views import _require_league_admin
 
 from .forms import MatchForm, ScheduleFilterForm
+from .match_context import (
+    head_to_head,
+    season_results,
+    season_teams,
+    standings_table,
+    team_context,
+)
 from .models import Match
 from .scorekeeping import group_assigned_matches
 from .sheet_forms import MatchSheet
@@ -33,7 +42,14 @@ from .schedule import (
     seasons_visible_to,
 )
 from .standings import compute_standings
-from .stats import match_event_types, period_rows, team_sheets
+from .stats import (
+    comparison_rows,
+    match_event_types,
+    period_rows,
+    team_sheets,
+    team_totals,
+    top_performers,
+)
 
 
 def _manage_url(season_id):
@@ -222,13 +238,17 @@ def submit_score(request, pk):
 
 @login_required
 def match_detail(request, pk):
-    """One match: score, periods, and each team's players with their stats."""
+    """One match: score, standings movement, stats and season context.
+
+    The query count is fixed, whatever the roster or season size.
+    """
     user = request.user
     # Draft seasons are 404 for players, like the schedule and standings.
     match = get_object_or_404(
         Match.objects.filter(season__in=seasons_visible_to(user)).select_related(
             "season",
             "facility",
+            "scorekeeper",
             "home_team__sport",
             "away_team__sport",
             "home_team__division",
@@ -238,10 +258,21 @@ def match_detail(request, pk):
     sheets = team_sheets(match)
     show_stats = match.has_result and not match.is_cancelled
     event_types = match_event_types(match) if show_stats else []
+    teams = season_teams(match)
+    results = season_results(match)
+    totals = [team_totals(sheet, event_types) if show_stats else [] for sheet in sheets]
     tables = [
-        (sheet, [(row, row.values(event_types)) for row in sheet.rows])
-        for sheet in sheets
+        (sheet, [(row, row.values(event_types)) for row in sheet.rows], sheet_totals)
+        for sheet, sheet_totals in zip(sheets, totals)
     ]
+    leaders, comparison = [], []
+    if show_stats and event_types:
+        # Picks from the loaded list: no query.
+        scoring = scoring_event_type(match.home_team.sport_id, event_types)
+        leaders = top_performers(sheets, event_types, scoring)
+        if not any(t.leaders for t in leaders):
+            leaders = []
+        comparison = comparison_rows(event_types, totals[0], totals[1], scoring)
     if match.is_cancelled:
         status = "cancelled"
     elif match.has_result:
@@ -250,6 +281,11 @@ def match_detail(request, pk):
         status = "awaiting"
     else:
         status = "scheduled"
+    facility = match.facility
+    table = standings_table(match, teams, results)
+    standings_url = reverse("matches:season_standings", args=[match.season_id])
+    if table is not None and table.division is not None:
+        standings_url += f"?division={table.division.pk}"
     return render(
         request,
         "matches/match_detail.html",
@@ -261,6 +297,19 @@ def match_detail(request, pk):
             "periods": [] if match.is_cancelled else period_rows(match),
             "status": status,
             "score_url": _score_url(user, match),
+            "top_performers": leaders,
+            "standings_table": table,
+            "movement": table.movements if table is not None else None,
+            "context_rows": team_context(match, teams, results),
+            "h2h": head_to_head(match, results),
+            "season_closed": match.season.state == SeasonState.CLOSED,
+            "comparison": comparison,
+            "markers": (
+                [map_marker(facility)]
+                if facility.is_active and facility.has_location
+                else []
+            ),
+            "standings_url": standings_url,
             "nav_section": "schedule",
         },
     )

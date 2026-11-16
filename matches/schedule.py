@@ -11,6 +11,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
+from teams.event_types import scoring_event_type
 from teams.models import EventType, Roster, Season
 from teams.semesters import current_semester
 
@@ -188,13 +189,21 @@ class TopPerformer:
 def scoring_event_types(sport_ids):
     """{sport id: the sport's scoring EventType}, in 1 query.
 
-    EventType has no scoring flag, so the rule is the sport's first event
-    type by pk: the first one a League Admin added (Goal, Points).
+    The rule is teams.event_types.scoring_event_type: the type marked
+    is_scoring, else one named Points or Goals. A sport with no scoring
+    type is left out, so its matches show no top performer.
     """
-    first = {}
-    for event_type in EventType.objects.filter(sport_id__in=sport_ids).order_by("pk"):
-        first.setdefault(event_type.sport_id, event_type)
-    return first
+    by_sport = {}
+    for event_type in EventType.objects.filter(sport_id__in=sport_ids).order_by(
+        "name", "pk"
+    ):
+        by_sport.setdefault(event_type.sport_id, []).append(event_type)
+    scoring = {}
+    for sport_id, types in by_sport.items():
+        chosen = scoring_event_type(sport_id, types)
+        if chosen is not None:
+            scoring[sport_id] = chosen
+    return scoring
 
 
 def period_line(match):

@@ -90,6 +90,101 @@ def period_rows(match):
     ]
 
 
+# --- Match page: top performers, totals and the team comparison (#255). ---
+#
+# Pure functions over team_sheets() and the loaded event types: 0 queries.
+
+TOP_PERFORMER_LIMIT = 3
+
+
+def ordered_event_types(event_types, scoring):
+    """The scoring type first when it is in event_types, then the rest in order."""
+    if scoring is None or scoring not in event_types:
+        return list(event_types)
+    return [scoring] + [t for t in event_types if t != scoring]
+
+
+@dataclass
+class Leader:
+    player: object
+    value: int
+    event_type: object
+
+    @property
+    def short_name(self):
+        """The last name, else display_name: "Lee", or "PlayNYU player"."""
+        return (self.player.last_name or "").strip() or display_name(self.player)
+
+
+@dataclass
+class TeamLeaders:
+    team: Team
+    leaders: list  # Leader per event type, scoring type first, at most 3.
+
+
+def top_performers(sheets, event_types, scoring, limit=TOP_PERFORMER_LIMIT):
+    """One TeamLeaders per sheet, in sheet order.
+
+    For each event type, the row with the highest value leads. A 0 never
+    leads, and a tie goes to _name_key. Players who left can lead.
+    """
+    ordered = ordered_event_types(event_types, scoring)
+    result = []
+    for sheet in sheets:
+        leaders = []
+        for event_type in ordered:
+            if len(leaders) == limit:
+                break
+            rows = [row for row in sheet.rows if row.stats.get(event_type.pk, 0) > 0]
+            if not rows:
+                continue
+            best = min(
+                rows,
+                key=lambda row: (
+                    -row.stats[event_type.pk],
+                    *_name_key(row.player),
+                ),
+            )
+            leaders.append(Leader(best.player, best.stats[event_type.pk], event_type))
+        result.append(TeamLeaders(sheet.team, leaders))
+    return result
+
+
+def team_totals(sheet, event_types):
+    """The sum of each event type over every row, players who left included."""
+    return [
+        sum(row.stats.get(event_type.pk, 0) for row in sheet.rows)
+        for event_type in event_types
+    ]
+
+
+@dataclass
+class ComparisonRow:
+    event_type: object
+    home: int
+    away: int
+    home_pct: int
+
+    @property
+    def away_pct(self):
+        return 100 - self.home_pct
+
+
+def comparison_rows(event_types, home_totals, away_totals, scoring):
+    """One row per event type with a total above 0, scoring type first."""
+    home_by_pk = {t.pk: v for t, v in zip(event_types, home_totals)}
+    away_by_pk = {t.pk: v for t, v in zip(event_types, away_totals)}
+    rows = []
+    for event_type in ordered_event_types(event_types, scoring):
+        home, away = home_by_pk[event_type.pk], away_by_pk[event_type.pk]
+        if home == away == 0:
+            continue
+        rows.append(
+            ComparisonRow(event_type, home, away, round(100 * home / (home + away)))
+        )
+    return rows
+
+
 def _stored(match):
     stats = {
         (row.team_id, row.player_id, row.event_type_id): row
