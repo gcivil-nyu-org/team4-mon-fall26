@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
+from core.names import display_name
 from profiles.models import PlayerProfile
 from teams.models import Roster, Sport, Team
 
@@ -185,7 +186,7 @@ class AddPlayerByEmailTests(TestCase):
         user = make_user(NEW)
         response = self.client.post(self.url, {"email": NEW}, follow=True)
         self.assertTrue(Roster.objects.filter(team=self.team, player=user).exists())
-        self.assertContains(response, f"Added {NEW} to Violets.")
+        self.assertContains(response, f"Added {display_name(user)} to Violets.")
         self.assertNotContains(response, "sign up with that email")
         self.assertEqual(get_user_model().objects.count(), 2)
 
