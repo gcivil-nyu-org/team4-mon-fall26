@@ -169,6 +169,22 @@ class InboxTests(TestCase):
         self.client.get(thread_url(self.team.conversation))
         self.assertEqual(inbox.unread_total(self.user), 0)
 
+    def test_failed_post_leaves_unread(self):
+        post_message(self.team.conversation, self.mate, body="hello")
+        self.assertEqual(inbox.unread_total(self.user), 1)
+        self.client.force_login(self.user)
+        response = self.client.post(thread_url(self.team.conversation), {"body": ""})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(inbox.unread_total(self.user), 1)
+
+    def test_flag_get_returns_405(self):
+        message = post_message(self.team.conversation, self.mate, body="hi")
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("chat:flag", args=[self.team.conversation.pk, message.pk])
+        )
+        self.assertEqual(response.status_code, 405)
+
     def test_get_creates_marker(self):
         before = timezone.now()
         self.client.force_login(self.user)

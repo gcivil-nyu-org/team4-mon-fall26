@@ -20,13 +20,13 @@
             {% else %}
               <form method="post" action="{% url 'matches:report_comment' match.pk comment.pk %}">
                 {% csrf_token %}
-                <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report</button>
+                <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report<span class="visually-hidden"> {{ comment.author|display_name }}</span></button>
               </form>
             {% endif %}
             {% if can_moderate %}
               <form method="post" action="{% url 'matches:delete_comment' match.pk comment.pk %}" onsubmit="return confirm('Delete this comment?');">
                 {% csrf_token %}
-                <button class="btn btn-sm btn-ghost-danger" type="submit">Delete</button>
+                <button class="btn btn-sm btn-ghost-danger" type="submit">Delete<span class="visually-hidden"> {{ comment.author|display_name }}</span></button>
               </form>
             {% endif %}
           </div>

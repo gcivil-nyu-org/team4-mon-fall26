@@ -86,7 +86,7 @@
             {% for match in recent_lines %}
               {% include "components/match_row.html" %}
               <div class="list-group-item py-2">
-                <div class="small text-secondary">{% for stat in match.player_line %}{% if not forloop.first %} · {% endif %}{{ stat.value }} {{ stat.event_type.name }}{{ stat.value|pluralize }}{% endfor %}</div>
+                <div class="small text-secondary">{% for stat in match.player_line %}{% if not forloop.first %} · {% endif %}<span class="pn-num">{{ stat.value }}</span> {{ stat.event_type.name }}{{ stat.value|pluralize }}{% endfor %}</div>
               </div>
             {% endfor %}
           </div>

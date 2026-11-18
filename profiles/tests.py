@@ -328,7 +328,11 @@ class ProfileDetailTests(TestCase):
             event_type=goal,
             value=2,
         )
-        self.assertContains(self.client.get(self.url), "2 Goals")
+        self.assertContains(
+            self.client.get(self.url),
+            '<span class="pn-num">2</span> Goals',
+            html=True,
+        )
 
     def test_empty_stats_and_matches(self):
         loner = make_user("loner")
