@@ -10,4 +10,7 @@ def display_name(user):
     """Full name, else the fallback. ``None`` falls back."""
     if user is None:
         return FALLBACK_NAME
-    return (user.get_full_name() or "").strip() or FALLBACK_NAME
+    full_name = (user.get_full_name() or "").strip()
+    if full_name:
+        return full_name
+    return FALLBACK_NAME

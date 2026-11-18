@@ -22,10 +22,11 @@ def initials(user):
 
     A person with no name gets "P", for "PlayNYU player".
     """
-    first = (getattr(user, "first_name", "") or "")[:1]
-    last = (getattr(user, "last_name", "") or "")[:1]
-    if first or last:
-        return f"{first}{last}".upper()
+    first_name = getattr(user, "first_name", "") or ""
+    last_name = getattr(user, "last_name", "") or ""
+    letters = f"{first_name[:1]}{last_name[:1]}".upper()
+    if letters:
+        return letters
     return names.FALLBACK_NAME[:1]
 
 
@@ -46,16 +47,13 @@ def ordinal(n):
 
 @register.filter
 def sport_icon(sport):
+    """Tabler icon for a Sport, or for a sport name string."""
     if sport is None:
         return DEFAULT_SPORT_ICON
-
-    # Support both Sport model objects and legacy strings.
+    # Sport.name, or the string itself for older callers.
     sport_name = getattr(sport, "name", sport)
-
-    return SPORT_ICONS.get(
-        str(sport_name).strip().lower(),
-        DEFAULT_SPORT_ICON,
-    )
+    key = str(sport_name).strip().lower()
+    return SPORT_ICONS.get(key, DEFAULT_SPORT_ICON)
 
 
 @register.filter
@@ -66,16 +64,19 @@ def control(field, extra=""):
     """
     widget = field.field.widget
     if isinstance(widget, (forms.CheckboxInput, forms.RadioSelect)):
-        css = "form-check-input"
+        css_class = "form-check-input"
     elif isinstance(widget, forms.Select):
-        css = "form-select"
+        css_class = "form-select"
     else:
-        css = "form-control"
-    if extra:
-        css += f" {extra}"
-    if field.errors:
-        css += " is-invalid"
+        css_class = "form-control"
+
+    classes = []
     existing = widget.attrs.get("class")
     if existing:
-        css = f"{existing} {css}"
-    return field.as_widget(attrs={"class": css})
+        classes.append(existing)
+    classes.append(css_class)
+    if extra:
+        classes.append(extra)
+    if field.errors:
+        classes.append("is-invalid")
+    return field.as_widget(attrs={"class": " ".join(classes)})

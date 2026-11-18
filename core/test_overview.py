@@ -41,19 +41,18 @@ class OverviewFixtures(TestCase):
         cls.url = reverse("core:overview")
 
     @classmethod
+    def make_team(cls, name, season):
+        return Team.objects.create(
+            name=name, sport=cls.soccer, season=season, captain=cls.player
+        )
+
+    @classmethod
     def make_match(cls, state=SeasonState.ACTIVE, ends_in=-HOUR, **overrides):
         """A two-hour match in a season of the given state, ending now + ends_in."""
         season = cls.seasons[state]
         count = Team.objects.count()
-        home, away = (
-            Team.objects.create(
-                name=f"Team {count + offset}",
-                sport=cls.soccer,
-                season=season,
-                captain=cls.player,
-            )
-            for offset in (1, 2)
-        )
+        home = cls.make_team(f"Team {count + 1}", season)
+        away = cls.make_team(f"Team {count + 2}", season)
         ends_at = cls.now + ends_in
         values = dict(
             season=season,
@@ -258,30 +257,39 @@ class OverviewContentTests(OverviewFixtures):
         team = Team.objects.create(
             name="Violets", sport=self.soccer, captain=self.player
         )
-        home = Topic.objects.create(author=self.player, title="Clean", body="Fine")
+        topic = Topic.objects.create(author=self.player, title="Clean", body="Fine")
         match = self.make_match()
-        for number in range(messages + 1):
-            Message.objects.create(
-                conversation=team.conversation,
-                author=self.player,
-                body="Hi",
-                is_flagged=number < messages,
-            )
+        for _ in range(messages):
+            self.make_message(team, is_flagged=True)
+        self.make_message(team, is_flagged=False)
         for number in range(topics):
             Topic.objects.create(
                 author=self.player, title=f"Bad {number}", body="Bad", is_flagged=True
             )
-        for number in range(replies + 1):
-            Reply.objects.create(
-                topic=home, author=self.player, body="Hi", is_flagged=number < replies
-            )
-        for number in range(comments + 1):
-            MatchComment.objects.create(
-                match=match,
-                author=self.player,
-                body="Hi",
-                is_flagged=number < comments,
-            )
+        for _ in range(replies):
+            self.make_reply(topic, is_flagged=True)
+        self.make_reply(topic, is_flagged=False)
+        for _ in range(comments):
+            self.make_comment(match, is_flagged=True)
+        self.make_comment(match, is_flagged=False)
+
+    def make_message(self, team, is_flagged):
+        return Message.objects.create(
+            conversation=team.conversation,
+            author=self.player,
+            body="Hi",
+            is_flagged=is_flagged,
+        )
+
+    def make_reply(self, topic, is_flagged):
+        return Reply.objects.create(
+            topic=topic, author=self.player, body="Hi", is_flagged=is_flagged
+        )
+
+    def make_comment(self, match, is_flagged):
+        return MatchComment.objects.create(
+            match=match, author=self.player, body="Hi", is_flagged=is_flagged
+        )
 
     def queue_row_count(self):
         context = self.client.get(reverse("chat:moderation_queue")).context
