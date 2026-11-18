@@ -22,26 +22,26 @@ def make_admin(email="admin@nyu.edu"):
     return user
 
 
+def logs_for(object_type, object_id):
+    return AuditLog.objects.filter(object_type=object_type, object_id=str(object_id))
+
+
 class AuditSignalTests(TestCase):
     def test_create_update_delete_are_logged(self):
         sport = Sport.objects.create(name="Soccer")
-        entry = AuditLog.objects.get(object_type="Sport", object_id=str(sport.pk))
+        entry = logs_for("Sport", sport.pk).get()
         self.assertEqual(entry.action, "created")
         self.assertIsNone(entry.actor)
         self.assertEqual(entry.object_repr, "Soccer")
 
         sport.name = "Soccer Club"
         sport.save()
-        entry = AuditLog.objects.filter(
-            object_type="Sport", object_id=str(sport.pk)
-        ).latest("pk")
+        entry = logs_for("Sport", sport.pk).latest("pk")
         self.assertEqual(entry.action, "updated")
 
         pk = sport.pk
         sport.delete()
-        entry = AuditLog.objects.filter(object_type="Sport", object_id=str(pk)).latest(
-            "pk"
-        )
+        entry = logs_for("Sport", pk).latest("pk")
         self.assertEqual(entry.action, "deleted")
 
     def test_each_watched_model_logs_its_type_and_id(self):
@@ -54,13 +54,14 @@ class AuditSignalTests(TestCase):
         team = Team.objects.create(
             name="Violets", sport=sport, season=season, captain=admin
         )
+        rival = Team.objects.create(
+            name="Rivals", sport=sport, season=season, captain=admin
+        )
         now = timezone.now()
         match = Match.objects.create(
             season=season,
             home_team=team,
-            away_team=Team.objects.create(
-                name="Rivals", sport=sport, season=season, captain=admin
-            ),
+            away_team=rival,
             facility=facility,
             starts_at=now,
             ends_at=now + timedelta(hours=2),
@@ -72,9 +73,7 @@ class AuditSignalTests(TestCase):
             (team, "Team"),
             (match, "Match"),
         ):
-            entry = AuditLog.objects.get(
-                object_type=object_type, object_id=str(instance.pk)
-            )
+            entry = logs_for(object_type, instance.pk).get()
             self.assertEqual(entry.action, "created")
             self.assertEqual(entry.object_repr, str(instance)[:200])
 
@@ -86,7 +85,7 @@ class AuditSignalTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         sport = Sport.objects.get(name="Volleyball")
-        entry = AuditLog.objects.get(object_type="Sport", object_id=str(sport.pk))
+        entry = logs_for("Sport", sport.pk).get()
         self.assertEqual(entry.action, "created")
         self.assertEqual(entry.actor, admin)
 
