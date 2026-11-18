@@ -34,7 +34,7 @@ def conversation_label(conversation, viewer, members=None):
     title = (conversation.title or "").strip()
     if title:
         return title
-    label = ", ".join(user.first_name or FALLBACK_NAME for user in members[:3])
+    label = ", ".join(display_name(user) for user in members[:3])
     if len(members) > 3:
         label += f" +{len(members) - 3}"
     return label

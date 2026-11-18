@@ -34,6 +34,12 @@ class ConversationLabelTests(TestCase):
         group = make_group(creator, make_user("mate"), title="Pickup crew")
         self.assertEqual(conversation_label(group, creator), "Pickup crew")
 
+    def test_group_label_uses_display_name_for_last_name_only(self):
+        creator = make_user("creator", first_name="Amy")
+        last_only = make_user("z", last_name="Zhang")
+        group = make_group(creator, last_only)
+        self.assertEqual(conversation_label(group, creator), "Zhang")
+
     def test_direct_label_uses_other_name(self):
         a = make_user("a", first_name="Amy")
         b = make_user("b", first_name="Bo")

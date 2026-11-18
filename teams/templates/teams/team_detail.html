@@ -61,7 +61,7 @@
               {% if is_member and is_captain and can_remove and entry.role == "player" %}
                 <form method="post" action="{% url 'teams:remove_player' team.pk entry.pk %}" onsubmit="return confirm('Remove {{ entry.player|display_name|escapejs }} from {{ team.name|escapejs }}?');">
                   {% csrf_token %}
-                  <button class="btn btn-sm btn-ghost-danger" type="submit">Remove</button>
+                  <button class="btn btn-sm btn-ghost-danger" type="submit">Remove<span class="visually-hidden"> {{ entry.player|display_name }}</span></button>
                 </form>
               {% endif %}
             </div>
