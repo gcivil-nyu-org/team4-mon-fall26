@@ -29,10 +29,12 @@ class ProfileForm(forms.ModelForm):
         self.user = user
         self.fields["first_name"].initial = user.first_name
         self.fields["last_name"].initial = user.last_name
-        self.fields["n_number"].required = True
-        self.fields["n_number"].help_text = "N followed by 8 digits, e.g. N12345678."
-        self.fields["net_id"].required = True
-        self.fields["net_id"].help_text = "Letters then digits, e.g. ab1234."
+        n_number = self.fields["n_number"]
+        n_number.required = True
+        n_number.help_text = "N followed by 8 digits, e.g. N12345678."
+        net_id = self.fields["net_id"]
+        net_id.required = True
+        net_id.help_text = "Letters then digits, e.g. ab1234."
 
     def clean_n_number(self):
         value = self.cleaned_data["n_number"].strip().upper()
@@ -51,6 +53,7 @@ class ProfileForm(forms.ModelForm):
         return value
 
     def save(self):
+        """Save the user's name and this profile in one transaction."""
         with transaction.atomic():
             self.user.first_name = self.cleaned_data["first_name"]
             self.user.last_name = self.cleaned_data["last_name"]
