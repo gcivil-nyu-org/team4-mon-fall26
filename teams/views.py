@@ -11,6 +11,7 @@ from django.utils.dateformat import format as date_format
 from django.views.decorators.http import require_POST
 
 from accounts.placeholders import placeholder_for, send_invite_email_safely
+from core.names import display_name
 from accounts.role_admin import league_admin_count, listable_users
 from accounts.roles import LEAGUE_ADMIN_ROLE, SCOREKEEPER_ROLE, has_role
 from facilities.models import Facility
@@ -309,10 +310,10 @@ def add_player(request, pk):
                 Roster.objects.create(team=team, player=player, role=Roster.Role.PLAYER)
         if added:
             if player.is_active:
-                message = f"Added {player.email} to {team.name}."
+                message = f"Added {display_name(player)} to {team.name}."
             else:
                 message = (
-                    f"Added {player.email} to {team.name}. They'll see the team "
+                    f"Added {display_name(player)} to {team.name}. They'll see the team "
                     "when they sign up with that email."
                 )
             messages.success(request, message)
@@ -336,7 +337,7 @@ def remove_player(request, pk, entry_pk):
         team.roster.select_related("player"), pk=entry_pk, role=Roster.Role.PLAYER
     )
     entry.delete()
-    messages.success(request, f"Removed {entry.player.email} from {team.name}.")
+    messages.success(request, f"Removed {display_name(entry.player)} from {team.name}.")
     return redirect("teams:detail", pk=team.pk)
 
 
