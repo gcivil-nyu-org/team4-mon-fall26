@@ -326,3 +326,26 @@ class MatchAppearance(models.Model):
 
     def __str__(self):
         return f"{display_name(self.player)} played for {self.team} in {self.match}"
+
+
+class MatchComment(models.Model):
+    """One comment on a match page. Comments are flat: no nesting."""
+
+    MAX_BODY_LENGTH = 500
+
+    match = models.ForeignKey(Match, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="match_comments",
+    )
+    body = models.CharField(max_length=MAX_BODY_LENGTH)
+    created_at = models.DateTimeField(auto_now_add=True)
+    # Set by a user's report. A League Admin clears it in the moderation queue.
+    is_flagged = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"{display_name(self.author)} on {self.match}: {self.body[:40]}"

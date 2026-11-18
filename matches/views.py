@@ -15,12 +15,13 @@ from accounts.roles import (
     users_with_role,
 )
 from facilities.maps import map_marker
+from forums.views import can_moderate
 from teams.event_types import scoring_event_type
 from teams.models import Roster, Season
 from teams.season_rules import SeasonAction, SeasonState
 from teams.views import _require_league_admin
 
-from .forms import MatchForm, ScheduleFilterForm
+from .forms import MatchCommentForm, MatchForm, ScheduleFilterForm
 from .match_context import (
     head_to_head,
     season_results,
@@ -255,6 +256,14 @@ def match_detail(request, pk):
         ),
         pk=pk,
     )
+    comment_form = MatchCommentForm(request.POST or None)
+    if request.method == "POST" and comment_form.is_valid():
+        comment = comment_form.save(commit=False)
+        comment.match = match
+        comment.author = user
+        comment.save()
+        messages.success(request, "Comment posted.")
+        return redirect(reverse("matches:detail", args=[match.pk]) + "#comments")
     sheets = team_sheets(match)
     show_stats = match.has_result and not match.is_cancelled
     event_types = match_event_types(match) if show_stats else []
@@ -310,6 +319,9 @@ def match_detail(request, pk):
                 else []
             ),
             "standings_url": standings_url,
+            "comments": match.comments.select_related("author"),
+            "comment_form": comment_form,
+            "can_moderate": can_moderate(user),
             "nav_section": "schedule",
         },
     )

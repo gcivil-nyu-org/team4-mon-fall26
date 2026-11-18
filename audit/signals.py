@@ -42,12 +42,19 @@ def is_muted():
     return _muted.get()
 
 
+def _actor():
+    """Logged-in saved user, else None. An unsaved user cannot be the actor."""
+    user = get_current_user()
+    if user is None or not user.pk:
+        return None
+    return user
+
+
 def _log(instance, action):
-    if _muted.get():
+    if is_muted():
         return
-    actor = get_current_user()
     AuditLog.objects.create(
-        actor=actor if actor is not None and actor.pk else None,
+        actor=_actor(),
         action=action,
         object_type=type(instance).__name__,
         object_id=str(instance.pk),
@@ -55,20 +62,26 @@ def _log(instance, action):
     )
 
 
-def _register(model):
-    def _saved(sender, instance, created, **kwargs):
-        _log(instance, AuditLog.Action.CREATED if created else AuditLog.Action.UPDATED)
+def _on_save(sender, instance, created, **kwargs):
+    if created:
+        action = AuditLog.Action.CREATED
+    else:
+        action = AuditLog.Action.UPDATED
+    _log(instance, action)
 
-    def _deleted(sender, instance, **kwargs):
-        _log(instance, AuditLog.Action.DELETED)
 
-    post_save.connect(
-        _saved, sender=model, dispatch_uid=f"audit-log-save-{model.__name__}"
-    )
-    post_delete.connect(
-        _deleted, sender=model, dispatch_uid=f"audit-log-delete-{model.__name__}"
-    )
+def _on_delete(sender, instance, **kwargs):
+    _log(instance, AuditLog.Action.DELETED)
 
 
 for _model in WATCHED_MODELS:
-    _register(_model)
+    post_save.connect(
+        _on_save,
+        sender=_model,
+        dispatch_uid=f"audit-log-save-{_model.__name__}",
+    )
+    post_delete.connect(
+        _on_delete,
+        sender=_model,
+        dispatch_uid=f"audit-log-delete-{_model.__name__}",
+    )

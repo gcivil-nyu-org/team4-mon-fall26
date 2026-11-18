@@ -8,6 +8,8 @@ env/
 # Django
 db.sqlite3
 db.sqlite3-journal
+# Test databases from a crashed parallel run on macOS
+default_*.sqlite3
 staticfiles/
 media/
 *.log
@@ -31,6 +33,7 @@ media/
 
 # Coverage
 .coverage
+.coverage.*
 
 # Class league roster: real names and emails, never commit
 class-league-roster*.json

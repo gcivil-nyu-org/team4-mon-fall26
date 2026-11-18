@@ -2,6 +2,7 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
@@ -9,6 +10,7 @@ from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from core.names import display_name
 from facilities.models import Facility
 from matches.models import Match, MatchAppearance, PlayerStat
 
@@ -21,6 +23,10 @@ def make_user(username, email=None):
     return get_user_model().objects.create_user(
         username=username, email=email or f"{username}@nyu.edu", password="pass12345!"
     )
+
+
+def message_texts(response):
+    return [str(message) for message in get_messages(response.wsgi_request)]
 
 
 def make_team(captain, name="Violets", season=None):
@@ -109,6 +115,28 @@ class AddPlayerTests(TestCase):
         self.client.force_login(self.player)
         response = self.client.post(self.url, {"email": "player@nyu.edu"})
         self.assertEqual(response.status_code, 403)
+
+    def test_add_active_player_flash_uses_display_name_not_email(self):
+        self.player.first_name, self.player.last_name = "Jamie", "Rivera"
+        self.player.save(update_fields=["first_name", "last_name"])
+        response = self.client.post(self.url, {"email": "player@nyu.edu"})
+        texts = message_texts(response)
+        self.assertEqual(len(texts), 1)
+        expected = f"Added {display_name(self.player)} to {self.team.name}."
+        self.assertEqual(texts[0], expected)
+        self.assertNotIn(self.player.email, texts[0])
+
+    def test_add_placeholder_flash_uses_display_name_not_email(self):
+        response = self.client.post(self.url, {"email": "nobody@nyu.edu"})
+        nobody = get_user_model().objects.get(email="nobody@nyu.edu")
+        texts = message_texts(response)
+        self.assertEqual(len(texts), 1)
+        expected = (
+            f"Added {display_name(nobody)} to {self.team.name}. "
+            "They'll see the team when they sign up with that email."
+        )
+        self.assertEqual(texts[0], expected)
+        self.assertNotIn(nobody.email, texts[0])
 
 
 class RosterPageTests(TestCase):
@@ -364,6 +392,17 @@ class RemovePlayerTests(TestCase):
         response = self.client.post(self.url)
         self.assertRedirects(response, reverse("teams:detail", args=[self.team.pk]))
         self.assertFalse(self.team.roster.filter(player=self.player).exists())
+
+    def test_remove_player_flash_uses_display_name_not_email(self):
+        self.player.first_name, self.player.last_name = "Jamie", "Rivera"
+        self.player.save(update_fields=["first_name", "last_name"])
+        self.client.force_login(self.captain)
+        response = self.client.post(self.url)
+        texts = message_texts(response)
+        self.assertEqual(len(texts), 1)
+        expected = f"Removed {display_name(self.player)} from {self.team.name}."
+        self.assertEqual(texts[0], expected)
+        self.assertNotIn(self.player.email, texts[0])
 
     def test_non_captain_forbidden(self):
         self.client.force_login(self.player)

@@ -237,7 +237,8 @@ class MatchDetailTests(SheetFixtures):
         with CaptureQueriesContext(connection) as captured:
             self.assertEqual(self.client.get(self.url(small)).status_code, 200)
         expected = len(captured)
-        self.assertLessEqual(expected, 16)  # B + 2, with B = 14 on testing.
+        # B + 2, with B = 16 on testing: 14, plus comments and the moderator check.
+        self.assertLessEqual(expected, 18)
         self.extra_results(30)
         self.client.force_login(large_viewer)
         with self.assertNumQueries(expected):

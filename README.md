@@ -44,12 +44,12 @@ Open http://127.0.0.1:8000/ to see the home page and http://127.0.0.1:8000/healt
 ## Run the tests
 
 ```bash
-python manage.py test
+python manage.py test --parallel auto
 ```
 
 ## CI and deployment (Travis CI)
 
-Every push and pull request runs two jobs (`.travis.yml`):
+Every pull request, and every push to `testing` or `main`, runs two jobs (`.travis.yml`):
 
 - **Lint, tests and coverage (SQLite):** `black --check`, `flake8`, the tests, a coverage check
   (at least 80%), and a check that fails the build when a model change has no migration.
@@ -65,7 +65,7 @@ Run the same checks locally:
 pip install -r requirements-dev.txt
 black --check .
 flake8 .
-coverage run manage.py test && coverage report --fail-under=80
+coverage run manage.py test --parallel auto && coverage combine && coverage report --fail-under=80
 python manage.py makemigrations --check --dry-run
 ```
 

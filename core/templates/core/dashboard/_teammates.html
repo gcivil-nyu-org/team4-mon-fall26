@@ -4,7 +4,7 @@
     {% if teammates %}
       <div class="avatar-list">
         {% for mate in teammates %}{% include "components/avatar.html" with person=mate size="sm" labelled=True %}{% endfor %}
-        {% if teammate_count > 5 %}<span class="avatar avatar-sm rounded-circle pn-num" aria-label="and {{ teammate_count|add:'-5' }} more">+{{ teammate_count|add:"-5" }}</span>{% endif %}
+        {% if extra_teammate_count %}<span class="avatar avatar-sm rounded-circle pn-num" aria-label="and {{ extra_teammate_count }} more">+{{ extra_teammate_count }}</span>{% endif %}
       </div>
     {% else %}
       <div class="empty py-2">

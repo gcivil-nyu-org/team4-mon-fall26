@@ -171,25 +171,24 @@ class EditProfileTests(TestCase):
 
 class ProfileDetailTests(TestCase):
     def setUp(self):
-        from teams.models import Roster, Sport, Team
-
         self.owner = make_user("owner", n_number="N12345678", net_id="al1234")
         self.viewer = make_user("viewer", first_name="Jo", last_name="Kim")
         self.url = reverse("profiles:detail", args=[self.owner.pk])
-        mine = Team.objects.create(
+        self.shared = Team.objects.create(
             name="Violets",
             sport=Sport.objects.create(name="Soccer"),
             captain=self.owner,
         )
-        Roster.objects.create(team=mine, player=self.owner, role=Roster.Role.CAPTAIN)
-        self.shared = mine
+        Roster.objects.create(
+            team=self.shared, player=self.owner, role=Roster.Role.CAPTAIN
+        )
         other = Team.objects.create(
             name="Bobcats",
             sport=Sport.objects.create(name="Basketball"),
             captain=self.owner,
         )
         Roster.objects.create(team=other, player=self.owner, role=Roster.Role.CAPTAIN)
-        Roster.objects.create(team=mine, player=self.viewer)
+        Roster.objects.create(team=self.shared, player=self.viewer)
         self.client.force_login(self.viewer)
 
     def test_shows_name_and_teams(self):
@@ -220,9 +219,11 @@ class ProfileDetailTests(TestCase):
         for entry in self.owner.roster_entries.all():
             self.assertContains(response, reverse("teams:detail", args=[entry.team_id]))
 
-    def test_player_without_teams(self):
+    def test_own_profile_lists_shared_team(self):
         response = self.client.get(reverse("profiles:detail", args=[self.viewer.pk]))
         self.assertContains(response, "Violets")
+
+    def test_player_without_teams(self):
         loner = make_user("loner")
         response = self.client.get(reverse("profiles:detail", args=[loner.pk]))
         self.assertContains(response, "Not on any teams yet.")
@@ -232,14 +233,14 @@ class ProfileDetailTests(TestCase):
 
     def make_match(self, season, home_team, away_team, **scores):
         field = Facility.objects.create(name="Pier 40", source=Facility.Source.NYU)
-        now = timezone.now()
+        starts_at = timezone.now() - timezone.timedelta(days=2)
         return Match.objects.create(
             season=season,
             home_team=home_team,
             away_team=away_team,
             facility=field,
-            starts_at=now - timezone.timedelta(days=2),
-            ends_at=now - timezone.timedelta(days=2, hours=-2),
+            starts_at=starts_at,
+            ends_at=starts_at + timezone.timedelta(hours=2),
             **scores,
         )
 
@@ -328,7 +329,11 @@ class ProfileDetailTests(TestCase):
             event_type=goal,
             value=2,
         )
-        self.assertContains(self.client.get(self.url), "2 Goals")
+        self.assertContains(
+            self.client.get(self.url),
+            '<span class="pn-num">2</span> Goals',
+            html=True,
+        )
 
     def test_empty_stats_and_matches(self):
         loner = make_user("loner")
@@ -413,13 +418,7 @@ class ProfileDetailTests(TestCase):
     def test_saving_edit_goes_to_profile_page(self):
         self.client.force_login(self.owner)
         response = self.client.post(
-            reverse("profiles:edit", args=[self.owner.pk]),
-            {
-                "first_name": "Sam",
-                "last_name": "Park",
-                "n_number": "N87654321",
-                "net_id": "sp9876",
-            },
+            reverse("profiles:edit", args=[self.owner.pk]), VALID
         )
         self.assertRedirects(response, self.url)
 
