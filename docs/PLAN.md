@@ -18,8 +18,8 @@ site:
 - Teams and rosters: team creation in open seasons, roster capacity,
   one team per player per season, captain / player roles.
 - Free agents: player requests plus the League Admin matching flow.
-- Scheduling: season and team schedule pages, overlap warnings for
-  double-booked facilities, scorekeeper assignment.
+- Scheduling: season and team schedule pages, no double-booked
+  facilities, team clash warnings, scorekeeper assignment.
 - Facilities: 154 NYC Parks facilities near NYU plus 8 NYU / Hudson
   River Park venues seeded from `facilities/data/`, with the map and
   the manage pages.

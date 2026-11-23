@@ -7,7 +7,7 @@
       <div>
         <div class="subheader">League Admin · Free agents</div>
         <h1>{{ season.name }}</h1>
-        <div class="page-meta">{{ free_agents|length }} request{{ free_agents|length|pluralize }} · {{ available_spots }} open roster spot{{ available_spots|pluralize }}</div>
+        <div class="page-meta"><span class="pn-num">{{ free_agents|length }}</span> request{{ free_agents|length|pluralize }} · <span class="pn-num">{{ available_spots }}</span> open roster spot{{ available_spots|pluralize }}</div>
       </div>
       <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" href="{% url 'teams:manage_season_divisions' season.pk %}">Manage divisions</a>

@@ -148,6 +148,24 @@ class ReportCommentTests(MatchCommentFixtures):
         comment.refresh_from_db()
         self.assertTrue(comment.is_flagged)
 
+    def test_author_cannot_report_own_comment(self):
+        comment = self.comment(author=self.player)
+        self.client.force_login(self.player)
+        page = self.client.get(self.detail_url())
+        self.assertNotContains(page, self.report_url(comment))
+        response = self.client.post(self.report_url(comment), follow=True)
+        self.assertContains(response, "You can&#x27;t report your own post.")
+        comment.refresh_from_db()
+        self.assertFalse(comment.is_flagged)
+
+    def test_report_form_asks_to_confirm(self):
+        self.comment()
+        self.client.force_login(self.player)
+        response = self.client.get(self.detail_url())
+        self.assertContains(
+            response, "return confirm('Report this comment to League Admins?')"
+        )
+
     def test_second_report_changes_nothing(self):
         comment = self.comment(is_flagged=True)
         self.client.force_login(self.player)

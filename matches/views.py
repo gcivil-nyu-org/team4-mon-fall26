@@ -2,9 +2,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
@@ -29,7 +29,7 @@ from .match_context import (
     standings_table,
     team_context,
 )
-from .models import Match
+from .models import Match, lock_facilities
 from .scorekeeping import group_assigned_matches
 from .sheet_forms import MatchSheet
 from .schedule import (
@@ -136,12 +136,21 @@ def match_form(request, pk=None):
                 {"seasons": _schedulable_seasons(), "nav_section": "league_setup"},
             )
 
-    form = MatchForm(request.POST or None, instance=match, season=season)
-    if request.method == "POST" and form.is_valid():
-        saved = form.save(commit=False)
-        if match is None:
-            saved.created_by = request.user
-        saved.save()
+    saved = None
+    with transaction.atomic():
+        if request.method == "POST":
+            # Two saves can't take the same venue, and a score can't land while
+            # the teams change, between the checks and the save.
+            lock_facilities([request.POST.get("facility", "")])
+            if match:
+                match = Match.objects.select_for_update().get(pk=match.pk)
+        form = MatchForm(request.POST or None, instance=match, season=season)
+        if request.method == "POST" and form.is_valid():
+            saved = form.save(commit=False)
+            if match is None:
+                saved.created_by = request.user
+            saved.save()
+    if saved is not None:
         verb = "Saved" if match else "Scheduled"
         messages.success(request, f"{verb} {saved}.")
         return redirect(_manage_url(season.pk))
@@ -266,6 +275,10 @@ def match_detail(request, pk):
         return redirect(reverse("matches:detail", args=[match.pk]) + "#comments")
     sheets = team_sheets(match)
     show_stats = match.has_result and not match.is_cancelled
+    # A result entered with no score sheet has no stats or appearances.
+    stats_recorded = any(
+        row.played or any(row.stats.values()) for sheet in sheets for row in sheet.rows
+    )
     event_types = match_event_types(match) if show_stats else []
     teams = season_teams(match)
     results = season_results(match)
@@ -286,7 +299,7 @@ def match_detail(request, pk):
         status = "cancelled"
     elif match.has_result:
         status = "final"
-    elif match.ends_at < timezone.now():
+    elif match.is_awaiting_score:
         status = "awaiting"
     else:
         status = "scheduled"
@@ -305,6 +318,8 @@ def match_detail(request, pk):
             "event_types": event_types,
             "periods": [] if match.is_cancelled else period_rows(match),
             "status": status,
+            "stats_recorded": stats_recorded,
+            "stats_missing": show_stats and not stats_recorded,
             "score_url": _score_url(user, match),
             "top_performers": leaders,
             "standings_table": table,

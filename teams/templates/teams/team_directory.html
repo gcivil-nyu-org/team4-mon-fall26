@@ -31,17 +31,17 @@
             {% endfor %}
           </select>
         </div>
-        {% if divisions %}
-          <div class="col-sm-6 col-lg-3">
-            <label class="form-label" for="directory-division">Division</label>
-            <select class="form-select" id="directory-division" name="division">
-              <option value="">All divisions</option>
-              {% for division in divisions %}
-                <option value="{{ division.pk }}"{% if selected.division == division.pk %} selected{% endif %}>{{ division.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        {% endif %}
+        <div class="col-sm-6 col-lg-3">
+          <label class="form-label" for="directory-division">Division</label>
+          {# Divisions belong to one season, so the list needs a season first. #}
+          <select class="form-select" id="directory-division" name="division" aria-describedby="directory-division-hint"{% if not divisions %} disabled{% endif %}>
+            <option value="">All divisions</option>
+            {% for division in divisions %}
+              <option value="{{ division.pk }}"{% if selected.division == division.pk %} selected{% endif %}>{{ division.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-hint" id="directory-division-hint">{% if not selected.season %}Pick a season and filter to choose a division.{% elif not divisions %}This season has no divisions.{% else %}Divisions in the chosen season.{% endif %}</div>
+        </div>
         <div class="col-sm-6 col-lg-3">
           <label class="form-label" for="directory-q">Search</label>
           <input class="form-control" id="directory-q" type="search" name="q" value="{{ selected.q }}" placeholder="Team name">

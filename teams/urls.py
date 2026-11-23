@@ -29,6 +29,7 @@ urlpatterns = [
         name="remove_player",
     ),
     path("<int:pk>/leave/", views.leave_team, name="leave"),
+    path("<int:pk>/delete/", views.disband_team, name="disband"),
     path("free-agents/", views.free_agent_pool, name="free_agent_pool"),
     path(
         "free-agents/cancel/<int:pk>/",

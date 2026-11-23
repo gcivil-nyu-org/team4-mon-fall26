@@ -32,6 +32,17 @@ class StartChatTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Sally")
 
+    def test_search_drops_nul_characters(self):
+        # #295: PostgreSQL rejects NUL in a text parameter.
+        from .inbox import search_people
+
+        priya = make_user("priya", first_name="Priya")
+        self.client.force_login(self.user)
+        response = self.client.get(self.url, {"q": "pr\x00"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Priya")
+        self.assertEqual(search_people(self.user, "p\x00r"), [priya])
+
     def test_search_by_first_name_shows_display_name_not_email(self):
         make_user("priya", first_name="Priya", last_name="Shah")
         self.client.force_login(self.user)

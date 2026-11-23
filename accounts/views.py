@@ -1,4 +1,5 @@
-from django.contrib.auth import get_user_model
+from django.contrib import messages
+from django.contrib.auth import get_user_model, login
 from django.contrib.auth.views import LoginView
 from django.db import transaction
 from django.shortcuts import redirect, render
@@ -7,11 +8,12 @@ from django.utils.http import urlsafe_base64_decode
 
 from profiles.forms import NET_ID_RE
 from profiles.models import PlayerProfile
+from profiles.net_ids import release_net_id
 
 from .emails import send_verification_email
 from .forms import ClaimAccountForm, LoginForm, ResendVerificationForm, SignUpForm
 from .models import PendingAccount
-from .placeholders import is_placeholder
+from .placeholders import awaits_verification, is_placeholder
 from .roles import CASUAL_PLAYER_ROLE, assign_role
 from .rate_limits import (
     clear_login_failures,
@@ -21,10 +23,13 @@ from .rate_limits import (
 )
 from .tokens import email_verification_token
 
+# Session key: the account this browser made and chose the password for.
+SIGNED_UP_USER = "signed_up_user"
+
 
 def signup(request):
     if request.user.is_authenticated:
-        return redirect("teams:list")
+        return redirect("core:home")
     form = SignUpForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         decision = consume_verification_email_request(
@@ -41,6 +46,8 @@ def signup(request):
             return response
 
         user = form.save()
+        if form.created:
+            request.session[SIGNED_UP_USER] = user.pk
         send_verification_email(request, user)
         request.session["verification_email"] = user.email
         request.session["verification_rate_limited"] = False
@@ -69,13 +76,11 @@ def _link_user(uidb64, token, *, lock=False):
         user = users.get(pk=force_str(urlsafe_base64_decode(uidb64)))
     except (ValueError, OverflowError, get_user_model().DoesNotExist):
         return None
-    if user.is_active or not email_verification_token.check_token(user, token):
+    if not awaits_verification(user):
         return None
-    placeholder = is_placeholder(user)
-    # Only a placeholder may lack a password: its owner sets one on the claim page.
-    if not placeholder and not user.has_usable_password():
+    if not email_verification_token.check_token(user, token):
         return None
-    user.is_placeholder = placeholder
+    user.is_placeholder = is_placeholder(user)
     return user
 
 
@@ -88,59 +93,70 @@ def _link_invalid(request):
     )
 
 
+def _claim_page(request, form):
+    return render(
+        request,
+        "accounts/claim.html",
+        {"form": form, "is_placeholder": form.user.is_placeholder},
+    )
+
+
 def _activate(user):
     """Call inside a transaction. Activation also makes the link stop working."""
     user.is_active = True
     user.save()
     # The placeholder is now claimed.
     PendingAccount.objects.filter(user=user).delete()
-    PlayerProfile.objects.get_or_create(
-        user=user, defaults={"net_id": _net_id_from_email(user.email)}
-    )
+    net_id = _net_id_from_email(user.email)
+    if net_id:
+        # The verified email proves whose NetID this is (#304).
+        release_net_id(net_id, user)
+    PlayerProfile.objects.get_or_create(user=user, defaults={"net_id": net_id})
     assign_role(user, CASUAL_PLAYER_ROLE)
 
 
 def verify(request, uidb64, token):
     """Screen 2 when the link is good, screen 3 when it is expired, used or broken.
 
-    For a placeholder, the link opens a claim page first. The account becomes
-    active only when the inbox owner sets a password there.
+    Anyone can type an email on the sign-up form, so the link proves the inbox
+    but not who chose the password (#302). It activates at once only in the
+    browser that signed up. Otherwise, and for a placeholder, it opens a claim
+    page: the account becomes active when the inbox owner sets a password there.
     """
     user = _link_user(uidb64, token)
     if user is None:
         return _link_invalid(request)
 
-    if not user.is_placeholder:
+    if not user.is_placeholder and request.session.get(SIGNED_UP_USER) == user.pk:
         with transaction.atomic():
             _activate(user)
+        del request.session[SIGNED_UP_USER]
         return render(request, "accounts/verified.html", {"verified_user": user})
 
     if request.method != "POST":
         form = ClaimAccountForm(user)
-        return render(request, "accounts/claim.html", {"form": form})
+        return _claim_page(request, form)
 
     with transaction.atomic():
         # Lock and check the token again, so two posts can't both claim.
         user = _link_user(uidb64, token, lock=True)
-        if user is None or not user.is_placeholder:
+        if user is None:
             return _link_invalid(request)
         form = ClaimAccountForm(user, request.POST)
         if not form.is_valid():
-            return render(request, "accounts/claim.html", {"form": form})
+            return _claim_page(request, form)
         form.save()
         _activate(user)
-    return render(request, "accounts/verified.html", {"verified_user": user})
+    # The inbox owner just chose this password here, so sign them in (#270).
+    login(request, user)
+    messages.success(request, "Your account is active. Welcome to PlayNYU.")
+    return redirect("core:home")
 
 
 def _net_id_from_email(email):
     """NYU emails are usually netid@nyu.edu; use that as the starting NetID when it fits."""
     local = email.split("@")[0].lower()
-    if (
-        NET_ID_RE.match(local)
-        and not PlayerProfile.objects.filter(net_id=local).exists()
-    ):
-        return local
-    return None
+    return local if NET_ID_RE.match(local) else None
 
 
 def resend_verification(request):
@@ -153,9 +169,7 @@ def resend_verification(request):
             .objects.filter(email__iexact=email, is_active=False)
             .first()
         )
-        # A user with no password can't be activated by a link, unless it is a
-        # placeholder: its link opens the claim page for the inbox owner.
-        sendable = user and (user.has_usable_password() or is_placeholder(user))
+        sendable = user and awaits_verification(user)
         if sendable and decision.allowed:
             send_verification_email(request, user)
         # Same screen either way, so this form doesn't reveal which emails have accounts.
@@ -169,6 +183,7 @@ def resend_verification(request):
 
 class PlayNYULoginView(LoginView):
     authentication_form = LoginForm
+    redirect_authenticated_user = True
 
     def post(self, request, *args, **kwargs):
         email = request.POST.get("username", "").strip().lower()

@@ -23,6 +23,14 @@
         {% else %}
           <a class="btn btn-primary" href="{% url 'teams:add_player' team.pk %}"><i aria-hidden="true" class="ti ti-user-plus me-1"></i>Add a player</a>
         {% endif %}
+        {% if disband_blocker %}
+          <button class="btn btn-outline-danger" type="button" disabled title="{{ disband_blocker }}">Delete team</button>
+        {% else %}
+          <form method="post" action="{% url 'teams:disband' team.pk %}" onsubmit="return confirm('Delete {{ team.name|escapejs }}? This cannot be undone.');">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger" type="submit"><i aria-hidden="true" class="ti ti-trash me-1"></i>Delete team</button>
+          </form>
+        {% endif %}
       {% elif can_leave %}
         <form method="post" action="{% url 'teams:leave' team.pk %}" onsubmit="return confirm('Leave {{ team.name|escapejs }}?');">
           {% csrf_token %}
@@ -61,7 +69,7 @@
               {% if is_member and is_captain and can_remove and entry.role == "player" %}
                 <form method="post" action="{% url 'teams:remove_player' team.pk entry.pk %}" onsubmit="return confirm('Remove {{ entry.player|display_name|escapejs }} from {{ team.name|escapejs }}?');">
                   {% csrf_token %}
-                  <button class="btn btn-sm btn-ghost-danger" type="submit">Remove</button>
+                  <button class="btn btn-sm btn-ghost-danger" type="submit">Remove<span class="visually-hidden"> {{ entry.player|display_name }}</span></button>
                 </form>
               {% endif %}
             </div>

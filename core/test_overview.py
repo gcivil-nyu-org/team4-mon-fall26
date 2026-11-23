@@ -11,7 +11,7 @@ from chat.models import Message
 from chat.moderation import flagged_total
 from facilities.models import Facility
 from forums.models import Reply, Topic
-from matches.models import Match
+from matches.models import Match, MatchComment
 from matches.tests import make_user
 from teams.models import FreeAgentRequest, Season, Sport, Team
 from teams.season_rules import SeasonState
@@ -41,19 +41,18 @@ class OverviewFixtures(TestCase):
         cls.url = reverse("core:overview")
 
     @classmethod
+    def make_team(cls, name, season):
+        return Team.objects.create(
+            name=name, sport=cls.soccer, season=season, captain=cls.player
+        )
+
+    @classmethod
     def make_match(cls, state=SeasonState.ACTIVE, ends_in=-HOUR, **overrides):
         """A two-hour match in a season of the given state, ending now + ends_in."""
         season = cls.seasons[state]
         count = Team.objects.count()
-        home, away = (
-            Team.objects.create(
-                name=f"Team {count + offset}",
-                sport=cls.soccer,
-                season=season,
-                captain=cls.player,
-            )
-            for offset in (1, 2)
-        )
+        home = cls.make_team(f"Team {count + 1}", season)
+        away = cls.make_team(f"Team {count + 2}", season)
         ends_at = cls.now + ends_in
         values = dict(
             season=season,
@@ -253,42 +252,65 @@ class OverviewContentTests(OverviewFixtures):
         self.assertContains(response, 'id="needs-a-score"')
         self.assertContains(response, "card-link-pop", count=4)
 
-    def make_flagged_content(self, messages=0, topics=0, replies=0):
+    def make_flagged_content(self, messages=0, topics=0, replies=0, comments=0):
         """The given number of flagged rows of each kind, plus one clean row each."""
         team = Team.objects.create(
             name="Violets", sport=self.soccer, captain=self.player
         )
-        home = Topic.objects.create(author=self.player, title="Clean", body="Fine")
-        for number in range(messages + 1):
-            Message.objects.create(
-                conversation=team.conversation,
-                author=self.player,
-                body="Hi",
-                is_flagged=number < messages,
-            )
+        topic = Topic.objects.create(author=self.player, title="Clean", body="Fine")
+        match = self.make_match()
+        for _ in range(messages):
+            self.make_message(team, is_flagged=True)
+        self.make_message(team, is_flagged=False)
         for number in range(topics):
             Topic.objects.create(
                 author=self.player, title=f"Bad {number}", body="Bad", is_flagged=True
             )
-        for number in range(replies + 1):
-            Reply.objects.create(
-                topic=home, author=self.player, body="Hi", is_flagged=number < replies
-            )
+        for _ in range(replies):
+            self.make_reply(topic, is_flagged=True)
+        self.make_reply(topic, is_flagged=False)
+        for _ in range(comments):
+            self.make_comment(match, is_flagged=True)
+        self.make_comment(match, is_flagged=False)
+
+    def make_message(self, team, is_flagged):
+        return Message.objects.create(
+            conversation=team.conversation,
+            author=self.player,
+            body="Hi",
+            is_flagged=is_flagged,
+        )
+
+    def make_reply(self, topic, is_flagged):
+        return Reply.objects.create(
+            topic=topic, author=self.player, body="Hi", is_flagged=is_flagged
+        )
+
+    def make_comment(self, match, is_flagged):
+        return MatchComment.objects.create(
+            match=match, author=self.player, body="Hi", is_flagged=is_flagged
+        )
 
     def queue_row_count(self):
         context = self.client.get(reverse("chat:moderation_queue")).context
         return sum(
             len(context[name])
-            for name in ("flagged", "flagged_topics", "flagged_replies")
+            for name in (
+                "flagged",
+                "flagged_topics",
+                "flagged_replies",
+                "flagged_comments",
+            )
         )
 
     def test_flagged_count_matches_the_moderation_queue(self):
-        self.make_flagged_content(messages=2, topics=3, replies=4)
+        self.make_flagged_content(messages=2, topics=3, replies=4, comments=1)
         response = self.get()
-        self.assertEqual(response.context["counts"]["flagged"], 9)
+        self.assertEqual(response.context["counts"]["flagged"], 10)
         self.assertEqual(response.context["counts"]["flagged"], self.queue_row_count())
         self.assertContains(
-            response, "Messages, topics and replies in the moderation queue"
+            response,
+            "Messages, topics, replies and match comments in the moderation queue",
         )
 
     def test_flagged_count_includes_forum_topics_and_replies(self):
@@ -296,11 +318,17 @@ class OverviewContentTests(OverviewFixtures):
         self.assertEqual(self.get().context["counts"]["flagged"], 3)
         self.assertEqual(self.queue_row_count(), 3)
 
+    def test_flagged_count_includes_match_comments(self):
+        self.make_flagged_content(comments=2)
+        self.assertEqual(self.get().context["counts"]["flagged"], 2)
+        self.assertEqual(self.queue_row_count(), 2)
+
     def test_unflagged_content_is_not_counted(self):
         self.make_flagged_content()
         self.assertEqual(Message.objects.count(), 1)
         self.assertEqual(Topic.objects.count(), 1)
         self.assertEqual(Reply.objects.count(), 1)
+        self.assertEqual(MatchComment.objects.count(), 1)
         self.assertEqual(self.get().context["counts"]["flagged"], 0)
         self.assertEqual(self.queue_row_count(), 0)
 

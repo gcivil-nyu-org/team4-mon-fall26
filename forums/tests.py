@@ -183,7 +183,7 @@ class PermissionTests(TestCase):
         response = self.client.get(reverse("forums:detail", args=[self.topic.pk]))
         self.assertContains(response, self.delete_topic_url)
         self.assertContains(response, self.delete_reply_url)
-        self.assertContains(response, "return confirm(", count=2)
+        self.assertContains(response, "return confirm('Delete", count=2)
 
     def test_non_admin_delete_is_403_even_for_the_author(self):
         for user in (self.author, self.other):
@@ -261,6 +261,8 @@ class TopicListTests(TestCase):
         # An unknown filter shows every topic.
         self.assertEqual(len(titles({"sport": "999999"})), 3)
         self.assertEqual(len(titles({"sport": "nonsense"})), 3)
+        # Unicode digits like "²" pass isdigit() but not int() (#294).
+        self.assertEqual(len(titles({"sport": "\u00b2"})), 3)
 
     def test_filter_offers_general_and_every_sport(self):
         Sport.objects.create(name="Soccer")
@@ -511,12 +513,31 @@ class ReportTests(TestCase):
         self.assertTrue(self.topic.is_flagged)
         self.assertTrue(self.reply.is_flagged)
 
-    def test_author_can_report_their_own_post(self):
+    def test_author_cannot_report_their_own_post(self):
         self.client.force_login(self.author)
-        self.client.post(self.topic_url)
-        self.client.post(self.reply_url)
-        self.assertTrue(Topic.objects.get(pk=self.topic.pk).is_flagged)
-        self.assertTrue(Reply.objects.get(pk=self.reply.pk).is_flagged)
+        for url in (self.topic_url, self.reply_url):
+            with self.subTest(url=url):
+                response = self.client.post(url, follow=True)
+                self.assertRedirects(response, self.detail_url)
+                self.assertContains(response, "You can&#x27;t report your own post.")
+        self.assertFalse(Topic.objects.get(pk=self.topic.pk).is_flagged)
+        self.assertFalse(Reply.objects.get(pk=self.reply.pk).is_flagged)
+
+    def test_no_report_button_on_own_posts(self):
+        self.client.force_login(self.author)
+        response = self.client.get(self.detail_url)
+        self.assertNotContains(response, self.topic_url)
+        self.assertNotContains(response, self.reply_url)
+
+    def test_report_forms_ask_to_confirm(self):
+        self.client.force_login(self.user)
+        response = self.client.get(self.detail_url)
+        self.assertContains(
+            response, "return confirm('Report this topic to League Admins?')"
+        )
+        self.assertContains(
+            response, "return confirm('Report this reply to League Admins?')"
+        )
 
     def test_anonymous_cannot_report(self):
         for url in (self.topic_url, self.reply_url):

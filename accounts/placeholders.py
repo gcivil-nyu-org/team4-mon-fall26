@@ -18,6 +18,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 
 from core.names import display_name
+from profiles.models import PlayerProfile
 
 from .models import PendingAccount
 
@@ -77,6 +78,24 @@ def placeholder_for(email, *, first_name="", last_name="", invited_by=None):
 
 def is_placeholder(user):
     return PendingAccount.objects.filter(user=user).exists()
+
+
+def awaits_verification(user):
+    """True when an email link may activate this account.
+
+    A placeholder can be claimed. Any other account must have a password and
+    must never have been active: a profile or a login means it was verified
+    once, so an admin deactivated it and a link must not bring it back.
+    """
+    if user.is_active:
+        return False
+    if is_placeholder(user):
+        return True
+    return (
+        user.has_usable_password()
+        and user.last_login is None
+        and not PlayerProfile.objects.filter(user=user).exists()
+    )
 
 
 def send_invite_email(request_or_base_url, user, team, invited_by):

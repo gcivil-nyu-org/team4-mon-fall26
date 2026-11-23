@@ -42,12 +42,12 @@ def pending_request_count():
 
 def season_state_counts():
     """One {label, count} per season state, in lifecycle order."""
-    found = dict(
-        Season.objects.order_by().values_list("state").annotate(total=Count("pk"))
-    )
+    # order_by() keeps a later default ordering out of the GROUP BY.
+    rows = Season.objects.order_by().values("state").annotate(total=Count("pk"))
+    totals = {row["state"]: row["total"] for row in rows}
     return [
-        {"label": SeasonState(value).label, "count": found.get(value, 0)}
-        for value in SeasonState.values
+        {"label": label, "count": totals.get(value, 0)}
+        for value, label in SeasonState.choices
     ]
 
 

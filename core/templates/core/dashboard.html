@@ -3,6 +3,7 @@
 {% load chat_tags %}
 {% load scorekeeper_tags %}
 {% load forum_tags %}
+{% load matches_tags %}
 {% block title %}Home · PlayNYU{% endblock %}
 {% block content %}
   <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
@@ -21,7 +22,7 @@
 
       {% include "core/dashboard/_my_teams.html" %}
 
-      {% load matches_tags %}{% upcoming_matches_panel upcoming_matches past_matches %}
+      {% upcoming_matches_panel upcoming_matches past_matches %}
 
       {% include "core/dashboard/_standings.html" %}
 

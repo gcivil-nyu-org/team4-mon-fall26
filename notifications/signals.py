@@ -14,7 +14,7 @@ Bulk seed scripts wrap their writes in ``muted()`` so demo data notifies nobody.
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-from django.db.models.signals import post_delete, post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import Signal, receiver
 from django.urls import reverse
 from django.utils import timezone
@@ -198,15 +198,38 @@ def score_recorded_handler(sender, match=None, **kwargs):
 def roster_entry_added(sender, instance, created, **kwargs):
     if not created:
         return
+    ids = _team_member_ids(instance.team)
+    # The signal has no actor. A captain's own roster row comes from creating
+    # the team, so don't tell them they joined it (#276). Added players still hear.
+    if instance.player_id == instance.team.captain_id:
+        ids.discard(instance.player_id)
     _notify_ids(
-        _team_member_ids(instance.team),
+        ids,
         f"{display_name(instance.player)} joined {instance.team}",
         reverse("teams:detail", args=[instance.team_id]),
     )
 
 
+# Teams being deleted in this thread. Django sends every pre_delete of a
+# cascade before it deletes rows, so the roster rows can check this set.
+_deleting_teams = ContextVar("notifications_deleting_teams", default=frozenset())
+
+
+@receiver(pre_delete, sender=Team, dispatch_uid="notify-team-pre-delete")
+def team_pre_delete(sender, instance, **kwargs):
+    _deleting_teams.set(_deleting_teams.get() | {instance.pk})
+
+
+@receiver(post_delete, sender=Team, dispatch_uid="notify-team-post-delete")
+def team_post_delete(sender, instance, **kwargs):
+    _deleting_teams.set(_deleting_teams.get() - {instance.pk})
+
+
 @receiver(post_delete, sender=Roster)
 def roster_entry_removed(sender, instance, **kwargs):
+    if instance.team_id in _deleting_teams.get():
+        # The whole team is going (#272): nobody "left", and the link would 404.
+        return
     try:
         team = instance.team
     except Team.DoesNotExist:

@@ -12,7 +12,13 @@ from teams.models import EventType, Roster, Season
 from teams.season_rules import SeasonState
 
 from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
-from .sheet_forms import MatchSheet, played_name, stat_name
+from .sheet_forms import (
+    OVERTIME_NEEDS_TIE,
+    SCORE_CONFIRMATION_FIELD,
+    MatchSheet,
+    played_name,
+    stat_name,
+)
 from .stats import period_rows, save_match_sheet, team_sheets
 from .tests import MatchFixtures, ScorekeeperFixtures, make_user
 
@@ -297,6 +303,24 @@ class MatchSheetFormTests(SheetFixtures):
         self.match.refresh_from_db()
         self.assertEqual((self.match.home_score, self.match.away_score), (2, 1))
 
+    def test_overtime_needs_a_tie_after_regular_time(self):
+        sheet = self.sheet(self.periods(*self.regular(), (0, 5)))
+        self.assertIn(OVERTIME_NEEDS_TIE, self.errors(sheet))
+
+    def test_overtime_after_a_tie_is_valid(self):
+        sheet = self.sheet(self.periods(*self.regular(1, 1), (2, 0)))
+        self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+        sheet = self.sheet(self.periods(*self.regular(1, 1), (1, 1), (0, 2)))
+        self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+
+    def test_ot2_needs_a_tie_after_ot1(self):
+        sheet = self.sheet(self.periods(*self.regular(1, 1), (2, 0), (0, 1)))
+        self.assertIn(OVERTIME_NEEDS_TIE, self.errors(sheet))
+
+    def test_regular_time_alone_needs_no_tie(self):
+        sheet = self.sheet(self.periods(*self.regular()))
+        self.assertTrue(sheet.is_valid(), sheet.non_field_errors())
+
     def test_nothing_entered_fails(self):
         self.assertIn(
             "Enter both scores, or every period.", self.errors(self.sheet({}))
@@ -342,7 +366,7 @@ class MatchSheetFormTests(SheetFixtures):
 
     def test_saves_stats_and_played(self):
         data = {
-            "home_score": "1",
+            "home_score": "2",
             "away_score": "0",
             f"stat-{self.home.pk}-{self.alex.pk}-{self.goal.pk}": "2",
             f"stat-{self.home.pk}-{self.alex.pk}-{self.assist.pk}": "",
@@ -559,7 +583,8 @@ class ScoreViewTests(SheetFixtures):
 class ScoreQueryCountTests(ScorekeeperFixtures):
     """One score post runs a fixed number of queries, whatever the roster size."""
 
-    EVENT_TYPES = ("Assist", "Foul", "Goal", "Save", "Shot")
+    # No scoring stat, so the stat totals never trip the score warning.
+    EVENT_TYPES = ("Assist", "Block", "Foul", "Save", "Shot")
 
     def setUp(self):
         self.event_types = [
@@ -630,3 +655,84 @@ class ScoreQueryCountTests(ScorekeeperFixtures):
         large = self.count_queries(20, change)
         self.assertEqual(small, large)
         self.assertLessEqual(large, 30)
+
+
+class ScoreMismatchWarningTests(SheetFixtures):
+    """Players' scoring-stat total against the team score (#297)."""
+
+    def sheet(self, home_score=3, goals=None, **extra):
+        data = {"home_score": str(home_score), "away_score": "0", **extra}
+        for player, value in (goals or {}).items():
+            data[stat_name(self.home.pk, player.pk, self.goal.pk)] = str(value)
+        return MatchSheet(self.match, data)
+
+    def test_mismatch_warns_and_holds_the_save(self):
+        sheet = self.sheet(goals={self.alex: 1, self.sam: 1})
+        self.assertFalse(sheet.is_valid())
+        self.assertEqual(sheet.score_mismatches, [(self.home, 2, 3)])
+        self.assertTrue(sheet.score_token)
+        self.assertEqual(sheet.non_field_errors(), [])
+
+    def test_confirming_saves(self):
+        sheet = self.sheet(goals={self.alex: 2})
+        sheet.is_valid()
+        token = sheet.score_token
+        sheet = self.sheet(goals={self.alex: 2}, **{SCORE_CONFIRMATION_FIELD: token})
+        self.assertTrue(sheet.is_valid())
+        self.assertTrue(sheet.save())
+        self.match.refresh_from_db()
+        self.assertEqual(self.match.home_score, 3)
+
+    def test_token_for_other_totals_does_not_confirm(self):
+        sheet = self.sheet(goals={self.alex: 2})
+        sheet.is_valid()
+        sheet = self.sheet(
+            goals={self.alex: 1}, **{SCORE_CONFIRMATION_FIELD: sheet.score_token}
+        )
+        self.assertFalse(sheet.is_valid())
+
+    def test_matching_total_is_valid(self):
+        self.assertTrue(self.sheet(goals={self.alex: 2, self.sam: 1}).is_valid())
+
+    def test_no_scoring_stats_is_valid(self):
+        # Partial sheets: a 0 total means the stats weren't entered.
+        self.assertTrue(self.sheet().is_valid())
+
+    def test_sport_without_scoring_stat_is_valid(self):
+        self.goal.name = "Tackle"
+        self.goal.save()
+        self.assertTrue(self.sheet(goals={self.alex: 1}).is_valid())
+
+    def test_periods_set_the_score_that_is_checked(self):
+        data = {}
+        for index in range(4):
+            data[f"period-{index}-home_points"] = "1"
+            data[f"period-{index}-away_points"] = "0"
+        sheet = self.sheet(home_score=99, goals={self.alex: 4}, **data)
+        self.assertTrue(sheet.is_valid(), sheet.score_mismatches)
+
+    def test_player_who_left_counts(self):
+        lou = named_user("lou", "Lou", "Ray")
+        Roster.objects.create(team=self.home, player=lou)
+        self.stored_stat(self.home, lou, value=1)
+        Roster.objects.filter(player=lou).delete()
+        sheet = self.sheet(goals={self.alex: 2})
+        self.assertTrue(sheet.is_valid(), sheet.score_mismatches)
+
+    def test_form_shows_warning_and_save_anyway(self):
+        self.client.force_login(self.admin)
+        data = {
+            "home_score": "47",
+            "away_score": "0",
+            stat_name(self.home.pk, self.alex.pk, self.goal.pk): "40",
+        }
+        url = reverse("matches:score", args=[self.match.pk])
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, "The players' Goal total doesn't match the team score"
+        )
+        self.assertContains(response, "Save anyway")
+        token = response.context["sheet"].score_token
+        response = self.client.post(url, {**data, SCORE_CONFIRMATION_FIELD: token})
+        self.assertEqual(response.status_code, 302)

@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from accounts.roles import SCOREKEEPER_ROLE, users_with_role
 from core.names import display_name
+from facilities.models import Facility
 from teams.season_rules import SeasonAction, SeasonState, season_allows
 
 
@@ -39,6 +40,17 @@ class MatchQuerySet(models.QuerySet):
             facility=facility, starts_at__lt=ends_at, ends_at__gt=starts_at
         )
 
+    def team_overlapping(self, teams, starts_at, ends_at):
+        """Scheduled matches of any of `teams` that share time with a window.
+
+        The time rule is the same as overlapping().
+        """
+        return self.scheduled().filter(
+            models.Q(home_team__in=teams) | models.Q(away_team__in=teams),
+            starts_at__lt=ends_at,
+            ends_at__gt=starts_at,
+        )
+
     def needing_score(self, now):
         """Ended matches with no result that can still be scored.
 
@@ -50,6 +62,20 @@ class MatchQuerySet(models.QuerySet):
             ends_at__lt=now,
             season__state__in=_live_season_states(),
         )
+
+
+def lock_facilities(pks):
+    """Lock these facilities until the transaction ends, so a venue check holds.
+
+    Bad values (from a posted form) are skipped. The order avoids deadlocks.
+    """
+    pks = [pk for pk in pks if str(pk).isdecimal() and len(str(pk)) < 19]
+    list(
+        Facility.objects.select_for_update()
+        .filter(pk__in=pks)
+        .order_by("pk")
+        .values_list("pk")
+    )
 
 
 class Match(models.Model):
@@ -148,8 +174,34 @@ class Match(models.Model):
             errors["away_score"] = "Enter both scores, or leave both blank."
         if any(scored) and self.status == self.Status.CANCELLED:
             errors["home_score"] = "Cancelled matches can't have a score."
+        for field in self._changed_teams_of_scored_match():
+            errors.setdefault(
+                field,
+                "This match has a score, so its teams can't be changed.",
+            )
         if errors:
             raise ValidationError(errors)
+
+    def _changed_teams_of_scored_match(self):
+        """Team fields that differ from the saved match, when it has a score.
+
+        The score and the player stats belong to the saved teams (#303).
+        """
+        if self.pk is None:
+            return []
+        stored = (
+            Match.objects.filter(
+                pk=self.pk, home_score__isnull=False, away_score__isnull=False
+            )
+            .values("home_team_id", "away_team_id")
+            .first()
+        ) or {}
+        return [
+            field
+            for field in ("home_team", "away_team")
+            if f"{field}_id" in stored
+            and stored[f"{field}_id"] != getattr(self, f"{field}_id")
+        ]
 
     def _scorekeeper_changed(self):
         """A stale scorekeeper can't be newly assigned, but mustn't block other edits."""
@@ -193,6 +245,15 @@ class Match(models.Model):
     def has_result(self):
         """Both scores are recorded, so the match counts in the standings."""
         return self.home_score is not None and self.away_score is not None
+
+    @property
+    def is_awaiting_score(self):
+        """The match has ended with no result, and it isn't cancelled."""
+        return (
+            not self.is_cancelled
+            and not self.has_result
+            and self.ends_at < timezone.now()
+        )
 
     def __str__(self):
         return f"{self.home_team} vs {self.away_team}"

@@ -74,7 +74,7 @@
           {% if message.is_flagged %}
             <span class="badge bg-yellow-lt">Reported</span>
           {% elif message.author_id != user.pk %}
-            <form method="post" action="{% url 'chat:flag' active.pk message.pk %}">
+            <form method="post" action="{% url 'chat:flag' active.pk message.pk %}" onsubmit="return confirm('Report this message to League Admins?');">
               {% csrf_token %}
               <button class="btn btn-sm btn-ghost-danger" type="submit">Report</button>
             </form>

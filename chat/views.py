@@ -94,7 +94,8 @@ def conversation(request, pk):
     older_before = None
     if len(window) == PAGE_SIZE and base.filter(pk__lt=window[0].pk).exists():
         older_before = window[0].pk
-    mark_read(request.user, chat, opened_at)
+    if request.method != "POST":
+        mark_read(request.user, chat, opened_at)
     other_user = other_member(chat, request.user)
     if chat.kind == Conversation.Kind.TEAM:
         season = f" · {chat.team.season}" if chat.team.season_id else ""
@@ -136,14 +137,11 @@ def _int_or_none(value):
 
 
 @login_required
+@require_POST
 def flag_message(request, pk, message_pk):
     chat = get_conversation_for(request.user, pk)
     message = get_object_or_404(chat.messages, pk=message_pk)
-    if (
-        request.method == "POST"
-        and message.author_id != request.user.pk
-        and not message.is_flagged
-    ):
+    if message.author_id != request.user.pk and not message.is_flagged:
         message.is_flagged = True
         message.save(update_fields=["is_flagged"])
         django_messages.warning(request, "Message reported for League Admin review.")
@@ -159,7 +157,8 @@ def team_thread_redirect(request, team_pk):
 @login_required
 def new_conversation(request):
     form = NewConversationForm(request.user)
-    query = (request.GET.get("q") or "").strip()
+    # PostgreSQL rejects NUL in text, so drop it instead of a 500 (#295).
+    query = (request.GET.get("q") or "").replace("\x00", "").strip()
     results = search_people(request.user, query) if query else []
     chosen, has_bad = _chosen_people(request)
     if request.method == "GET" and not query and len(chosen) == 1 and not has_bad:

@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Q
+from django.db.models import Count, Exists, F, OuterRef, Q
 from django.http import Http404, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -11,6 +11,7 @@ from django.utils.dateformat import format as date_format
 from django.views.decorators.http import require_POST
 
 from accounts.placeholders import placeholder_for, send_invite_email_safely
+from core.names import display_name
 from accounts.role_admin import league_admin_count, listable_users
 from accounts.roles import LEAGUE_ADMIN_ROLE, SCOREKEEPER_ROLE, has_role
 from facilities.models import Facility
@@ -101,6 +102,10 @@ def team_directory(request):
         season_id = None
     if sport_id is not None:
         teams = teams.filter(sport_id=sport_id)
+        # A season with no sport takes teams of any sport.
+        seasons = seasons.filter(Q(sport_id=sport_id) | Q(sport__isnull=True))
+        if season_id is not None and not seasons.filter(pk=season_id).exists():
+            season_id = None
     if season_id is not None:
         teams = teams.filter(season_id=season_id)
     division_id = _clean_filter_id(request.GET.get("division"))
@@ -117,7 +122,8 @@ def team_directory(request):
         if season_id is not None
         else []
     )
-    query = (request.GET.get("q") or "").strip()
+    # PostgreSQL rejects NUL in text, so drop it instead of a 500 (#295).
+    query = (request.GET.get("q") or "").replace("\x00", "").strip()
     if query:
         teams = teams.filter(name__icontains=query)
     page_obj = Paginator(teams, TEAMS_PER_PAGE).get_page(request.GET.get("page"))
@@ -200,6 +206,11 @@ def create_team(request):
                 Roster.objects.create(
                     team=team, player=request.user, role=Roster.Role.CAPTAIN
                 )
+                if season is not None:
+                    # A player on a team is no longer a free agent (#296).
+                    FreeAgentRequest.objects.filter(
+                        player=request.user, season=season
+                    ).delete()
         if team is not None:
             messages.success(request, f"Team {team.name} created. You are the captain.")
             return redirect("teams:detail", pk=team.pk)
@@ -262,6 +273,8 @@ def team_detail(request, pk):
                 "is_full": len(roster) >= team.max_roster_size,
             }
         )
+        if context["is_captain"]:
+            context["disband_blocker"] = _disband_blocker(team, len(roster))
     return render(request, "teams/team_detail.html", context)
 
 
@@ -309,10 +322,10 @@ def add_player(request, pk):
                 Roster.objects.create(team=team, player=player, role=Roster.Role.PLAYER)
         if added:
             if player.is_active:
-                message = f"Added {player.email} to {team.name}."
+                message = f"Added {display_name(player)} to {team.name}."
             else:
                 message = (
-                    f"Added {player.email} to {team.name}. They'll see the team "
+                    f"Added {display_name(player)} to {team.name}. They'll see the team "
                     "when they sign up with that email."
                 )
             messages.success(request, message)
@@ -336,7 +349,7 @@ def remove_player(request, pk, entry_pk):
         team.roster.select_related("player"), pk=entry_pk, role=Roster.Role.PLAYER
     )
     entry.delete()
-    messages.success(request, f"Removed {entry.player.email} from {team.name}.")
+    messages.success(request, f"Removed {display_name(entry.player)} from {team.name}.")
     return redirect("teams:detail", pk=team.pk)
 
 
@@ -347,7 +360,11 @@ def leave_team(request, pk):
     entry = get_object_or_404(team.roster, player=request.user)
     # Nobody else can manage the team yet, so the captain has to stay.
     if entry.role == Roster.Role.CAPTAIN:
-        messages.error(request, "Captains can't leave their own team.")
+        messages.error(
+            request,
+            "Captains can't leave their own team. To remove an empty team, "
+            "use Delete team.",
+        )
         return redirect("teams:detail", pk=team.pk)
     if not team.allows(SeasonAction.LEAVE_TEAM):
         messages.error(
@@ -358,6 +375,54 @@ def leave_team(request, pk):
     entry.delete()
     messages.success(request, f"You left {team.name}.")
     return redirect("teams:list")
+
+
+def _disband_blocker(team, roster_size):
+    """Why the captain can't delete the team, or None when they can.
+
+    Always one query, so the team page's query count stays fixed.
+    """
+    # Matches protect their teams, so a team with any match can't be deleted.
+    has_matches = Match.objects.filter(Q(home_team=team) | Q(away_team=team)).exists()
+    if not team.allows(SeasonAction.LEAVE_TEAM):
+        return "Teams can't be deleted once the season starts."
+    if roster_size > 1:
+        return "Remove the other players before you delete the team."
+    if has_matches:
+        return "This team has matches. Ask a League Admin to delete it."
+    return None
+
+
+@login_required
+@require_POST
+def disband_team(request, pk):
+    """The captain deletes a team that has only them and no matches (#272)."""
+    team = get_object_or_404(Team, pk=pk)
+    if team.captain_id != request.user.pk:
+        raise PermissionDenied("Only the captain can delete the team.")
+    with transaction.atomic():
+        # Same lock order as the roster views: season, then team.
+        if team.season_id:
+            Season.objects.select_for_update().get(pk=team.season_id)
+        team = Team.objects.select_for_update().get(pk=team.pk)
+        blocker = _disband_blocker(team, team.roster.count())
+        if blocker is None:
+            name = team.name
+            team.delete()
+    if blocker is not None:
+        messages.error(request, blocker)
+        return redirect("teams:detail", pk=team.pk)
+    messages.success(request, f"You deleted {name}.")
+    return redirect("teams:list")
+
+
+def _on_season_roster():
+    """True for a free agent request whose player is on a team that season."""
+    return Exists(
+        Roster.objects.filter(
+            player_id=OuterRef("player_id"), team__season_id=OuterRef("season_id")
+        )
+    )
 
 
 @login_required
@@ -409,6 +474,7 @@ def free_agent_pool(request):
         FreeAgentRequest.objects.filter(
             season__in=filter_form.fields["season"].queryset, player__is_active=True
         )
+        .exclude(_on_season_roster())
         .select_related("player", "sport", "division", "season")
         .order_by("requested_at", "pk")
     )
@@ -538,6 +604,7 @@ def manage_season_free_agents(request, season_pk):
     )
     free_agents = (
         FreeAgentRequest.objects.filter(season=season)
+        .exclude(_on_season_roster())
         .select_related("player", "division")
         .order_by("requested_at", "pk")
     )

@@ -54,7 +54,7 @@ def _back_to_list(post):
         {"q": post.get("q", ""), "role": post.get("role_filter", "")}
     ).cleaned()
     page = post.get("page", "")
-    if page.isdigit():
+    if page.isdecimal():
         params["page"] = page
     url = reverse("accounts:roles")
     return f"{url}?{urlencode(params)}" if params else url

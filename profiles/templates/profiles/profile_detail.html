@@ -28,7 +28,7 @@
                   {% include "components/team_link.html" with team=item.entry.team size="md" %}
                   <div class="small text-secondary">{{ item.entry.team.sport }}{% if item.entry.team.season %} · {{ item.entry.team.season }}{% endif %}</div>
                 </div>
-                <span class="small text-secondary pn-num flex-shrink-0">{% if item.standing %}{{ item.standing.position|ordinal }} · {{ item.standing.row.won }}–{{ item.standing.row.drawn }}–{{ item.standing.row.lost }}{% elif item.record and item.record.played %}{{ item.record.won }}–{{ item.record.drawn }}–{{ item.record.lost }}{% else %}–{% endif %}</span>
+                <span class="small text-secondary pn-num flex-shrink-0">{{ item.result }}</span>
                 {% if item.entry.role == "captain" %}<span class="badge bg-primary-lt">Captain</span>{% endif %}
               </div>
             {% endfor %}
@@ -86,7 +86,7 @@
             {% for match in recent_lines %}
               {% include "components/match_row.html" %}
               <div class="list-group-item py-2">
-                <div class="small text-secondary">{% for stat in match.player_line %}{% if not forloop.first %} · {% endif %}{{ stat.value }} {{ stat.event_type.name }}{{ stat.value|pluralize }}{% endfor %}</div>
+                <div class="small text-secondary">{% for stat in match.player_line %}{% if not forloop.first %} · {% endif %}<span class="pn-num">{{ stat.value }}</span> {{ stat.event_type.name }}{{ stat.value|pluralize }}{% endfor %}</div>
               </div>
             {% endfor %}
           </div>
