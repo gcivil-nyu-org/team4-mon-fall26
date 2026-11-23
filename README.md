@@ -1,5 +1,8 @@
 # team4-mon-fall26 (PlayNYU)
 
+[![Build Status](https://app.travis-ci.com/gcivil-nyu-org/team4-mon-fall26.svg?branch=main)](https://app.travis-ci.com/gcivil-nyu-org/team4-mon-fall26)
+[![Coverage Status](https://coveralls.io/repos/github/gcivil-nyu-org/team4-mon-fall26/badge.svg?branch=main)](https://coveralls.io/github/gcivil-nyu-org/team4-mon-fall26?branch=main)
+
 Django project for Team 4.
 
 ## Links
@@ -77,6 +80,7 @@ Travis needs these variables (Settings > Environment Variables, "Display value i
 |---|---|
 | `AWS_ACCESS_KEY_ID_PROD`, `AWS_SECRET_ACCESS_KEY_PROD` | Deploy to production |
 | `AWS_ACCESS_KEY_ID_TESTING`, `AWS_SECRET_ACCESS_KEY_TESTING` | Deploy to testing |
+| `COVERALLS_REPO_TOKEN` | Send coverage to Coveralls (optional: without it, the upload is skipped) |
 
 ## Configuration (environment variables)
 
@@ -133,6 +137,3 @@ docs/           team docs (see Docs above)
 ```
 
 Database: SQLite locally (`db.sqlite3`, not committed), Postgres on Neon for the deployed sites ([docs/DATABASE.md](docs/DATABASE.md)).
-
-[![Build Status](https://app.travis-ci.com/gcivil-nyu-org/team4-mon-fall26.svg?branch=main)](https://app.travis-ci.com/gcivil-nyu-org/team4-mon-fall26)
-[![Coverage Status](https://coveralls.io/repos/github/gcivil-nyu-org/team4-mon-fall26/badge.svg?branch=main)](https://coveralls.io/github/gcivil-nyu-org/team4-mon-fall26?branch=main)
