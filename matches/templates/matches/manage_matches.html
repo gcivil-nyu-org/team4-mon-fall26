@@ -82,7 +82,7 @@
                 <td>
                   {% if match.can_change %}
                     <div class="d-flex flex-wrap justify-content-end gap-2">
-                      <a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:score' match.pk %}">Score</a>
+                      {% if match.can_record_score %}<a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:score' match.pk %}">Score</a>{% endif %}
                       <a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:edit' match.pk %}">Edit</a>
                       <form method="post" action="{% url 'matches:cancel' match.pk %}" onsubmit="return confirm('Cancel {{ match|escapejs }}?');">
                         {% csrf_token %}

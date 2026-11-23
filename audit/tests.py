@@ -77,6 +77,45 @@ class AuditSignalTests(TestCase):
             self.assertEqual(entry.action, "created")
             self.assertEqual(entry.object_repr, str(instance)[:200])
 
+    def test_score_changes_are_logged_with_old_and_new_score(self):
+        admin = make_admin()
+        season = Season.objects.create(
+            name="Fall 2026", start_date=date(2026, 9, 1), state="open"
+        )
+        sport = Sport.objects.create(name="Basketball")
+        facility = Facility.objects.create(name="Gym", source=Facility.Source.NYU)
+        home, away = (
+            Team.objects.create(name=name, sport=sport, season=season, captain=admin)
+            for name in ("Violets", "Rivals")
+        )
+        start = timezone.now() - timedelta(hours=3)
+        match = Match.objects.create(
+            season=season,
+            home_team=home,
+            away_team=away,
+            facility=facility,
+            starts_at=start,
+            ends_at=start + timedelta(hours=1),
+        )
+        self.client.force_login(admin)
+        url = reverse("matches:score", args=[match.pk])
+        for score, expected in (
+            ((2, 1), "Score entered: 2–1"),
+            ((3, 1), "Score corrected: 2–1 to 3–1"),
+            ((3, 1), ""),
+        ):
+            before = logs_for("Match", match.pk).count()
+            self.client.post(url, {"home_score": score[0], "away_score": score[1]})
+            self.assertEqual(logs_for("Match", match.pk).count(), before + 1)
+            entry = logs_for("Match", match.pk).latest("pk")
+            self.assertEqual((entry.action, entry.details), ("updated", expected))
+            self.assertEqual(entry.actor, admin)
+        match.refresh_from_db()
+        match.cancel()
+        self.assertEqual(logs_for("Match", match.pk).latest("pk").details, "")
+        overview = self.client.get(reverse("core:overview"))
+        self.assertContains(overview, "Score corrected: 2–1 to 3–1")
+
     def test_web_change_is_attributed_to_the_signed_in_admin(self):
         admin = make_admin()
         self.client.force_login(admin)

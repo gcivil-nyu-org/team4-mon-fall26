@@ -229,9 +229,17 @@ class Match(models.Model):
         return self.starts_at <= timezone.now()
 
     @property
+    def can_record_score(self):
+        """A League Admin enters a result once the match starts.
+
+        A stored result can always be corrected, also when the match was moved.
+        """
+        return self.can_change and (self.has_started or self.has_result)
+
+    @property
     def can_submit_score(self):
-        """A scorekeeper reports a result, so the match must have started."""
-        return self.can_change and self.has_started
+        """A scorekeeper submits a result once. Later only an admin corrects it."""
+        return self.can_record_score and not self.has_result
 
     def cancel(self):
         self.status = self.Status.CANCELLED

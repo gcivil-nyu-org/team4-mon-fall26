@@ -58,7 +58,7 @@ class TeamAdmin(admin.ModelAdmin):
 class SportAdmin(admin.ModelAdmin):
     # SportForm keeps the period fields optional, as on the League Admin pages.
     form = SportForm
-    list_display = ("name", "period_count", "period_label")
+    list_display = ("name", "period_count", "period_label", "allows_draws")
     search_fields = ("name",)
 
     def save_model(self, request, obj, form, change):

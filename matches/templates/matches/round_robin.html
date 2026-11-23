@@ -44,6 +44,14 @@
               </div>
             </div>
           {% endif %}
+          {% if plan.clash_count %}
+            <div class="card-body pb-0">
+              <div class="alert alert-warning text-body mb-0" role="alert">
+                <div class="fw-medium"><i aria-hidden="true" class="ti ti-alert-triangle me-1"></i>{{ plan.clash_count }} planned match{{ plan.clash_count|pluralize:"es" }} {{ plan.clash_count|pluralize:"has,have" }} a team clash</div>
+                <div class="small">A team already has a match at that time. Change the time{% if not plan.overlap_count %}, or create the matches anyway{% endif %}.</div>
+              </div>
+            </div>
+          {% endif %}
           {% for round in plan.rounds %}
             <div class="card-body py-2 border-bottom">
               <div class="subheader">Round <span class="pn-num">{{ round.number }}</span> · <span class="pn-num">{{ round.date|date:"D M j" }}</span></div>
@@ -55,6 +63,11 @@
                   <div class="small text-secondary"><span class="pn-num">{{ planned.match.starts_at|date:"D M j, g:i A" }} – {{ planned.match.ends_at|date:"g:i A" }}</span> · {{ planned.match.facility.name }}</div>
                   {% for overlap in planned.overlaps %}
                     <div class="small mt-1"><span class="badge bg-yellow-lt me-1">Overlap</span>{{ overlap.home_team.name }} vs {{ overlap.away_team.name }}, <span class="pn-num">{{ overlap.starts_at|date:"g:i A" }} – {{ overlap.ends_at|date:"g:i A" }}</span></div>
+                  {% endfor %}
+                  {% for team, clashes in planned.team_clashes %}
+                    {% for clash in clashes %}
+                      <div class="small mt-1"><span class="badge bg-yellow-lt me-1">Team clash</span>{{ team.name }} already plays {{ clash.home_team.name }} vs {{ clash.away_team.name }}, <span class="pn-num">{{ clash.starts_at|date:"g:i A" }} – {{ clash.ends_at|date:"g:i A" }}</span></div>
+                    {% endfor %}
                   {% endfor %}
                 </div>
               {% endfor %}

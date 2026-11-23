@@ -20,6 +20,10 @@ from .models import Match, MatchAppearance, MatchPeriodScore, PlayerStat
 from .schedule import schedule_matches, seasons_visible_to
 from .standings import counted_matches
 
+RESULT_ALREADY_SUBMITTED = (
+    "This result is already submitted. Ask a League Admin to correct it."
+)
+
 
 @dataclass
 class SheetRow:
@@ -251,7 +255,15 @@ def _check_periods(match, periods):
 
 
 def save_match_sheet(
-    match, *, periods, final, stats, played, players, allow_closed=False
+    match,
+    *,
+    periods,
+    final,
+    stats,
+    played,
+    players,
+    allow_closed=False,
+    first_only=False,
 ):
     """Write periods, the final score, stats and appearances in one transaction.
 
@@ -264,6 +276,8 @@ def save_match_sheet(
         pairs (players who left) stay as they are.
     allow_closed: also write a closed season's match. Only seed_match_details
         sets it, to fill history. Cancelled matches are always refused.
+    first_only: refuse a match that already has a result. Scorekeepers submit
+        once, and the check runs under the lock.
 
     The query count doesn't grow with the roster or the number of event types.
     """
@@ -278,6 +292,8 @@ def save_match_sheet(
         history = allow_closed and closed and not locked.is_cancelled
         if not (locked.can_change or history):
             raise ValidationError("This match can no longer be scored.")
+        if first_only and locked.has_result:
+            raise ValidationError(RESULT_ALREADY_SUBMITTED)
         players = set(players)
         stored_stats, stored_appearances = _stored(locked)
         keep = _appearances_to_keep(stats, played, players)

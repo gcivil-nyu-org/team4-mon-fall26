@@ -27,6 +27,11 @@ class AuditLog(models.Model):
     object_type = models.CharField(max_length=100, db_index=True)
     object_id = models.CharField(max_length=50)
     object_repr = models.CharField(max_length=200)
+    details = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="What changed, for example a match's old and new score.",
+    )
 
     class Meta:
         ordering = ["-timestamp", "-pk"]

@@ -1,12 +1,16 @@
 import datetime
 
+from django.http import QueryDict
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 
 from teams.models import Season
 from teams.season_rules import SeasonState
 
+from .models import Match
 from .scorekeeping import group_assigned_matches
+from .sheet_forms import MatchSheet
 from .tests import ScorekeeperFixtures
 
 HOUR = datetime.timedelta(hours=1)
@@ -121,11 +125,10 @@ class MyMatchesSectionTests(RelativeMatches):
         self.assertContains(response, "Submit score", count=3)
         self.assertContains(response, "btn-primary", count=1)
 
-    def test_scored_match_can_be_corrected(self):
+    def test_scored_match_has_no_score_button(self):
         scored = self.played(home_score=2, away_score=1)
         response = self.client.get(self.url)
-        self.assertContains(response, "Correct score")
-        self.assertContains(response, self.submit_url(scored))
+        self.assertNotContains(response, self.submit_url(scored))
         self.assertNotContains(response, "btn-primary")
 
     def test_each_row_shows_both_team_logos(self):
@@ -164,13 +167,108 @@ class SubmitScoreTimingTests(RelativeMatches):
         self.assertRedirects(response, reverse("matches:detail", args=[match.pk]))
         self.assertEqual(self.stored(match), (2, 1))
 
-    def test_league_admin_can_still_record_before_the_start(self):
+    def test_scorekeeper_submits_only_once(self):
+        match = self.played(home_score=3, away_score=3)
+        self.client.force_login(self.keeper)
+        for method in (self.client.get, self.client.post):
+            response = method(self.submit_url(match), SCORE, follow=True)
+            self.assertRedirects(response, reverse("matches:mine"))
+            self.assertContains(response, "already submitted")
+        self.assertEqual(self.stored(match), (3, 3))
+        detail = self.client.get(reverse("matches:detail", args=[match.pk]))
+        self.assertIsNone(detail.context["score_url"])
+        # A League Admin still corrects it.
+        self.client.force_login(self.admin)
+        self.client.post(reverse("matches:score", args=[match.pk]), SCORE)
+        self.assertEqual(self.stored(match), (2, 1))
+
+    def test_second_submit_is_refused_under_the_lock(self):
+        match = self.played()
+        sheet = MatchSheet(match, QueryDict(urlencode(SCORE)), first_only=True)
+        self.assertTrue(sheet.is_valid())
+        Match.objects.filter(pk=match.pk).update(home_score=5, away_score=0)
+        self.assertFalse(sheet.save())
+        self.assertIn("already submitted", sheet.non_field_errors()[0])
+        self.assertEqual(self.stored(match), (5, 0))
+
+    def test_league_admin_cannot_record_before_the_start(self):
         match = self.later()
         self.client.force_login(self.admin)
         url = reverse("matches:score", args=[match.pk])
-        self.assertEqual(self.client.get(url).status_code, 200)
-        self.client.post(url, SCORE)
+        for method in (self.client.get, self.client.post):
+            response = method(url, SCORE, follow=True)
+            self.assertRedirects(
+                response, reverse("matches:manage") + f"?season={self.season.pk}"
+            )
+            self.assertContains(response, "once the match starts")
+        self.assertNotContains(response, f'href="{url}"')
+        self.assertEqual(self.stored(match), (None, None))
+
+    def test_league_admin_can_correct_a_result_of_a_moved_match(self):
+        match = self.later(home_score=1, away_score=0)
+        self.client.force_login(self.admin)
+        self.client.post(reverse("matches:score", args=[match.pk]), SCORE)
         self.assertEqual(self.stored(match), (2, 1))
+
+
+class DrawRuleTests(RelativeMatches):
+    def post(self, match, home, away):
+        self.client.force_login(self.admin)
+        return self.client.post(
+            reverse("matches:score", args=[match.pk]),
+            {"home_score": home, "away_score": away},
+        )
+
+    def test_draws_are_allowed_by_default(self):
+        match = self.played()
+        self.post(match, 1, 1)
+        match.refresh_from_db()
+        self.assertTrue(match.has_result)
+
+    def test_tie_is_rejected_when_the_sport_has_no_draws(self):
+        self.soccer.allows_draws = False
+        self.soccer.save()
+        match = self.played()
+        response = self.post(match, 1, 1)
+        self.assertContains(response, "Soccer matches can&#x27;t end in a draw.")
+        match.refresh_from_db()
+        self.assertFalse(match.has_result)
+        self.post(match, 2, 1)
+        match.refresh_from_db()
+        self.assertTrue(match.has_result)
+
+    def test_league_admin_edits_the_rule(self):
+        self.client.force_login(self.admin)
+        url = reverse("teams:edit_sport", args=[self.soccer.pk])
+        self.assertContains(self.client.get(url), "allows_draws")
+        self.client.post(url, {"name": "Soccer"})
+        self.soccer.refresh_from_db()
+        self.assertFalse(self.soccer.allows_draws)
+
+
+class TeamFormTests(RelativeMatches):
+    def test_team_page_shows_the_last_five_newest_first(self):
+        results = [(1, 0), (0, 1), (2, 2), (3, 0), (0, 2), (1, 1)]
+        played = [
+            self.played(days_ago=day, home_score=h, away_score=a)
+            for day, (h, a) in enumerate(results, start=1)
+        ]
+        self.played(days_ago=1, home_score=9, away_score=0).cancel()
+        self.played(days_ago=1)
+        self.client.force_login(self.player)
+        response = self.client.get(reverse("teams:detail", args=[self.home.pk]))
+        form = response.context["team_form"]
+        self.assertEqual([f.letter for f in form], ["W", "L", "D", "W", "L"])
+        self.assertEqual([f.match_pk for f in form], [m.pk for m in played[:5]])
+        self.assertContains(response, "pn-form-chip", count=5)
+        away = self.client.get(reverse("teams:detail", args=[self.away.pk]))
+        letters = [f.letter for f in away.context["team_form"]]
+        self.assertEqual(letters, ["L", "W", "D", "L", "W"])
+
+    def test_no_form_without_results(self):
+        self.client.force_login(self.player)
+        response = self.client.get(reverse("teams:detail", args=[self.home.pk]))
+        self.assertNotContains(response, "pn-form-chip")
 
 
 class MatchesToScoreCardTests(RelativeMatches):

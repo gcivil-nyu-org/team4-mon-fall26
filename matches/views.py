@@ -44,6 +44,7 @@ from .schedule import (
 )
 from .standings import compute_standings
 from .stats import (
+    RESULT_ALREADY_SUBMITTED,
     comparison_rows,
     match_event_types,
     period_rows,
@@ -181,9 +182,13 @@ def cancel_match(request, pk):
     return redirect(_manage_url(match.season_id))
 
 
-def _score_match(request, match, nav_section):
+def _score_match(request, match, nav_section, first_only=False):
     """Shared save path for League Admin and scorekeeper score entry."""
-    sheet = MatchSheet(match, request.POST if request.method == "POST" else None)
+    sheet = MatchSheet(
+        match,
+        request.POST if request.method == "POST" else None,
+        first_only=first_only,
+    )
     detail_url = reverse("matches:detail", args=[match.pk])
     if request.method == "POST" and sheet.is_valid() and sheet.save():
         messages.success(request, f"Saved the score for {match}.")
@@ -217,6 +222,9 @@ def record_score(request, pk):
         else:
             messages.error(request, f"{match.season} isn't open or active.")
         return redirect(_manage_url(match.season_id))
+    if not match.can_record_score:
+        messages.error(request, "You can enter the score once the match starts.")
+        return redirect(_manage_url(match.season_id))
     return _score_match(request, match, "league_setup")
 
 
@@ -239,11 +247,14 @@ def submit_score(request, pk):
         else:
             messages.error(request, f"{match.season} isn't open or active.")
         return redirect("matches:mine")
+    if match.has_result:
+        messages.error(request, RESULT_ALREADY_SUBMITTED)
+        return redirect("matches:mine")
     if not match.has_started:
         # My matches hides the button until then. A typed URL gets the same answer.
         messages.error(request, "You can submit the score once the match starts.")
         return redirect("matches:mine")
-    return _score_match(request, match, "my_matches")
+    return _score_match(request, match, "my_matches", first_only=True)
 
 
 @login_required
@@ -344,7 +355,8 @@ def match_detail(request, pk):
 
 def _score_url(user, match):
     """The score page the viewer may use for this match, or None."""
-    if (user.is_superuser or has_role(user, LEAGUE_ADMIN_ROLE)) and match.can_change:
+    is_admin = user.is_superuser or has_role(user, LEAGUE_ADMIN_ROLE)
+    if is_admin and match.can_record_score:
         return reverse("matches:score", args=[match.pk])
     if (
         match.scorekeeper_id == user.pk

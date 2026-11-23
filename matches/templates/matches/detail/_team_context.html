@@ -22,11 +22,7 @@
                 <div class="small text-secondary mt-2 mb-1">Last {{ ctx.form|length }}</div>
                 <div class="d-flex flex-wrap gap-1">
                   {% for f in ctx.form %}
-                    {% if f.is_this_match %}
-                      <span class="badge pn-form-chip {% if f.letter == 'W' %}bg-green{% elif f.letter == 'L' %}bg-red{% else %}bg-secondary{% endif %} text-white" aria-current="page" title="{{ f.letter }} {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }} · {{ f.starts_at|date:'M j' }} (this match)">{{ f.letter }}<span class="visually-hidden"> {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }}, {{ f.starts_at|date:'M j' }}, this match</span></span>
-                    {% else %}
-                      <a class="badge pn-form-chip {% if f.letter == 'W' %}bg-green{% elif f.letter == 'L' %}bg-red{% else %}bg-secondary{% endif %} text-white" href="{% url 'matches:detail' f.match_pk %}" title="{{ f.letter }} {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }} · {{ f.starts_at|date:'M j' }}">{{ f.letter }}<span class="visually-hidden"> {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }}, {{ f.starts_at|date:'M j' }}</span></a>
-                    {% endif %}
+                    {% include "components/form_chip.html" %}
                   {% endfor %}
                 </div>
               {% endif %}

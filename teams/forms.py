@@ -25,7 +25,7 @@ class SportForm(forms.ModelForm):
 
     class Meta:
         model = Sport
-        fields = ["name", "period_count", "period_label"]
+        fields = ["name", "period_count", "period_label", "allows_draws"]
         labels = {
             "name": "Sport name",
             "period_count": "Periods per match",

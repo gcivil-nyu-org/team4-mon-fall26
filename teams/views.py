@@ -15,6 +15,7 @@ from core.names import display_name
 from accounts.role_admin import league_admin_count, listable_users
 from accounts.roles import LEAGUE_ADMIN_ROLE, SCOREKEEPER_ROLE, has_role
 from facilities.models import Facility
+from matches.match_context import recent_form
 from matches.models import Match
 from matches.schedule import seasons_visible_to, team_schedule
 from matches.standings import standings_by_team
@@ -258,6 +259,7 @@ def team_detail(request, pk):
         "standing": standing,
         "upcoming_matches": upcoming_matches,
         "past_matches": past_matches,
+        "team_form": recent_form(team, upcoming_matches + past_matches),
         "team_stats": team_stats,
         "stat_event_types": stat_event_types,
         "player_stats": player_stats,

@@ -165,6 +165,7 @@
                 {% endif %}
                 <div class="flex-fill min-w-0">
                   <div class="text-truncate"><span class="fw-medium">{{ change.get_action_display }} {{ change.object_type|lower }}</span> {{ change.object_repr }}</div>
+                  {% if change.details %}<div class="small pn-num text-truncate">{{ change.details }}</div>{% endif %}
                   <div class="small text-secondary text-truncate">{% if change.actor %}{{ change.actor|display_name }}{% else %}System{% endif %} · <span class="pn-num">{{ change.timestamp|date:"M j, g:i A" }}</span></div>
                 </div>
               </div>
