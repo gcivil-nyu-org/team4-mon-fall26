@@ -7,9 +7,7 @@ from django.contrib.auth.forms import (
 )
 from django.db.models import Q
 
-from profiles.models import PlayerProfile
-
-from .placeholders import find_user_by_email, is_placeholder, normalize_email
+from .placeholders import awaits_verification, find_user_by_email, normalize_email
 
 NYU_DOMAIN = "@nyu.edu"
 UNVERIFIED_MESSAGE = (
@@ -47,9 +45,7 @@ class SignUpForm(UserCreationForm):
         # The claim completes only when the email link is opened.
         # An unverified sign-up works the same way (#302), because someone else
         # may have typed this email first. A profile means it was verified once.
-        if existing is not None and (
-            is_placeholder(existing) or self._is_unverified(existing)
-        ):
+        if existing is not None and awaits_verification(existing):
             self.existing = existing
         elif existing is not None:
             raise forms.ValidationError(
@@ -58,14 +54,6 @@ class SignUpForm(UserCreationForm):
             )
 
         return email
-
-    @staticmethod
-    def _is_unverified(user):
-        return (
-            not user.is_active
-            and user.has_usable_password()
-            and not PlayerProfile.objects.filter(user=user).exists()
-        )
 
     def save(self, commit=True):
         # True when this sign-up made the account, so it set the password.

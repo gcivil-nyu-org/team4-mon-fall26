@@ -13,7 +13,7 @@ from profiles.net_ids import release_net_id
 from .emails import send_verification_email
 from .forms import ClaimAccountForm, LoginForm, ResendVerificationForm, SignUpForm
 from .models import PendingAccount
-from .placeholders import is_placeholder
+from .placeholders import awaits_verification, is_placeholder
 from .roles import CASUAL_PLAYER_ROLE, assign_role
 from .rate_limits import (
     clear_login_failures,
@@ -76,13 +76,11 @@ def _link_user(uidb64, token, *, lock=False):
         user = users.get(pk=force_str(urlsafe_base64_decode(uidb64)))
     except (ValueError, OverflowError, get_user_model().DoesNotExist):
         return None
-    if user.is_active or not email_verification_token.check_token(user, token):
+    if not awaits_verification(user):
         return None
-    placeholder = is_placeholder(user)
-    # Only a placeholder may lack a password: its owner sets one on the claim page.
-    if not placeholder and not user.has_usable_password():
+    if not email_verification_token.check_token(user, token):
         return None
-    user.is_placeholder = placeholder
+    user.is_placeholder = is_placeholder(user)
     return user
 
 
@@ -171,9 +169,7 @@ def resend_verification(request):
             .objects.filter(email__iexact=email, is_active=False)
             .first()
         )
-        # A user with no password can't be activated by a link, unless it is a
-        # placeholder: its link opens the claim page for the inbox owner.
-        sendable = user and (user.has_usable_password() or is_placeholder(user))
+        sendable = user and awaits_verification(user)
         if sendable and decision.allowed:
             send_verification_email(request, user)
         # Same screen either way, so this form doesn't reveal which emails have accounts.

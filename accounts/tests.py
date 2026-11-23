@@ -180,9 +180,16 @@ class UnverifiedSignUpTests(TestCase):
         self.assertEqual(self.user().first_name, "Sam")
 
     def test_deactivated_account_cannot_sign_up_again(self):
+        link = link_from(mail.outbox[0])
         PlayerProfile.objects.create(user=self.user())
         response = self.client.post(reverse("accounts:signup"), VALID)
         self.assertContains(response, "An account with this email already exists.")
+        # Nor can an old link or a new one bring it back.
+        self.assertEqual(self.client.get(link).status_code, 400)
+        self.assertEqual(self.client.post(link, self.CLAIM).status_code, 400)
+        self.client.post(reverse("accounts:resend"), {"email": EMAIL})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertFalse(self.user().is_active)
 
 
 class ResendTests(TestCase):
