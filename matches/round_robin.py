@@ -55,10 +55,15 @@ def pairings(teams):
 
 @dataclass
 class PlannedMatch:
-    """An unsaved match, with the scheduled matches its booking overlaps."""
+    """An unsaved match, with the scheduled matches its booking overlaps.
+
+    team_clashes: (team, its overlapping matches) for each team that has any.
+    A clash is a warning. An overlap stops the plan.
+    """
 
     match: Match
     overlaps: list = field(default_factory=list)
+    team_clashes: list = field(default_factory=list)
 
 
 @dataclass
@@ -84,10 +89,14 @@ class Plan:
         return sum(1 for planned in self.matches if planned.overlaps)
 
     @property
+    def clash_count(self):
+        return sum(1 for planned in self.matches if planned.team_clashes)
+
+    @property
     def token(self):
         """Identifies exactly what the preview showed.
 
-        Confirming only counts for the same matches and the same overlaps, so
+        Confirming only counts for the same matches, overlaps and team clashes, so
         a stale preview can't create a different schedule.
         """
         shown = [
@@ -98,6 +107,10 @@ class Plan:
                 planned.match.starts_at.timestamp(),
                 planned.match.ends_at.timestamp(),
                 [overlap.pk for overlap in planned.overlaps],
+                [
+                    (team.pk, [(m.pk, m.starts_at, m.ends_at) for m in matches])
+                    for team, matches in planned.team_clashes
+                ],
             )
             for planned in self.matches
         ]
@@ -142,6 +155,22 @@ def _overlapping(booked, facility, starts_at, ends_at):
     ]
 
 
+def _team_clashes(busy, teams, starts_at, ends_at):
+    """Same rule as MatchQuerySet.team_overlapping, on matches already loaded."""
+    clashes = []
+    for team in teams:
+        matches = [
+            match
+            for match in busy
+            if team.pk in (match.home_team_id, match.away_team_id)
+            and match.starts_at < ends_at
+            and match.ends_at > starts_at
+        ]
+        if matches:
+            clashes.append((team, matches))
+    return clashes
+
+
 def _book(pairs, season, starts_at, match_length, facilities, sport_facilities, turn):
     """Give each pair of a round a facility and a time.
 
@@ -155,6 +184,11 @@ def _book(pairs, season, starts_at, match_length, facilities, sport_facilities, 
         Match.objects.scheduled()
         .filter(facility__in=facilities, starts_at__lt=round_end, ends_at__gt=starts_at)
         .select_related("facility", "home_team__sport", "away_team__sport")
+    )
+    busy = list(
+        Match.objects.team_overlapping(
+            [team for pair in pairs for team in pair], starts_at, round_end
+        ).select_related("facility", "home_team__sport", "away_team__sport")
     )
     taken = set()  # (facility pk, slot) the plan uses in this round
     planned = []
@@ -185,6 +219,7 @@ def _book(pairs, season, starts_at, match_length, facilities, sport_facilities, 
                     ends_at=slot_end,
                 ),
                 overlaps=clashes[facility.pk],
+                team_clashes=_team_clashes(busy, (home, away), slot_start, slot_end),
             )
         )
     return planned

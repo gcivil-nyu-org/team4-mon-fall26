@@ -332,8 +332,37 @@ class RoundRobinViewTests(RoundRobinFixtures):
         self.assertIsNone(response.context["plan"])
         self.assertNotContains(response, self.closed_gym.name)
 
+    def test_team_clash_is_flagged_but_can_be_created(self):
+        home, away = self.teams[:2]
+        # Cancelled matches never clash.
+        self.book(home, away, facility=self.gym).cancel()
+        self.assertEqual(self.plan().clash_count, 0)
+        token = self.plan().token
+        booked = self.book(home, away, facility=self.gym)
+        plan = self.plan(facilities=[self.field])
+        clashes = [c for m in plan.matches for c in m.team_clashes]
+        self.assertTrue(clashes)
+        for team, matches in clashes:
+            self.assertIn(team, (home, away))
+            self.assertEqual(matches, [booked])
+        self.assertEqual(plan.overlap_count, 0)
+        self.assertNotEqual(self.plan().token, token)
+
+        response = self.preview(facilities=[self.field.pk])
+        self.assertContains(response, "Team clash")
+        self.assertContains(response, f"already plays {home.name} vs {away.name}")
+        self.assertContains(response, "create the matches anyway")
+        token = response.context["plan"].token
+        data = self.post_data(facilities=[self.field.pk], confirm=token)
+        self.client.post(URL, data)
+        self.assertEqual(Match.objects.scheduled().count(), 6)
+
+    def test_back_to_back_team_matches_do_not_clash(self):
+        self.book(*self.teams[:2], facility=self.gym, hour=17)
+        self.assertEqual(self.plan(facilities=[self.field]).clash_count, 0)
+
     def test_preview_lists_the_plan_and_saves_nothing(self):
-        self.book(*self.teams[:2])
+        self.book(*self.teams[:2], hour=9)
         Match.objects.all().update(facility=self.gym)
         Notification.objects.all().delete()
         response = self.preview(facilities=[self.field.pk])

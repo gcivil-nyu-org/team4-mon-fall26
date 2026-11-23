@@ -12,10 +12,6 @@
   {% elif not match.can_change %}
     <span class="badge bg-secondary-lt flex-shrink-0">Season closed</span>
   {% elif match.can_submit_score %}
-    {% if match.has_result %}
-      <a class="btn btn-sm btn-ghost-secondary flex-shrink-0" href="{% url 'matches:submit_score' match.pk %}">Correct score</a>
-    {% else %}
-      <a class="btn btn-sm {% if primary %}btn-primary{% else %}btn-outline-secondary{% endif %} flex-shrink-0" href="{% url 'matches:submit_score' match.pk %}">Submit score</a>
-    {% endif %}
+    <a class="btn btn-sm {% if primary %}btn-primary{% else %}btn-outline-secondary{% endif %} flex-shrink-0" href="{% url 'matches:submit_score' match.pk %}">Submit score</a>
   {% endif %}
 </div>

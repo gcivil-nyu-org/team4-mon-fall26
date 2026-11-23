@@ -1,68 +1,45 @@
-# PlayNYU plan: E5, E6, E7, E9
+# PlayNYU plan
 
-Roadmap for the four remaining epics: what is already on `testing`,
-what is in flight in the Nov 9–15 wave, and what is left after it.
-Deploy order for everything below is `testing` first, then `main`
-(see [WORKFLOW.md](WORKFLOW.md)): feature branch → PR into `testing`
-(review, green Travis build, check on the testing site) → PR from
-`testing` into `main` (review, green build, merge).
+What is done, what is next, and what can go wrong. Updated 2026-11-23.
+The board and the issues are the source of truth for owners and dates.
+Deploy order is `testing` first, then `main` (see [WORKFLOW.md](WORKFLOW.md)).
 
-## What exists on `testing`
+## Progress
 
-The E2 league-configuration base is merged and deployed to the testing
-site:
-
-- Season lifecycle: Draft → Open → Active → Closed, with guarded
-  transitions, per-state action rules, divisions, and the sports /
-  event-type catalogs.
-- Teams and rosters: team creation in open seasons, roster capacity,
-  one team per player per season, captain / player roles.
-- Free agents: player requests plus the League Admin matching flow.
-- Scheduling: season and team schedule pages, no double-booked
-  facilities, team clash warnings, scorekeeper assignment.
-- Facilities: 154 NYC Parks facilities near NYU plus 8 NYU / Hudson
-  River Park venues seeded from `facilities/data/`, with the map and
-  the manage pages.
-- Accounts with the League Admin, Scorekeeper and Casual Player roles,
-  the signed-in home dashboard, persistent Postgres on the deployed
-  sites (`DATABASE_URL`), and the Travis CI + coverage gate.
-
-## In flight: Nov 9–15 wave
-
-- **E5 – Results and standings** (`shaahid/e5-results`): entering match
-  results and computing standings / leaderboards on top of the
-  scheduling base.
-- **E6 – Notifications** (`shaahid/e6-notifications`): notifying
-  players about the matches and teams that involve them.
-- **E7 – Team chat** (`shaahid/e7-team-chat`): team-scoped chat.
-  Direct messages, comments and blocking are explicitly out of scope
-  for this wave (see Icebox below).
-- **E9 – Secure and observe**: the audit log for admin actions lands
-  in this wave.
-- **League Admin overview (#154)**: the `core` overview page in this
-  PR — league-wide stat cards (seasons by state, teams, pending
-  free-agent requests, upcoming matches, active facilities), upcoming
-  matches, and quick links to every admin page.
-
-## What remains
-
-- **Forums (#194, epic #32)**: new scope, agreed with the product owner
-  on 2026-11-13. The `forums` app has topics and replies, filed under a
-  sport or General. Any signed-in user reads and posts; League Admins
-  delete. Reporting into the moderation queue and a home page panel
-  follow in separate issues.
-- **Icebox**: DMs, match comments and blocking stay in the Icebox — no
-  near-term plan. Forums do not replace them.
-- **E9 leftovers**: create the error-tracking account and run the
-  backup-restore test against the deployed database.
-- **Epic-text updates**: update the E5/E6/E7/E9 epic issue bodies to
-  match this plan (scope, in-flight cards, icebox items).
-
-## Card tracker
-
-| Card | Work | State |
+| Milestone | Epic | State |
 |---|---|---|
-| #9 | Verify `facilities/data/nyu_venues.csv` against real NYU venues | Done in this PR (Chelsea Waterside sports fixed) |
-| #150 | Write this roadmap | Done in this PR |
-| #154 | League Admin overview page in `core` | Done in this PR |
-| #194 | Forums: topics and replies per sport | In review |
+| E4 Schedule matches and browse facilities | #29 | Done. Scheduling, round-robin, facilities and the map are live |
+| E5 Scores and standings | #30 | #151, #159 and #160 finish it |
+| E6 Overview and notifications | #31 | Closed |
+| E7 Chat, comments and moderation | #32 | Chat, direct messages, forums, comments and blocking are live. #158 and #299 remain |
+| E8 Setup and deploy | #33 | Both sites run on Postgres (Neon). #150 is this file |
+| E9 Secure and observe | #34 | Audit log and permission sweep done with #153 and #155. #165, #166 and #167 remain |
+
+## Next steps
+
+In this order:
+
+| # | Ticket | Work | Depends on |
+|---|---|---|---|
+| 1 | #165 | Structured logs, with verification links and emails kept out | – |
+| 2 | #299 | Reports ask for a reason, and the queue shows it | – |
+| 3 | #158 | Hidden messages show as "Removed by a League Admin" | #299 |
+| 4 | #298 | A captain hands off the role, then leaves | – |
+| 5 | #300 | Pre-created accounts type the password once | – |
+| 6 | #166 | Error tracking | An account for the service |
+| 7 | #167 | Backup restore test | Access to the Neon projects |
+| 8 | #51 | LLD and wiki with the agreed profile fields | – |
+
+Close each epic when its last ticket closes.
+
+## Risks
+
+- Every merge to `main` deploys production. Check the testing site first.
+- A merge that adds a migration runs it on the deploy, on real data.
+- #300 changes sign-up and email links. Review it for account takeover.
+- The Neon free plan stops writes when its storage is full (see [DATABASE.md](DATABASE.md)).
+
+## Open questions
+
+- Which sports don't allow draws? Every sport allows them until a League Admin changes it on the sport's edit page.
+- Which error-tracking service (#166)?

@@ -155,6 +155,7 @@
             <dt class="col-5 fw-normal text-secondary">Division</dt><dd class="col-7">{{ team.division.name|default:"None" }}</dd>
             <dt class="col-5 fw-normal text-secondary">Record</dt><dd class="col-7 pn-num">{% if standing and standing.row.played %}{{ standing.row.won }}–{{ standing.row.drawn }}–{{ standing.row.lost }} · {{ standing.row.points }} pts{% else %}–{% endif %}</dd>
             <dt class="col-5 fw-normal text-secondary">Position</dt><dd class="col-7 pn-num">{% if standing %}{{ standing.position|ordinal }} of {{ standing.of }}{% if standing.division_position %} · {{ standing.division_position|ordinal }} in {{ team.division.name }}{% endif %}{% else %}–{% endif %}</dd>
+            {% if team_form %}<dt class="col-5 fw-normal text-secondary">Last {{ team_form|length }}</dt><dd class="col-7 d-flex flex-wrap gap-1">{% for f in team_form %}{% include "components/form_chip.html" %}{% endfor %}</dd>{% endif %}
             <dt class="col-5 fw-normal text-secondary">Created</dt><dd class="col-7">{{ team.created_at|date:"M j, Y" }}</dd>
           </dl>
           <div class="d-flex justify-content-between small mb-1">

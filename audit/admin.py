@@ -12,6 +12,7 @@ class AuditLogAdmin(admin.ModelAdmin):
         "object_type",
         "object_id",
         "object_repr",
+        "details",
     )
     list_filter = ("action", "object_type")
     search_fields = ("object_repr", "object_id", "actor__username")
@@ -22,6 +23,7 @@ class AuditLogAdmin(admin.ModelAdmin):
         "object_type",
         "object_id",
         "object_repr",
+        "details",
     )
 
     def has_add_permission(self, request):

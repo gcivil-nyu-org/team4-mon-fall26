@@ -108,6 +108,36 @@ def _form(team, match, results, by_pk, limit):
     return form
 
 
+def recent_form(team, matches, limit=5):
+    """The team's last results as Forms, newest first, from loaded matches.
+
+    Counts the same matches as the standings: not cancelled, both scores set.
+    """
+    played = sorted(
+        (m for m in matches if m.has_result and not m.is_cancelled),
+        key=lambda m: (m.starts_at, m.pk),
+        reverse=True,
+    )
+    form = []
+    for m in played[:limit]:
+        if m.home_team_id == team.pk:
+            scored, conceded, opponent = m.home_score, m.away_score, m.away_team
+        else:
+            scored, conceded, opponent = m.away_score, m.home_score, m.home_team
+        form.append(
+            Form(
+                m.pk,
+                _letter(scored, conceded),
+                scored,
+                conceded,
+                opponent,
+                m.starts_at,
+                False,
+            )
+        )
+    return form
+
+
 def team_context(match, teams, results, limit=5):
     """[home, away] TeamContext for the season today, later matches included."""
     rows = rank_rows(teams, _scores(results))

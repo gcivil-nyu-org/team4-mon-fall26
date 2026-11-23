@@ -191,8 +191,9 @@ class PlayerStatForm(forms.Form):
 class MatchSheet:
     """ScoreForm + PeriodFormSet + PlayerStatForm, validated and saved together."""
 
-    def __init__(self, match, data=None):
+    def __init__(self, match, data=None, first_only=False):
         self.match = match
+        self.first_only = first_only
         sport = match.home_team.sport
         period_total = (
             sport.period_count + sport.MAX_OVERTIME_PERIODS if sport.period_count else 0
@@ -245,6 +246,12 @@ class MatchSheet:
         final = self._final()
         if not self.periods.filled() and final is None:
             self._errors.append("Enter both scores, or every period.")
+            return False
+        home, away = self._scores()
+        if home == away and not self.match.home_team.sport.allows_draws:
+            self._errors.append(
+                f"{self.match.home_team.sport} matches can't end in a draw."
+            )
             return False
         try:
             check_one_team(self.match, **self._sheet_rows())
@@ -332,6 +339,7 @@ class MatchSheet:
                 self.match,
                 periods=self.periods.filled(),
                 final=self._final(),
+                first_only=self.first_only,
                 **self._sheet_rows(),
             )
         except ValidationError as error:

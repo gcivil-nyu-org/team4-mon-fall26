@@ -40,6 +40,9 @@ class Sport(models.Model):
         default=4, validators=[MaxValueValidator(10)]
     )
     period_label = models.CharField(max_length=10, default="Q")
+    allows_draws = models.BooleanField(
+        default=True, help_text="Uncheck it when every match needs a winner."
+    )
 
     def clean(self):
         try:

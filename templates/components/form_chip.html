@@ -1,0 +1,6 @@
+{# One W/D/L chip that links to its match. Needs `f`, a matches.match_context.Form. #}
+{% if f.is_this_match %}
+  <span class="badge pn-form-chip {% if f.letter == 'W' %}bg-green{% elif f.letter == 'L' %}bg-red{% else %}bg-secondary{% endif %} text-white" aria-current="page" title="{{ f.letter }} {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }} · {{ f.starts_at|date:'M j' }} (this match)">{{ f.letter }}<span class="visually-hidden"> {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }}, {{ f.starts_at|date:'M j' }}, this match</span></span>
+{% else %}
+  <a class="badge pn-form-chip {% if f.letter == 'W' %}bg-green{% elif f.letter == 'L' %}bg-red{% else %}bg-secondary{% endif %} text-white" href="{% url 'matches:detail' f.match_pk %}" title="{{ f.letter }} {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }} · {{ f.starts_at|date:'M j' }}">{{ f.letter }}<span class="visually-hidden"> {{ f.scored }}–{{ f.conceded }} vs {{ f.opponent.name }}, {{ f.starts_at|date:'M j' }}</span></a>
+{% endif %}
