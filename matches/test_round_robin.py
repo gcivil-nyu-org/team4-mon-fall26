@@ -236,7 +236,7 @@ class PlanTests(RoundRobinFixtures):
                 planned.match.home_team.sport, planned.match.away_team.sport
             )
 
-    def test_overlap_with_an_existing_match_is_a_warning(self):
+    def test_overlap_with_an_existing_match_is_found(self):
         other = Season.objects.create(
             name="Spring", start_date=datetime.date(2027, 1, 1), state=SeasonState.OPEN
         )
@@ -347,12 +347,13 @@ class RoundRobinViewTests(RoundRobinFixtures):
         self.assertEqual(Match.objects.count(), 1)
         self.assertFalse(Notification.objects.exists())
 
-    def test_preview_warns_about_overlaps(self):
+    def test_preview_refuses_overlaps(self):
         self.book(*self.teams[:2])
         response = self.preview(facilities=[self.field.pk])
-        self.assertContains(response, "alert alert-warning text-body")
+        self.assertContains(response, "alert alert-danger text-body")
         self.assertContains(response, "1 planned match overlaps an existing booking")
-        self.assertContains(response, "Create 5 matches anyway")
+        self.assertContains(response, 'disabled title="A planned match overlaps')
+        self.assertNotContains(response, "anyway")
 
     def test_confirm_creates_the_matches(self):
         token = self.preview().context["plan"].token
@@ -368,12 +369,13 @@ class RoundRobinViewTests(RoundRobinFixtures):
         }
         self.assertEqual(len(pairs), 6)
 
-    def test_confirm_with_overlaps_creates_them_like_schedule_anyway(self):
+    def test_confirm_with_overlaps_creates_nothing(self):
         self.book(*self.teams[:2])
         data = self.post_data(facilities=[self.field.pk])
         token = self.client.post(URL, data).context["plan"].token
-        self.client.post(URL, {**data, "confirm": token})
-        self.assertEqual(Match.objects.count(), 6)
+        response = self.client.post(URL, {**data, "confirm": token})
+        self.assertContains(response, "The facility is booked at this time.")
+        self.assertEqual(Match.objects.count(), 1)
 
     def test_confirm_ignores_a_stale_or_forged_token(self):
         token = self.preview().context["plan"].token

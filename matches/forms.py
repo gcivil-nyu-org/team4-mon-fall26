@@ -47,6 +47,7 @@ class MatchForm(forms.ModelForm):
     def __init__(self, *args, season, **kwargs):
         super().__init__(*args, **kwargs)
         self.overlaps = []
+        self.team_clashes = []
         self.overlap_token = ""
         self.instance.season = season
         teams = Team.objects.filter(season=season).select_related("sport")
@@ -106,41 +107,77 @@ class MatchForm(forms.ModelForm):
         return cleaned
 
     def is_valid(self):
-        # An overlap is a warning, not an error, but it holds the save back until
-        # the admin confirms it.
+        # A team clash is a warning, not an error, but it holds the save back
+        # until the admin confirms it. A venue overlap is an error.
         return super().is_valid() and not self._overlaps_unconfirmed()
 
     def _find_overlaps(self, cleaned):
-        self.overlaps = list(
-            Match.objects.overlapping(
-                cleaned["facility"], cleaned["starts_at"], cleaned["ends_at"]
+        # A venue can't be double-booked (#305). A match that already overlaps
+        # can still be edited while its booking stays the same.
+        if self.instance.pk is None or {
+            "facility",
+            "starts_at",
+            "ends_at",
+        }.intersection(self.changed_data):
+            self.overlaps = list(
+                Match.objects.overlapping(
+                    cleaned["facility"], cleaned["starts_at"], cleaned["ends_at"]
+                )
+                .exclude(pk=self.instance.pk)
+                .select_related("facility", "home_team__sport", "away_team__sport")
+            )
+        # dict.fromkeys drops a repeat when both sides are the same team.
+        teams = list(dict.fromkeys([cleaned["home_team"], cleaned["away_team"]]))
+        clashes = (
+            Match.objects.team_overlapping(
+                teams, cleaned["starts_at"], cleaned["ends_at"]
             )
             .exclude(pk=self.instance.pk)
             .select_related("facility", "home_team__sport", "away_team__sport")
         )
-        if self.overlaps:
+        # (team, its overlapping matches) for each team that has any.
+        self.team_clashes = [
+            (team, matches)
+            for team in teams
+            if (
+                matches := [
+                    match
+                    for match in clashes
+                    if team.pk in (match.home_team_id, match.away_team_id)
+                ]
+            )
+        ]
+        if self.team_clashes:
             self.overlap_token = self._overlap_token(cleaned)
+        # Last, because add_error removes the facility from cleaned.
+        if self.overlaps:
+            self.add_error("facility", "This facility is booked at this time.")
 
     def _overlap_token(self, cleaned):
         """Identifies exactly what the admin was warned about.
 
-        Confirming only counts for the same facility, times and conflicts, so a
-        confirmation from an earlier warning can't accept a different conflict.
+        Confirming only counts for the same facility, teams, times and
+        conflicts, so a confirmation from an earlier warning can't accept a
+        different conflict.
         """
+
+        def stamps(matches):
+            return [
+                (match.pk, match.starts_at.timestamp(), match.ends_at.timestamp())
+                for match in matches
+            ]
+
         warned_about = (
             cleaned["facility"].pk,
             cleaned["starts_at"].timestamp(),
             cleaned["ends_at"].timestamp(),
-            [
-                (match.pk, match.starts_at.timestamp(), match.ends_at.timestamp())
-                for match in self.overlaps
-            ],
+            [(team.pk, stamps(matches)) for team, matches in self.team_clashes],
         )
         return salted_hmac("matches.overlap", repr(warned_about)).hexdigest()
 
     def _overlaps_unconfirmed(self):
         submitted = self.data.get(OVERLAP_CONFIRMATION_FIELD)
-        return bool(self.overlaps) and submitted != self.overlap_token
+        return bool(self.team_clashes) and submitted != self.overlap_token
 
 
 class ScoreForm(forms.ModelForm):

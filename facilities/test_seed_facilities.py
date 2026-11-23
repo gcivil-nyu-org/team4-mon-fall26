@@ -132,6 +132,36 @@ class SeedFacilitiesTests(TestCase):
         self.assertEqual(court.name, "Washington Square Park – Full Court 1")
         self.assertTrue(court.is_active)
 
+    def test_raw_field_size_name_seeds_clean_and_reseed_renames(self):
+        write(
+            self.dir / "city_facilities_near_nyu.csv",
+            CITY_HEADER,
+            [
+                [
+                    "M164-SOCCER-1",
+                    "Asser Levy Playground – 45-146ft W x 75-294ft L 1",
+                    "384 ASSER LEVY PLACE",
+                    "M",
+                    "Soccer",
+                    "40.736852",
+                    "-73.975619",
+                ]
+            ],
+        )
+        self.run_seed()
+        field = Facility.objects.get(external_id="M164-SOCCER-1")
+        self.assertEqual(field.name, "Asser Levy Playground – Small soccer field 1")
+        # A row seeded before the fix keeps its pk and gets the clean name.
+        Facility.objects.filter(pk=field.pk).update(
+            name="Asser Levy Playground – 45-146ft W x 75-294ft L 1"
+        )
+        self.run_seed()
+        field.refresh_from_db()
+        self.assertEqual(field.name, "Asser Levy Playground – Small soccer field 1")
+        self.assertEqual(
+            Facility.objects.filter(external_id="M164-SOCCER-1").count(), 1
+        )
+
     def test_works_before_sports_exist(self):
         Sport.objects.all().delete()
         output = self.run_seed()
@@ -150,3 +180,8 @@ class SeedFacilitiesTests(TestCase):
                 name="John A. Paulson Center", sports__name="Volleyball"
             ).exists()
         )
+        for raw in ("ft W x", "base path", "Unknown"):
+            with self.subTest(raw=raw):
+                self.assertFalse(Facility.objects.filter(name__contains=raw).exists())
+        names = list(Facility.objects.values_list("name", flat=True))
+        self.assertEqual(len(names), len(set(names)))

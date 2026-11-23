@@ -15,7 +15,7 @@ from django.utils.crypto import salted_hmac
 from facilities.models import Facility
 from teams.models import Team
 
-from .models import Match
+from .models import Match, lock_facilities
 
 
 def pairings(teams):
@@ -147,7 +147,8 @@ def _book(pairs, season, starts_at, match_length, facilities, sport_facilities, 
 
     The round starts at `starts_at`. A pair moves to the next time slot only
     when the plan itself fills every facility in the slot, so planned matches
-    never overlap each other. An overlap with an existing match is a warning.
+    never overlap each other. A plan that overlaps an existing match can be
+    previewed but not created.
     """
     round_end = starts_at + match_length * len(pairs)
     booked = list(
@@ -261,6 +262,7 @@ def create_planned_matches(plan, created_by=None):
     """
     created = []
     with transaction.atomic():
+        lock_facilities([planned.match.facility_id for planned in plan.matches])
         for planned in plan.matches:
             match = planned.match
             match.created_by = created_by
@@ -268,6 +270,10 @@ def create_planned_matches(plan, created_by=None):
                 match.validate_schedulable()
                 if not match.facility.is_active:
                     raise ValidationError("This facility isn't available.")
+                if Match.objects.overlapping(
+                    match.facility, match.starts_at, match.ends_at
+                ).exists():
+                    raise ValidationError("The facility is booked at this time.")
                 match.full_clean()
             except ValidationError as error:
                 when = timezone.localtime(match.starts_at)

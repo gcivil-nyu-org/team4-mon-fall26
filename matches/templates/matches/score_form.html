@@ -19,6 +19,17 @@
     {% for error in sheet.sheet_errors %}
       <div class="alert alert-danger" role="alert">{{ error }}</div>
     {% endfor %}
+    {% if sheet.score_mismatches %}
+      <div class="alert alert-warning text-body" role="alert">
+        <div class="fw-medium"><i aria-hidden="true" class="ti ti-alert-triangle me-1"></i>The players' {{ sheet.scoring_type.name }} total doesn't match the team score</div>
+        <ul class="mt-2 mb-2">
+          {% for team, total, score in sheet.score_mismatches %}
+            <li>{{ team.name }}: players' {{ sheet.scoring_type.name }} total <span class="pn-num">{{ total }}</span>, but the team score is <span class="pn-num">{{ score }}</span>.</li>
+          {% endfor %}
+        </ul>
+        <div class="small">Fix the stats or the score, or confirm to save anyway.</div>
+      </div>
+    {% endif %}
     <div class="row row-cards">
       <div class="col-lg-4">
         <div class="d-flex flex-column gap-3">
@@ -122,7 +133,11 @@
       </div>
     </div>
     <div class="d-flex gap-2 mt-3">
-      <button class="btn btn-primary" type="submit">Save score</button>
+      {% if sheet.score_mismatches %}
+        <button class="btn btn-primary" name="score_confirmation" type="submit" value="{{ sheet.score_token }}">Save anyway</button>
+      {% else %}
+        <button class="btn btn-primary" type="submit">Save score</button>
+      {% endif %}
       <a class="btn btn-ghost-secondary" href="{{ back_url }}">Cancel</a>
     </div>
   </form>

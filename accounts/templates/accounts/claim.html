@@ -6,7 +6,7 @@
       <div class="card-body p-4">
         <div class="page-header mb-4">
           <h1>Finish signing up</h1>
-          <div class="page-meta">You're already on a team. Choose your name and password to activate your account.</div>
+          <div class="page-meta">{% if is_placeholder %}You're already on a team. Choose{% else %}Choose{% endif %} your name and password to activate your account.</div>
         </div>
         {% if form.errors %}
           <div class="alert alert-danger" role="alert">Your account is not active yet. Fix the errors below and submit again.</div>

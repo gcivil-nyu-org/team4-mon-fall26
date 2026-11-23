@@ -410,6 +410,16 @@ class RowTests(TableFixtures):
     def scored(self, start=-24, **overrides):
         return self.add_match(start=start, home_score=2, away_score=1, **overrides)
 
+    def test_ended_match_with_no_score_awaits_score(self):
+        self.add_match(start=-24)
+        self.assertContains(self.get(tab="results"), "Awaiting score")
+
+    def test_upcoming_scored_or_cancelled_match_does_not_await_score(self):
+        self.add_match(start=24)
+        self.scored()
+        self.add_match(start=-48).cancel()
+        self.assertNotContains(self.get(tab="all"), "Awaiting score")
+
     def stat(self, match, player, team, value, event_type=None):
         PlayerStat.objects.create(
             match=match,

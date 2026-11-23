@@ -17,8 +17,8 @@
           <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
             {% if comment.is_flagged %}
               <span class="badge bg-yellow-lt">Reported</span>
-            {% else %}
-              <form method="post" action="{% url 'matches:report_comment' match.pk comment.pk %}">
+            {% elif comment.author_id != user.pk %}
+              <form method="post" action="{% url 'matches:report_comment' match.pk comment.pk %}" onsubmit="return confirm('Report this comment to League Admins?');">
                 {% csrf_token %}
                 <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report<span class="visually-hidden"> {{ comment.author|display_name }}</span></button>
               </form>

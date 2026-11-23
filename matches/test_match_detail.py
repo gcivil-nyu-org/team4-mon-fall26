@@ -38,6 +38,30 @@ class MatchDetailTests(SheetFixtures):
         now = timezone.now()
         return self.assign(starts_at=now - HOUR, ends_at=now + HOUR, **overrides)
 
+    def test_result_without_a_sheet_says_stats_were_not_recorded(self):
+        self.score()
+        response = self.get()
+        self.assertContains(response, "Detailed stats were not recorded")
+        self.assertNotContains(response, "Did not play")
+        self.assertNotContains(response, "Team totals")
+
+    def test_result_with_a_sheet_keeps_did_not_play(self):
+        self.score(stats={self.key(self.home, self.alex): 2})
+        response = self.get()
+        self.assertNotContains(response, "Detailed stats were not recorded")
+        self.assertContains(response, "Did not play")
+        self.assertContains(response, "Team totals")
+
+    def test_appearances_alone_count_as_recorded(self):
+        self.score(played=[self.pair(self.home, self.alex)])
+        response = self.get()
+        self.assertNotContains(response, "Detailed stats were not recorded")
+        self.assertContains(response, "Did not play")
+
+    def test_no_empty_state_before_a_result(self):
+        response = self.get()
+        self.assertNotContains(response, "Detailed stats were not recorded")
+
     def test_anonymous_redirects_to_login(self):
         response = self.client.get(self.url())
         self.assertEqual(response.status_code, 302)
@@ -380,7 +404,7 @@ class MatchPageSectionTests(SheetFixtures):
         self.assertContains(
             response, reverse("matches:season_standings", args=[self.season.pk])
         )
-        self.assertContains(response, "Full standings")
+        self.assertContains(response, "Current standings")
 
     def test_both_match_teams_highlighted(self):
         self.earlier(self.away, self.home, 1, 0)
@@ -470,7 +494,10 @@ class MatchPageSectionTests(SheetFixtures):
         response = self.get()
         self.assertNotContains(response, "Team comparison")
         self.assertNotContains(response, "Top performers")
-        self.assertContains(response, "Team totals", count=2)
+        # No sheet at all: say so, with no totals or "Did not play" badges.
+        self.assertNotContains(response, "Team totals")
+        self.assertNotContains(response, "Did not play")
+        self.assertContains(response, "Detailed stats were not recorded")
 
     def test_form_chips_link_and_current(self):
         before = self.earlier(self.home, self.away, 1, 0)
@@ -561,7 +588,7 @@ class MatchPageSectionTests(SheetFixtures):
             "Team comparison",
             "Team totals",
             "pn-match-table",
-            "Full standings",
+            "Current standings",
         ):
             self.assertNotContains(response, text)
         self.assertContains(response, "Season so far")
@@ -569,7 +596,7 @@ class MatchPageSectionTests(SheetFixtures):
     def test_cancelled_keeps_season_context(self):
         self.match.cancel()
         response = self.get()
-        self.assertNotContains(response, "Full standings")
+        self.assertNotContains(response, "Current standings")
         self.assertNotContains(response, "Team totals")
         self.assertContains(response, "Season so far")
         self.assertContains(response, "Head-to-head")

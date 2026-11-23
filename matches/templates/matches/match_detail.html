@@ -79,6 +79,18 @@
     <p class="text-secondary">Stats appear after the score is in.</p>
   {% endif %}
 
+  {% if stats_missing %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="empty py-3">
+          <div class="empty-icon"><i aria-hidden="true" class="ti ti-chart-bar-off"></i></div>
+          <p class="empty-title">Detailed stats were not recorded for this match</p>
+          <p class="empty-subtitle text-secondary">No player stats or appearances were entered.</p>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   {% include "matches/detail/_box_score.html" %}
 
   {% include "matches/detail/_team_context.html" %}

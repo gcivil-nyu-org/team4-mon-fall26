@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Page expired · PlayNYU{% endblock %}
+{% block content %}
+  <div class="pn-auth">
+    <div class="card">
+      <div class="card-body p-4 text-center">
+        <span class="avatar avatar-lg rounded-circle bg-yellow-lt mb-3"><i aria-hidden="true" class="ti ti-refresh-alert"></i></span>
+        <div class="page-header mb-3">
+          <h1>This page expired</h1>
+        </div>
+        <p class="text-secondary">Your session changed since the page opened, so we didn't send the form. Go back, reload the page, and try again.</p>
+        <a class="btn btn-primary w-100" href="{% url 'core:home' %}">Go to Home</a>
+      </div>
+    </div>
+    <div class="text-center text-secondary mt-3"><a href="{% url 'login' %}">Log in</a></div>
+  </div>
+{% endblock %}

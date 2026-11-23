@@ -311,9 +311,12 @@ class ClaimTests(TestCase):
         self.assertContains(page, 'value="Old"')
         self.assertFalse(self.user().is_active)
 
-        response = self.client.post(link, CLAIM)
-        self.assertContains(response, "Email confirmed")
+        response = self.client.post(link, CLAIM, follow=True)
+        # #270: the claim signs the user in and opens Home, no second login.
+        self.assertRedirects(response, reverse("core:home"))
+        self.assertContains(response, "Your account is active.")
         user = self.user()
+        self.assertEqual(int(self.client.session["_auth_user_id"]), user.pk)
         self.assertTrue(user.is_active)
         self.assertEqual(user.first_name, "Nia")
         self.assertTrue(user.check_password(CLAIM["password1"]))
@@ -370,6 +373,7 @@ class ClaimTests(TestCase):
 
     def test_claimed_account_cannot_sign_up_again(self):
         self.client.post(manual_link(self.placeholder), CLAIM)
+        self.client.logout()  # the claim signs the user in (#270)
         response = self.client.post(reverse("accounts:signup"), SIGNUP)
         self.assertContains(response, "An account with this email already exists.")
 

@@ -84,7 +84,7 @@
                       <a class="pn-num fw-bold text-reset text-nowrap stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="{{ label }}{{ match.starts_at|date:'D M j, g:i A' }}">{{ match.home_score }} – {{ match.away_score }}</a>
                       {% if match.period_line %}<div class="small text-secondary pn-num text-nowrap">{{ match.period_line }}</div>{% endif %}
                     {% else %}
-                      <a class="text-secondary stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="{{ label }}{{ match.starts_at|date:'D M j, g:i A' }}">vs</a>
+                      <a class="text-secondary stretched-link" href="{% url 'matches:detail' match.pk %}" aria-label="{{ label }}{{ match.starts_at|date:'D M j, g:i A' }}">{% if match.is_awaiting_score %}<span class="badge bg-yellow-lt">Awaiting score</span>{% else %}vs{% endif %}</a>
                     {% endif %}
                   {% endwith %}
                 </td>

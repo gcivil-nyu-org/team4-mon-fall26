@@ -8,8 +8,9 @@ The files come from the Facilities Phase 1 analysis (build_playnyu_seed.py):
 - nyu_venues.csv: NYU facilities and Hudson River Park fields, which the city
   dataset doesn't include.
 
-Re-running updates rows in place. Sports are linked by name and never created:
-run seed_league_data first. Locally: python manage.py seed_facilities
+City names get a plain label in place of a raw field size (facilities.naming).
+Re-running updates rows in place, names included. Sports are linked by name and
+never created: run seed_league_data first. Locally: python manage.py seed_facilities
 """
 
 import csv
@@ -20,6 +21,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from facilities.models import Facility
+from facilities.naming import clean_city_name
 from teams.catalog_rules import name_key
 from teams.models import Sport
 
@@ -62,7 +64,8 @@ class Command(BaseCommand):
                 source=Facility.Source.CITY, external_id=row["external_id"]
             ),
             lambda row: dict(
-                name=row["name"], borough=BOROUGHS.get(row["borough"], "")
+                name=clean_city_name(row["name"], row["sports"]),
+                borough=BOROUGHS.get(row["borough"], ""),
             ),
         )
         nyu = self._load(

@@ -7,7 +7,7 @@ from django.contrib.auth.forms import (
 )
 from django.db.models import Q
 
-from .placeholders import find_user_by_email, is_placeholder, normalize_email
+from .placeholders import awaits_verification, find_user_by_email, normalize_email
 
 NYU_DOMAIN = "@nyu.edu"
 UNVERIFIED_MESSAGE = (
@@ -20,7 +20,11 @@ class SignUpForm(UserCreationForm):
     """The NYU email doubles as the username, so users log in with their email."""
 
     email = forms.EmailField(
-        label="NYU email", help_text="Usually your NetID, e.g. ab1234@nyu.edu."
+        label="NYU email",
+        help_text=(
+            "Usually your NetID, e.g. ab1234@nyu.edu. If a captain already "
+            "added you, you set your password again from the email link."
+        ),
     )
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
@@ -39,8 +43,10 @@ class SignUpForm(UserCreationForm):
 
         # A placeholder (someone added this email to a team) can be claimed.
         # The claim completes only when the email link is opened.
-        if existing is not None and is_placeholder(existing):
-            self.placeholder = existing
+        # An unverified sign-up works the same way (#302), because someone else
+        # may have typed this email first. A profile means it was verified once.
+        if existing is not None and awaits_verification(existing):
+            self.existing = existing
         elif existing is not None:
             raise forms.ValidationError(
                 "An account with this email already exists. "
@@ -50,12 +56,13 @@ class SignUpForm(UserCreationForm):
         return email
 
     def save(self, commit=True):
-        placeholder = getattr(self, "placeholder", None)
-        if placeholder is not None:
-            # Don't change the placeholder here: anyone can type this email.
+        # True when this sign-up made the account, so it set the password.
+        self.created = getattr(self, "existing", None) is None
+        if not self.created:
+            # Don't change the account here: anyone can type this email.
             # The person who opens the email link sets the password and names
             # (ClaimAccountForm), so the account stays with the inbox owner.
-            return placeholder
+            return self.existing
         user = super().save(commit=False)
         user.username = user.email = self.cleaned_data["email"]
         user.is_active = False  # becomes active when the email link is opened
@@ -67,8 +74,8 @@ class SignUpForm(UserCreationForm):
 
 
 class ClaimAccountForm(SetPasswordMixin, forms.Form):
-    """Shown from the email link for a placeholder: the inbox owner sets the
-    names and password, then the account becomes active."""
+    """Shown from the email link: the inbox owner sets the names and password,
+    then the account becomes active."""
 
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
@@ -95,6 +102,12 @@ class ClaimAccountForm(SetPasswordMixin, forms.Form):
 
 class LoginForm(AuthenticationForm):
     """Log in with the NYU email; tells unverified users why they can't sign in."""
+
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        # The field is "NYU email", so don't say "username" (#291).
+        "invalid_login": "The NYU email or password is incorrect.",
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

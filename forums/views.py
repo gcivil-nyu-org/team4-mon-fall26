@@ -44,7 +44,13 @@ def _delete_post(request, instance):
 
 
 def _report(request, instance, label):
-    """Flag a post for review. A second report changes nothing."""
+    """Flag a post for review. A second report changes nothing.
+
+    Authors can't report their own posts.
+    """
+    if instance.author_id == request.user.pk:
+        messages.error(request, "You can't report your own post.")
+        return
     if not instance.is_flagged:
         instance.is_flagged = True
         instance.save(update_fields=["is_flagged"])
@@ -77,7 +83,7 @@ def topic_list(request):
     if selected == GENERAL_FILTER:
         topics = topics.filter(sport__isnull=True)
         selected_label = "General"
-    elif selected.isdigit() and (sport := sports.filter(pk=int(selected)).first()):
+    elif selected.isdecimal() and (sport := sports.filter(pk=int(selected)).first()):
         topics = topics.filter(sport=sport)
         selected_label = sport.name
     else:

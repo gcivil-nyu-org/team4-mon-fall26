@@ -121,12 +121,43 @@ class EditProfileTests(TestCase):
             self.assertContains(response, "letters followed by digits")
         self.assert_unchanged()
 
-    def test_duplicate_n_number_and_net_id_rejected(self):
+    def test_n_number_of_another_account_does_not_block(self):
+        make_user("other", n_number="N87654321", net_id="zz1111")
+        self.assertEqual(self.client.post(self.url, VALID).status_code, 302)
+
+    def test_net_id_from_another_users_email_rejected(self):
+        make_user("sp9876")
+        response = self.client.post(self.url, VALID)
+        self.assertContains(response, "This NetID belongs to another account.")
+        self.assert_unchanged()
+
+    def test_unverified_email_does_not_reserve_a_net_id(self):
+        pending = make_user("sp9876")
+        pending.is_active = False
+        pending.save()
+        self.assertEqual(self.client.post(self.url, VALID).status_code, 302)
+
+    def test_owner_takes_their_net_id_back(self):
+        other = make_user("other", n_number="N11111111", net_id="sp9876")
+        self.client.force_login(make_user("sp9876"))
+        response = self.client.post(reverse("profiles:create"), VALID)
+        self.assertEqual(response.status_code, 302)
+        other.player_profile.refresh_from_db()
+        self.assertIsNone(other.player_profile.net_id)
+        self.assertEqual(
+            PlayerProfile.objects.get(net_id="sp9876").user.username, "sp9876"
+        )
+
+    def test_rejected_form_leaves_the_other_profile_alone(self):
+        other = make_user("other", net_id="sp9876")
+        self.client.force_login(make_user("sp9876"))
+        self.client.post(reverse("profiles:create"), {**VALID, "n_number": "bad"})
+        other.player_profile.refresh_from_db()
+        self.assertEqual(other.player_profile.net_id, "sp9876")
+
+    def test_duplicate_net_id_rejected(self):
         make_user("other", n_number="N87654321", net_id="sp9876")
         response = self.client.post(self.url, VALID)
-        self.assertContains(
-            response, "This N number is already used by another account."
-        )
         self.assertContains(response, "This NetID is already used by another account.")
         self.assert_unchanged()
 
