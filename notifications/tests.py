@@ -404,6 +404,41 @@ class RosterChangeTests(NotificationFixtures):
             self.assertEqual(notes[0].link, link)
         self.assertEqual(Notification.objects.filter(recipient=self.bob).count(), 0)
 
+    def test_creating_a_team_does_not_tell_the_captain_they_joined(self):
+        # #276: the creator made the change, so they get no notice about it.
+        self.client.force_login(self.cara)
+        self.client.post(
+            reverse("teams:create"),
+            {"name": "NNew", "season": self.season.pk, "sport": self.sport.pk},
+        )
+        self.assertTrue(Team.objects.filter(name="NNew", captain=self.cara).exists())
+        self.assertEqual(self.verbs_for(self.cara), [])
+
+    def test_player_added_by_captain_still_hears_about_it(self):
+        self.client.force_login(self.home_captain)
+        self.client.post(
+            reverse("teams:add_player", args=[self.home.pk]),
+            {"email": self.cara.email},
+        )
+        self.assertTrue(
+            Roster.objects.filter(team=self.home, player=self.cara).exists()
+        )
+        self.assertEqual(len(self.verbs_for(self.cara)), 1)
+        self.assertIn("joined NViolets", self.verbs_for(self.cara)[0])
+
+    def test_deleting_a_team_sends_no_left_notices(self):
+        # #272: the cascade deletes roster rows, but nobody left the team.
+        team = Team.objects.create(
+            name="NGone", sport=self.sport, season=self.season, captain=self.cara
+        )
+        Roster.objects.create(team=team, player=self.cara, role=Roster.Role.CAPTAIN)
+        Notification.objects.all().delete()
+        team.delete()
+        self.assertEqual(Notification.objects.count(), 0)
+        # A later removal on another team still notifies.
+        Roster.objects.get(team=self.home, player=self.alice).delete()
+        self.assertEqual(len(self.verbs_for(self.alice)), 1)
+
     def test_player_removed_notifies_remaining_and_removed(self):
         entry = Roster.objects.get(team=self.home, player=self.alice)
         entry.delete()

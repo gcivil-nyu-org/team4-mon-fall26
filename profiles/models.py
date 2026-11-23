@@ -12,15 +12,10 @@ class PlayerProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="player_profile",
     )
+    # Not unique: PlayNYU can't check whose N number it is, so one user's entry
+    # must not block another's (#304). Only the owner sees it.
+    n_number = models.CharField("N number", max_length=9, null=True, blank=True)
     # Nullable so profiles that haven't been filled in yet don't clash on uniqueness.
-    n_number = models.CharField(
-        "N number",
-        max_length=9,
-        unique=True,
-        null=True,
-        blank=True,
-        error_messages={"unique": "This N number is already used by another account."},
-    )
     net_id = models.CharField(
         "NetID",
         max_length=20,

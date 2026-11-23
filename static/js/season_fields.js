@@ -40,6 +40,19 @@
     }
   }
 
-  season.addEventListener("change", sync);
+  // A server error about the old season no longer applies once it changes (#276).
+  function clearSeasonError() {
+    var error = document.getElementById("id_season_error");
+    if (error) {
+      error.hidden = true;
+      error.classList.remove("d-block");
+    }
+    season.classList.remove("is-invalid");
+  }
+
+  season.addEventListener("change", function () {
+    clearSeasonError();
+    sync();
+  });
   sync();
 })();

@@ -1,4 +1,4 @@
-{% load ui teams_extras %}{# One stats table per team. totals is [] when the match isn't counted, so no totals row. #}
+{% load ui teams_extras %}{# One stats table per team. totals is [] when the match isn't counted, so no totals row. With no stats recorded, there are no totals or "Did not play" badges. #}
 <div class="row row-cards mb-3">
   {% for sheet, rows, totals in tables %}
     <div class="col-lg-6">
@@ -31,7 +31,7 @@
                           <span class="fw-medium">{{ row.player|display_name }}</span>
                         {% endif %}
                         {% if not row.on_roster %}<span class="badge bg-secondary-lt">Left team</span>
-                        {% elif match.has_result and not match.is_cancelled and not row.played %}<span class="badge bg-secondary-lt">Did not play</span>{% endif %}
+                        {% elif match.has_result and not match.is_cancelled and stats_recorded and not row.played %}<span class="badge bg-secondary-lt">Did not play</span>{% endif %}
                       </div>
                     </td>
                     {% if row.played or not row.on_roster %}
@@ -42,7 +42,7 @@
                   </tr>
                 {% endfor %}
               </tbody>
-              {% if totals %}
+              {% if totals and stats_recorded %}
                 <tfoot>
                   <tr>
                     <th scope="row">Team totals</th>

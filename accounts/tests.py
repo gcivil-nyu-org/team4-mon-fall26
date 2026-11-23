@@ -56,7 +56,7 @@ class SignUpTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
     def test_duplicate_email_rejected(self):
-        self.client.post(self.url, VALID)
+        get_user_model().objects.create_user(EMAIL, EMAIL, "x-pass-12345")
         response = self.client.post(self.url, {**VALID, "email": "Sp1234@nyu.edu"})
         self.assertContains(response, "An account with this email already exists.")
         self.assertEqual(get_user_model().objects.count(), 1)
@@ -75,7 +75,7 @@ class SignUpTests(TestCase):
             "ab1234@nyu.edu", "ab1234@nyu.edu", "x-pass-12345"
         )
         self.client.force_login(user)
-        self.assertRedirects(self.client.get(self.url), reverse("teams:list"))
+        self.assertRedirects(self.client.get(self.url), reverse("core:home"))
 
 
 class VerifyTests(TestCase):
@@ -128,6 +128,61 @@ class VerifyTests(TestCase):
         with mock.patch.object(email_verification_token, "_now", return_value=later):
             response = self.client.get(self.link)
         self.assertContains(response, "Email confirmed")
+
+
+class UnverifiedSignUpTests(TestCase):
+    """Only the inbox owner chooses the password (#302)."""
+
+    CLAIM = {
+        "first_name": "Real",
+        "last_name": "Owner",
+        "password1": "Own3r-pass-2026",
+        "password2": "Own3r-pass-2026",
+    }
+
+    def setUp(self):
+        # Someone else signs up with this email first, in their own browser.
+        self.client_class().post(reverse("accounts:signup"), VALID)
+
+    def user(self):
+        return get_user_model().objects.get(email=EMAIL)
+
+    def test_link_in_another_browser_asks_for_a_password(self):
+        link = link_from(mail.outbox[0])
+        response = self.client.get(link)
+        self.assertContains(response, "Finish signing up")
+        self.assertNotContains(response, "already on a team")
+        self.assertFalse(self.user().is_active)
+
+        response = self.client.post(link, self.CLAIM)
+        self.assertRedirects(response, reverse("core:home"))
+        user = self.user()
+        self.assertTrue(user.is_active)
+        self.assertEqual(user.first_name, "Real")
+        self.assertTrue(user.check_password(self.CLAIM["password1"]))
+        self.assertFalse(user.check_password(VALID["password1"]))
+        self.assertEqual(self.client.get(link).status_code, 400)
+
+    def test_owner_can_sign_up_and_still_sets_the_password_from_the_link(self):
+        data = {**VALID, **self.CLAIM}
+        response = self.client.post(reverse("accounts:signup"), data)
+        self.assertRedirects(response, reverse("accounts:check_email"))
+        self.assertEqual(get_user_model().objects.count(), 1)
+        link = link_from(mail.outbox[-1])
+        self.assertContains(self.client.get(link), "Finish signing up")
+        self.client.post(link, self.CLAIM)
+        self.assertTrue(self.user().check_password(self.CLAIM["password1"]))
+
+    def test_second_sign_up_does_not_change_the_first(self):
+        data = {**VALID, **self.CLAIM}
+        self.client.post(reverse("accounts:signup"), data)
+        self.assertTrue(self.user().check_password(VALID["password1"]))
+        self.assertEqual(self.user().first_name, "Sam")
+
+    def test_deactivated_account_cannot_sign_up_again(self):
+        PlayerProfile.objects.create(user=self.user())
+        response = self.client.post(reverse("accounts:signup"), VALID)
+        self.assertContains(response, "An account with this email already exists.")
 
 
 class ResendTests(TestCase):
@@ -201,8 +256,23 @@ class LoginTests(TestCase):
         response = self.client.post(
             self.url, {"username": "SP1234@nyu.edu", "password": VALID["password1"]}
         )
-        self.assertRedirects(response, reverse("teams:list"))
+        self.assertRedirects(response, reverse("core:home"))
         self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.pk)
+
+    def test_wrong_password_error_says_nyu_email(self):
+        # #291: the field is "NYU email", so the error must not say "username".
+        self.client.get(link_from(mail.outbox[0]))
+        response = self.client.post(
+            self.url, {"username": EMAIL, "password": "wrong-pass-123"}
+        )
+        self.assertContains(response, "The NYU email or password is incorrect.")
+        self.assertNotContains(response, "correct username")
+
+    def test_signed_in_user_opening_login_goes_home(self):
+        # #271: no stale login form for a user who is already signed in.
+        self.client.get(link_from(mail.outbox[0]))
+        self.client.force_login(self.user)
+        self.assertRedirects(self.client.get(self.url), reverse("core:home"))
 
     def test_login_page_links_to_signup_and_resend(self):
         response = self.client.get(self.url)
@@ -234,7 +304,7 @@ class LoginTests(TestCase):
         response = self.client.post(
             self.url, {"username": EMAIL, "password": VALID["password1"]}
         )
-        self.assertRedirects(response, reverse("teams:list"))
+        self.assertRedirects(response, reverse("core:home"))
         self.client.logout()
 
         for _ in range(3):
@@ -245,7 +315,7 @@ class LoginTests(TestCase):
         response = self.client.post(
             self.url, {"username": EMAIL, "password": VALID["password1"]}
         )
-        self.assertRedirects(response, reverse("teams:list"))
+        self.assertRedirects(response, reverse("core:home"))
 
     def test_login_rate_limit_expires(self):
         for _ in range(settings.LOGIN_RATE_LIMIT_EMAIL_ATTEMPTS):
@@ -267,7 +337,7 @@ class LoginTests(TestCase):
         response = self.client.post(
             self.url, {"username": EMAIL, "password": VALID["password1"]}
         )
-        self.assertRedirects(response, reverse("teams:list"))
+        self.assertRedirects(response, reverse("core:home"))
 
     def test_login_rate_limit_by_ip(self):
         for i in range(settings.LOGIN_RATE_LIMIT_IP_ATTEMPTS):
@@ -303,7 +373,8 @@ class NetIdFromEmailTests(TestCase):
     def test_other_email_styles_leave_net_id_blank(self):
         self.assertIsNone(self.verify("jane.doe@nyu.edu").net_id)
 
-    def test_net_id_already_taken_is_left_blank(self):
+    def test_owner_gets_the_net_id_back(self):
         other = get_user_model().objects.create_user("x", "x@nyu.edu", "x-pass-12345")
         PlayerProfile.objects.create(user=other, net_id="ab1234")
-        self.assertIsNone(self.verify("ab1234@nyu.edu").net_id)
+        self.assertEqual(self.verify("ab1234@nyu.edu").net_id, "ab1234")
+        self.assertIsNone(PlayerProfile.objects.get(user=other).net_id)

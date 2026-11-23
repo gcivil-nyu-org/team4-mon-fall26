@@ -265,7 +265,7 @@ def search_people(user, q):
     partial email never matches, so search can't be used to guess who has
     an account.
     """
-    query = (q or "").strip()
+    query = (q or "").replace("\x00", "").strip()
     if len(query) < 2:
         return []
     looks = Q(first_name__icontains=query) | Q(last_name__icontains=query)

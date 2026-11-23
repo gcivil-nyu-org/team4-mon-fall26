@@ -1,8 +1,10 @@
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from accounts.roles import LEAGUE_ADMIN_ROLE, has_role
@@ -80,3 +82,16 @@ def overview(request):
     context = overview_context(timezone.now())
     context["nav_section"] = "overview"
     return render(request, "core/overview.html", context)
+
+
+def csrf_failure(request, reason=""):
+    """CSRF_FAILURE_VIEW (#271): a stale form, often a second login submit.
+
+    A signed-in user who resubmits the login form goes to Home, because the
+    login already worked. Every other failure gets a friendly 403 page
+    instead of Django's raw one.
+    """
+    if request.user.is_authenticated and request.path == reverse("login"):
+        messages.info(request, "You're already logged in.")
+        return redirect("core:home")
+    return render(request, "core/csrf_failure.html", status=403)

@@ -25,8 +25,8 @@
       </div>
       {% if topic.is_flagged %}
         <span class="badge bg-yellow-lt">Reported</span>
-      {% else %}
-        <form method="post" action="{% url 'forums:report_topic' topic.pk %}">
+      {% elif topic.author_id != user.pk %}
+        <form method="post" action="{% url 'forums:report_topic' topic.pk %}" onsubmit="return confirm('Report this topic to League Admins?');">
           {% csrf_token %}
           <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report</button>
         </form>
@@ -52,8 +52,8 @@
             <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
               {% if reply.is_flagged %}
                 <span class="badge bg-yellow-lt">Reported</span>
-              {% else %}
-                <form method="post" action="{% url 'forums:report_reply' topic.pk reply.pk %}">
+              {% elif reply.author_id != user.pk %}
+                <form method="post" action="{% url 'forums:report_reply' topic.pk reply.pk %}" onsubmit="return confirm('Report this reply to League Admins?');">
                   {% csrf_token %}
                   <button class="btn btn-sm btn-ghost-secondary" type="submit"><i aria-hidden="true" class="ti ti-flag me-1"></i>Report</button>
                 </form>

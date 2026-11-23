@@ -216,8 +216,10 @@ INVITE_RATE_LIMIT_WINDOW_SECONDS = int(
 # Auth redirects
 # Login is customized; logout and password reset use Django's built-in views.
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "teams:list"
+LOGIN_REDIRECT_URL = "core:home"
 LOGOUT_REDIRECT_URL = "core:home"
+# A friendly page instead of the raw CSRF 403, for example a stale login form (#271).
+CSRF_FAILURE_VIEW = "core.views.csrf_failure"
 
 
 # Structured logging (#165): everything goes to the console (Travis/EB read

@@ -6,14 +6,18 @@ to matches.stats.save_match_sheet, the only writer.
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.crypto import salted_hmac
 
 from core.names import display_name
+from teams.event_types import scoring_event_type
 
 from .forms import ScoreForm
 from .stats import check_one_team, match_event_types, save_match_sheet, team_sheets
 
 MAX_NUMBER = 9999
 PERIOD_PREFIX = "period"
+OVERTIME_NEEDS_TIE = "Overtime can only be entered when the regular periods end tied."
+SCORE_CONFIRMATION_FIELD = "score_confirmation"
 
 
 def _number_field():
@@ -77,8 +81,24 @@ class BasePeriodFormSet(forms.BaseFormSet):
                 errors.append(f"Enter {earlier.label} before {later.label}.")
         if not all_regular and any(not form.is_blank for form in overtime):
             errors.append("Enter the regular periods before overtime.")
+        if not errors and not self._overtime_follows_ties(regular, overtime):
+            errors.append(OVERTIME_NEEDS_TIE)
         if errors:
             raise ValidationError(errors)
+
+    @staticmethod
+    def _overtime_follows_ties(regular, overtime):
+        """Each filled overtime period starts from a tied score."""
+        home = sum(form.points()[0] or 0 for form in regular)
+        away = sum(form.points()[1] or 0 for form in regular)
+        for form in overtime:
+            if form.is_blank:
+                break
+            if home != away:
+                return False
+            home += form.points()[0]
+            away += form.points()[1]
+        return True
 
     def filled(self):
         """[(period, home, away)] for every complete row."""
@@ -204,10 +224,15 @@ class MatchSheet:
         self.stats = PlayerStatForm(
             data, sheets=team_sheets(match), event_types=self.event_types
         )
+        self.scoring_type = scoring_event_type(sport.pk, self.event_types)
         self._errors = []
+        self.score_mismatches = []
+        self.score_token = ""
 
     def is_valid(self):
         self._errors = []
+        self.score_mismatches = []
+        self.score_token = ""
         if self.periods.is_valid() and self.periods.filled():
             # Periods set the final score, so the posted final fields don't count.
             data = self.data.copy()
@@ -226,7 +251,54 @@ class MatchSheet:
         except ValidationError as error:
             self._errors.extend(error.messages)
             return False
-        return True
+        # A mismatch is a warning, not an error, but it holds the save back
+        # until the user confirms it.
+        self._find_score_mismatches()
+        return not self._mismatches_unconfirmed()
+
+    def _scores(self):
+        """(home, away) as it will be saved: the period sums, else the final."""
+        periods = self.periods.filled()
+        if periods:
+            return sum(p[1] for p in periods), sum(p[2] for p in periods)
+        return self._final()
+
+    def _find_score_mismatches(self):
+        """[(team, players' scoring total, team score)] where they differ.
+
+        A total of 0 means no stats were entered, so it isn't a mismatch.
+        Players who left count with their stored rows, as on the match page.
+        """
+        scoring = self.scoring_type
+        if scoring is None:
+            return
+        posted = self.stats.stats()
+        for sheet, score in zip(self.stats.sheets, self._scores()):
+            total = sum(
+                (
+                    posted.get((sheet.team.pk, row.player.pk, scoring.pk), 0)
+                    if row.on_roster
+                    else row.stats.get(scoring.pk, 0)
+                )
+                for row in sheet.rows
+            )
+            if total and total != score:
+                self.score_mismatches.append((sheet.team, total, score))
+        if self.score_mismatches:
+            warned_about = (
+                self.match.pk,
+                [
+                    (team.pk, total, score)
+                    for team, total, score in self.score_mismatches
+                ],
+            )
+            self.score_token = salted_hmac(
+                "matches.score_mismatch", repr(warned_about)
+            ).hexdigest()
+
+    def _mismatches_unconfirmed(self):
+        submitted = self.data.get(SCORE_CONFIRMATION_FIELD)
+        return bool(self.score_mismatches) and submitted != self.score_token
 
     def non_field_errors(self):
         return list(self.score_form.non_field_errors()) + self.sheet_errors()

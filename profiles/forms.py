@@ -4,6 +4,7 @@ from django import forms
 from django.db import transaction
 
 from .models import PlayerProfile
+from .net_ids import belongs_to_someone_else, owns_net_id, release_net_id
 
 N_NUMBER_RE = re.compile(r"^N\d{8}$")
 NET_ID_RE = re.compile(r"^[a-z]+\d+$")
@@ -50,11 +51,27 @@ class ProfileForm(forms.ModelForm):
             raise forms.ValidationError(
                 "Enter your NetID as letters followed by digits, e.g. ab1234."
             )
+        if belongs_to_someone_else(value, self.user):
+            raise forms.ValidationError("This NetID belongs to another account.")
         return value
+
+    def validate_unique(self):
+        # The owner of a NetID gets it even if someone else saved it first:
+        # save() takes it off the other profile (#304).
+        exclude = self._get_validation_exclusions()
+        if owns_net_id(self.user, self.cleaned_data.get("net_id")):
+            exclude.add("net_id")
+        try:
+            self.instance.validate_unique(exclude=exclude)
+        except forms.ValidationError as error:
+            self._update_errors(error)
 
     def save(self):
         """Save the user's name and this profile in one transaction."""
         with transaction.atomic():
+            net_id = self.cleaned_data["net_id"]
+            if owns_net_id(self.user, net_id):
+                release_net_id(net_id, self.user)
             self.user.first_name = self.cleaned_data["first_name"]
             self.user.last_name = self.cleaned_data["last_name"]
             self.user.save(update_fields=["first_name", "last_name"])

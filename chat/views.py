@@ -157,7 +157,8 @@ def team_thread_redirect(request, team_pk):
 @login_required
 def new_conversation(request):
     form = NewConversationForm(request.user)
-    query = (request.GET.get("q") or "").strip()
+    # PostgreSQL rejects NUL in text, so drop it instead of a 500 (#295).
+    query = (request.GET.get("q") or "").replace("\x00", "").strip()
     results = search_people(request.user, query) if query else []
     chosen, has_bad = _chosen_people(request)
     if request.method == "GET" and not query and len(chosen) == 1 and not has_bad:

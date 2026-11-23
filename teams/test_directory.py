@@ -98,10 +98,53 @@ class TeamDirectoryTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(set(self.names(response)), expected)
 
-    def test_division_select_only_with_season(self):
-        self.assertNotContains(self.client.get(self.url), 'name="division"')
+    def test_division_select_is_disabled_until_a_season_is_chosen(self):
+        # #275: the filter always shows, so people can see it exists.
+        response = self.client.get(self.url)
+        self.assertContains(response, 'name="division" aria-describedby')
+        self.assertContains(response, " disabled>")
+        self.assertContains(response, "Pick a season and filter to choose a division.")
         response = self.client.get(self.url, {"season": self.fall.pk})
         self.assertContains(response, 'name="division"')
+        self.assertNotContains(response, " disabled>")
+        self.assertContains(response, f'value="{self.gold.pk}"')
+
+    def test_sport_narrows_the_season_list(self):
+        # #275: a season of another sport can't hold this sport's teams.
+        hoops_season = Season.objects.create(
+            name="Hoops Fall",
+            start_date="2026-09-02",
+            state=SeasonState.OPEN,
+            sport=self.hoops,
+        )
+        response = self.client.get(self.url, {"sport": self.soccer.pk})
+        seasons = list(response.context["seasons"])
+        self.assertIn(self.fall, seasons)
+        self.assertNotIn(hoops_season, seasons)
+        response = self.client.get(self.url, {"sport": self.hoops.pk})
+        self.assertIn(hoops_season, list(response.context["seasons"]))
+
+    def test_season_of_another_sport_is_dropped(self):
+        hoops_season = Season.objects.create(
+            name="Hoops Fall",
+            start_date="2026-09-02",
+            state=SeasonState.OPEN,
+            sport=self.hoops,
+        )
+        response = self.client.get(
+            self.url, {"sport": self.soccer.pk, "season": hoops_season.pk}
+        )
+        self.assertIsNone(response.context["selected"]["season"])
+        self.assertEqual(set(self.names(response)), {"Violets", "Bobcats", "Loners"})
+
+    def test_nul_in_search_is_dropped(self):
+        # #295: PostgreSQL rejects NUL in a text parameter.
+        response = self.client.get(self.url, {"q": "Vio\x00lets"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected"]["q"], "Violets")
+        self.assertEqual(self.names(response), ["Violets"])
+        response = self.client.get(self.url, {"q": "\x00"})
+        self.assertEqual(response.context["selected"]["q"], "")
 
     def test_pagination_keeps_filters(self):
         captain = make_user("other-cap")
