@@ -24,6 +24,11 @@ script:
   - coverage report --fail-under=80
   - python manage.py makemigrations --check --dry-run
 
+# Send coverage to Coveralls, for the README badge. Only the SQLite job measures
+# coverage. Builds without the token skip it, and a failed upload doesn't fail the build.
+after_success:
+  - if [ "$CI_DB" != "postgres" ] && [ -n "$COVERALLS_REPO_TOKEN" ]; then coveralls; fi
+
 # Two jobs: the checks above on SQLite, and the tests again on Postgres, because SQLite
 # ignores select_for_update (docs/DATABASE.md). With jobs.include, every job must be
 # listed here. The image comes from AWS's mirror of the official image, to avoid

@@ -2,6 +2,8 @@
 -r requirements.txt
 flake8>=7.1
 coverage>=7.6
+# Uploads coverage to coveralls.io from Travis.
+coveralls>=4.1
 # Readable tracebacks from parallel test workers.
 tblib>=3.0
 black==26.10.1
