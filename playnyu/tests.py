@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import sys
@@ -80,3 +81,40 @@ class TestHasherTests(SimpleTestCase):
 
     def test_manage_py_test_sets_the_flag(self):
         self.assertEqual(self.first_hasher("manage.py", "test"), [MD5, "True"])
+
+
+# Loads settings in a new process with a chosen sys.argv, then prints the
+# django.request logger config, or None when the defaults apply.
+LOGGING_SCRIPT = (
+    "import sys; sys.argv = sys.argv[1:]\n"
+    "from django.conf import settings\n"
+    "print(settings.LOGGING['loggers'].get('django.request', {}).get('level'))\n"
+)
+
+
+class TestRequestLoggingTests(SimpleTestCase):
+    def test_test_run_logs_request_errors_only(self):
+        self.assertEqual(logging.getLogger("django.request").level, logging.ERROR)
+
+    def test_assert_logs_still_sees_request_warnings(self):
+        with self.assertLogs("django.request", "WARNING") as logs:
+            self.client.get("/no-such-page/")
+        self.assertIn("Not Found: /no-such-page/", logs.output[0])
+
+    def request_level(self, *argv):
+        env = {**os.environ, "DJANGO_SETTINGS_MODULE": "playnyu.settings"}
+        result = subprocess.run(
+            [sys.executable, "-c", LOGGING_SCRIPT, *argv],
+            cwd=settings.BASE_DIR,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+
+    def test_other_commands_keep_request_warnings(self):
+        for argv in (["manage.py", "runserver"], ["gunicorn", "playnyu.wsgi"]):
+            with self.subTest(argv=argv):
+                self.assertEqual(self.request_level(*argv), "None")
+        self.assertEqual(self.request_level("manage.py", "test"), "ERROR")

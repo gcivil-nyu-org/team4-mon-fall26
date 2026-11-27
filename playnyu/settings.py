@@ -286,3 +286,13 @@ LOGGING = {
         },
     },
 }
+
+# Tests expect many 403, 404 and 405 responses, and Django logs each one as a
+# warning. Under `manage.py test` this logger shows errors only, so a real
+# failure isn't buried. assertLogs still sees the warnings.
+if TESTING:
+    LOGGING["loggers"]["django.request"] = {
+        "handlers": ["console"],
+        "level": "ERROR",
+        "propagate": False,
+    }
