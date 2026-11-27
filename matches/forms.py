@@ -173,7 +173,9 @@ class MatchForm(forms.ModelForm):
             cleaned["ends_at"].timestamp(),
             [(team.pk, stamps(matches)) for team, matches in self.team_clashes],
         )
-        return salted_hmac("matches.overlap", repr(warned_about)).hexdigest()
+        return salted_hmac(
+            "matches.overlap", repr(warned_about), algorithm="sha256"
+        ).hexdigest()
 
     def _overlaps_unconfirmed(self):
         submitted = self.data.get(OVERLAP_CONFIRMATION_FIELD)
