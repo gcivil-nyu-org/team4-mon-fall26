@@ -5,7 +5,6 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.core.mail import BadHeaderError
 from django.db import IntegrityError
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -242,8 +241,9 @@ class AddPlayerByEmailTests(TestCase):
         self.assertEqual(message, f"Invite email failed for user {user.pk}")
 
     def test_bad_header_is_logged_and_add_still_succeeds(self):
+        # Django 6.1 raises ValueError for a newline in a header.
         with mock.patch(
-            "accounts.placeholders.send_mail", side_effect=BadHeaderError("newline")
+            "accounts.placeholders.send_mail", side_effect=ValueError("newline")
         ):
             with self.assertLogs("accounts.placeholders", "ERROR"):
                 with self.captureOnCommitCallbacks(execute=True):

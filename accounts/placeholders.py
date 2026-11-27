@@ -116,7 +116,7 @@ def send_invite_email(request_or_base_url, user, team, invited_by):
         "accounts/invite_email.txt",
         {"user": user, "team": team, "inviter": inviter, "link": link},
     )
-    # A newline in the subject would make send_mail raise BadHeaderError.
+    # A newline in the subject would make send_mail raise ValueError.
     team_name = " ".join(team.name.splitlines())
     send_mail(f"You were added to {team_name} on PlayNYU", body, None, [user.email])
 
