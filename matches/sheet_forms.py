@@ -300,7 +300,7 @@ class MatchSheet:
                 ],
             )
             self.score_token = salted_hmac(
-                "matches.score_mismatch", repr(warned_about)
+                "matches.score_mismatch", repr(warned_about), algorithm="sha256"
             ).hexdigest()
 
     def _mismatches_unconfirmed(self):

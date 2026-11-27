@@ -115,7 +115,9 @@ class Plan:
             for planned in self.matches
         ]
         return salted_hmac(
-            "matches.round_robin", repr((self.season.pk, self.skipped, shown))
+            "matches.round_robin",
+            repr((self.season.pk, self.skipped, shown)),
+            algorithm="sha256",
         ).hexdigest()
 
 
