@@ -45,7 +45,7 @@
     {% if rows %}
       <div class="card-header">
         <h3 class="card-title">{% if division %}{{ division.name }} leaderboard{% else %}Leaderboard{% endif %}</h3>
-        <div class="card-actions"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:schedule' %}?season={{ season.pk }}">View season schedule</a></div>
+        <div class="card-actions d-flex flex-wrap gap-2"><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:player_leaders' %}?season={{ season.pk }}">Player leaders</a><a class="btn btn-sm btn-ghost-secondary" href="{% url 'matches:schedule' %}?season={{ season.pk }}">View season schedule</a></div>
       </div>
       <div class="table-responsive">
         <table class="table table-vcenter card-table">

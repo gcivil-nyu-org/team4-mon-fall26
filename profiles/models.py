@@ -24,6 +24,12 @@ class PlayerProfile(models.Model):
         blank=True,
         error_messages={"unique": "This NetID is already used by another account."},
     )
+    # Off leaves the player out of the player leaderboards (#311).
+    show_on_leaderboards = models.BooleanField(
+        "Show me on leaderboards",
+        default=True,
+        help_text="Untick to leave your name out of the player leaderboards.",
+    )
 
     def __str__(self):
         return f"Profile of {display_name(self.user)}"

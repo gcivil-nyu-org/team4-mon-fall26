@@ -73,6 +73,7 @@ OPEN_URLS = {
     "forums:report_topic",
     "matches:detail",
     "matches:mine",
+    "matches:player_leaders",
     "matches:report_comment",
     "matches:schedule",
     "matches:season_schedule",

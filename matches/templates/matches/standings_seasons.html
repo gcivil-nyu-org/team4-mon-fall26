@@ -1,9 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Standings · PlayNYU{% endblock %}
 {% block content %}
-  <div class="page-header mb-4">
-    <h1>Standings</h1>
-    <div class="page-meta">Pick a season to see its leaderboard.</div>
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h1>Standings</h1>
+      <div class="page-meta">Pick a season to see its leaderboard.</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{% url 'matches:player_leaders' %}"><i aria-hidden="true" class="ti ti-chart-bar me-1"></i>Player leaders</a>
   </div>
 
   <div class="card">
