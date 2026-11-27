@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load ui teams_extras %}
+{% block title %}Player leaders · PlayNYU{% endblock %}
+{% block content %}
+  <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div class="min-w-0">
+      <div class="subheader">{% if season %}{{ season.name }}{% else %}All seasons{% endif %}{% if sport %} · {{ sport.name }}{% endif %}</div>
+      <h1>Player leaders</h1>
+      <div class="page-meta">Player stats from matches with a final score.</div>
+    </div>
+    {% if sports %}
+      <form class="d-flex flex-wrap align-items-end gap-2" method="get" action="{% url 'matches:player_leaders' %}">
+        <div>
+          <label class="form-label" for="leaders-sport">Sport</label>
+          <select class="form-select" id="leaders-sport" name="sport">
+            {% for option in sports %}
+              <option value="{{ option.pk }}"{% if sport and option.pk == sport.pk %} selected{% endif %}>{{ option.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="leaders-season">Season</label>
+          <select class="form-select" id="leaders-season" name="season">
+            {% for option in seasons %}
+              <option value="{{ option.pk }}"{% if season and option.pk == season.pk %} selected{% endif %}>{{ option.name }}</option>
+            {% endfor %}
+            <option value="{{ all_seasons }}"{% if not season %} selected{% endif %}>All seasons</option>
+          </select>
+        </div>
+        <button class="btn btn-outline-secondary" type="submit">Show</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    {% if boards %}
+      <div class="card-header">
+        <div><h3 class="card-title">Leaders</h3><div class="small text-secondary">Top {{ limit }} for each stat</div></div>
+      </div>
+      <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden text-nowrap position-relative" role="tablist" aria-label="Leaders by stat">
+          {% for board in boards %}
+            <li class="nav-item" role="presentation">
+              <button class="nav-link{% if forloop.first %} active{% endif %}" id="leaders-tab-{{ board.event_type.pk }}" type="button" role="tab" data-bs-toggle="tab" data-bs-target="#leaders-stat-{{ board.event_type.pk }}" aria-controls="leaders-stat-{{ board.event_type.pk }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}"{% if not forloop.first %} tabindex="-1"{% endif %}>{{ board.event_type.name }}</button>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="tab-content">
+        {% for board in boards %}
+          <div class="tab-pane{% if forloop.first %} active show{% endif %}" id="leaders-stat-{{ board.event_type.pk }}" role="tabpanel" aria-labelledby="leaders-tab-{{ board.event_type.pk }}" tabindex="0">
+            {% if board.rows %}
+              <div class="table-responsive">
+                <table class="table table-vcenter card-table">
+                  <thead>
+                    <tr>
+                      <th class="w-1">#</th>
+                      <th>Player</th>
+                      <th class="text-end" title="Games played">GP</th>
+                      <th class="text-end">{{ board.event_type.name }}</th>
+                      <th class="text-end">Per game</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in board.rows %}
+                      <tr{% if row.player.pk == user.pk %} class="pn-row-me"{% endif %}>
+                        <td class="pn-num text-secondary">{{ row.rank }}</td>
+                        <td>
+                          <div class="d-flex align-items-center gap-2 min-w-0">
+                            {% include "components/avatar.html" with person=row.player size="sm" %}
+                            <div class="min-w-0">
+                              {% if row.player.is_active %}
+                                <a class="text-reset fw-medium text-break" href="{% profile_url row.player %}">{{ row.player|display_name }}</a>
+                              {% else %}
+                                <span class="fw-medium text-break">{{ row.player|display_name }}</span>
+                              {% endif %}
+                              {% if row.player.pk == user.pk %}<span class="visually-hidden"> (you)</span>{% endif %}
+                              {% if row.team %}
+                                <div class="small text-secondary d-flex align-items-center gap-1 min-w-0">
+                                  {% include "components/team_logo.html" with team=row.team size="xs" %}
+                                  <a class="text-reset text-truncate" href="{% url 'teams:detail' row.team.pk %}">{{ row.team.name }}</a>{% if row.team.division %}<span class="text-truncate"> · {{ row.team.division.name }}</span>{% endif %}
+                                </div>
+                              {% endif %}
+                            </div>
+                          </div>
+                        </td>
+                        <td class="text-end pn-num">{{ row.games }}</td>
+                        <td class="text-end pn-num fw-bold">{{ row.total }}</td>
+                        <td class="text-end pn-num">{% if row.per_game is None %}<span class="text-secondary" title="Needs {{ min_games }} games played">–</span>{% else %}{{ row.per_game }}{% endif %}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="empty">
+                <div class="empty-icon"><i aria-hidden="true" class="ti ti-chart-bar"></i></div>
+                <p class="empty-title">No {{ board.event_type.name }} recorded yet</p>
+                <p class="empty-subtitle text-secondary">Stats appear after a scorekeeper records a match.</p>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="card-footer small text-secondary">Per game needs {{ min_games }} games played. Players can leave themselves off on their profile.</div>
+    {% else %}
+      <div class="empty">
+        <div class="empty-icon"><i aria-hidden="true" class="ti ti-chart-bar"></i></div>
+        <p class="empty-title">No stats yet</p>
+        <p class="empty-subtitle text-secondary">{% if sport %}{{ sport.name }} has no event types yet. A League Admin adds them in League setup.{% else %}A League Admin adds sports and event types in League setup.{% endif %}</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

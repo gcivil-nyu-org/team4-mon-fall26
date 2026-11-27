@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import comment_views, round_robin_views, views
+from . import comment_views, leaderboard_views, round_robin_views, views
 
 app_name = "matches"
 
@@ -31,6 +31,7 @@ urlpatterns = [
     path("manage/<int:pk>/cancel/", views.cancel_match, name="cancel"),
     path("manage/<int:pk>/score/", views.record_score, name="score"),
     path("mine/<int:pk>/score/", views.submit_score, name="submit_score"),
+    path("leaders/", leaderboard_views.player_leaders, name="player_leaders"),
     path("standings/", views.standings_seasons, name="standings"),
     path("standings/<int:pk>/", views.season_standings, name="season_standings"),
 ]

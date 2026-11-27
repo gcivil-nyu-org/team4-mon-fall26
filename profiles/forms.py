@@ -11,7 +11,9 @@ NET_ID_RE = re.compile(r"^[a-z]+\d+$")
 
 
 class ProfileForm(forms.ModelForm):
-    """Fields a user may edit on their own profile: first name, last name, N number, NetID.
+    """Fields a user may edit on their own profile.
+
+    First name, last name, N number, NetID and the leaderboard opt-out.
 
     Email, verification status and roles are deliberately left out.
     """
@@ -21,9 +23,15 @@ class ProfileForm(forms.ModelForm):
 
     class Meta:
         model = PlayerProfile
-        fields = ["n_number", "net_id"]
+        fields = ["n_number", "net_id", "show_on_leaderboards"]
 
-    field_order = ["first_name", "last_name", "n_number", "net_id"]
+    field_order = [
+        "first_name",
+        "last_name",
+        "n_number",
+        "net_id",
+        "show_on_leaderboards",
+    ]
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
